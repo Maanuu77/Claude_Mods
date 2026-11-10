@@ -1,0 +1,30 @@
+{
+  "label": "T1-cli-2.1.289",
+  "startedAt": 1794340238618,
+  "delayMs": 20000,
+  "endpointWrittenAt": 20028,
+  "requests": [
+    {
+      "atMs": 21088,
+      "method": "GET",
+      "url": "/health",
+      "hasOrigin": false,
+      "status": 200
+    },
+    {
+      "atMs": 21093,
+      "method": "GET",
+      "url": "/health",
+      "hasOrigin": false,
+      "status": 401
+    },
+    {
+      "atMs": 21099,
+      "method": "POST",
+      "url": "/hello",
+      "hasOrigin": false,
+      "helloProbe": "core",
+      "status": 200
+    }
+  ]
+}

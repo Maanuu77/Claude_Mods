@@ -1,0 +1,66 @@
+{
+  "probe": "core",
+  "schema": 2,
+  "loadedAt": 1794340377289,
+  "commandRegister": "ok",
+  "g1": {
+    "session.version": "ok",
+    "session.id": "ok",
+    "session.usage": {
+      "ok": true,
+      "keys": [
+        "startedAt",
+        "context",
+        "rateLimits",
+        "cost"
+      ],
+      "rateLimitKinds": [],
+      "hasCost": true
+    },
+    "agent.list": {
+      "ok": true,
+      "count": 0
+    },
+    "clock.now": "ok",
+    "clock.after": "ok",
+    "clock.every": "ok",
+    "env.get": "ok",
+    "fs.exists": "ok",
+    "ui.status": "ok"
+  },
+  "engine": {
+    "version": "2.1.317",
+    "base": "2.1.317",
+    "builtAt": "2026-11-02T22:15:13Z"
+  },
+  "updatedAt": 1794340398247,
+  "fsWrite": "ok",
+  "g10": {
+    "pollMs": 5000,
+    "firstAttempt": {
+      "%APPDATA%": {
+        "stat": "HooksError: dev-cockpit-probe-core: $.fs.stat(%APPDATA%\\dev-cockpit-probe\\endpoint.json) failed: ENOENT",
+        "read": "HooksError: dev-cockpit-probe-core: $.fs.read(%APPDATA%\\dev-cockpit-probe\\endpoint.json) failed: ENOENT"
+      },
+      "%LOCALAPPDATA% (alternativa A)": {
+        "stat": "HooksError: dev-cockpit-probe-core: $.fs.stat(%LOCALAPPDATA%\\dev-cockpit-probe\\endpoint.json) failed: ENOENT",
+        "read": "HooksError: dev-cockpit-probe-core: $.fs.read(%LOCALAPPDATA%\\dev-cockpit-probe\\endpoint.json) failed: ENOENT"
+      }
+    },
+    "scenario": "S1: endpoint ausente al arrancar; vigilancia hasta que aparezca",
+    "reconnect": {
+      "connected": true,
+      "ticks": 4,
+      "waitedMs": 20036,
+      "last": {
+        "%APPDATA%": {
+          "stat": "ok",
+          "read": "ok",
+          "health": 200,
+          "healthWithoutToken": 401,
+          "hello": 200
+        }
+      }
+    }
+  }
+}

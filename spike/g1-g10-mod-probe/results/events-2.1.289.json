@@ -1,0 +1,17 @@
+{
+  "probe": "events",
+  "schema": 2,
+  "loadedAt": 1794340239060,
+  "registered": [
+    "session.measure",
+    "classic.TaskCreated",
+    "classic.TaskCompleted"
+  ],
+  "fired": {},
+  "engine": {
+    "version": "2.1.289",
+    "base": "2.1.289",
+    "builtAt": "2026-10-03T19:21:39Z"
+  },
+  "updatedAt": 1794340239463
+}
