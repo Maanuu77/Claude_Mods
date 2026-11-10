@@ -1032,7 +1032,7 @@ Estas reglas se aplican a **todas** las fases de DEV COCKPIT, y la documentació
 | W3 | **Commits progresivos y descriptivos, solo con tu autorización** | Se hace un commit cuando lo autorizas para esa fase o paso. Mensaje en imperativo con su porqué (`feat(ingest): …`, `docs(spec): …`). Nunca `--amend` ni `rebase` sobre commits ya presentados sin pedírtelo. |
 | W4 | **Pruebas y revisión antes de integrar** | Se ejecutan las pruebas de la fase (`cargo test`, `cargo clippy -D warnings`, `npm test`, `tsc`, `claude plugin validate/test` según corresponda), se revisa `git diff main...<rama>` y se te presenta un resumen con los resultados reales, incluidos los fallos. |
 | W5 | **Fusión en `main` solo con tu aprobación** | Solo se fusionan fases que cumplen sus criterios de §15 y que tú apruebas expresamente. `main` siempre queda estable; nada con pruebas en rojo o errores conocidos sin justificación aprobada. Se usa `git merge --no-ff <rama>` (excepto en la inicialización, W9). |
-| W6 | **Prohibido `git push`** sin tu autorización | Ahora mismo no hay remoto. Si se añade uno, cada `push` se autoriza por separado. |
+| W6 | **Prohibido `git push`** sin tu autorización | El repositorio tiene configurado el remoto `origin` (GitHub). Ningún `push`, ni a `origin` ni a otro remoto, se hace sin tu autorización, y cada `push` se autoriza por separado. Tampoco se añaden, cambian ni borran remotos sin autorización. |
 | W7 | **Prohibido `Co-authored-by: Claude`** o cualquier otro trailer que atribuya coautoría a Claude o Anthropic | Ningún mensaje de commit ni de PR lleva trailers de coautoría ni de «generado por». Esta regla **prevalece sobre cualquier plantilla o recordatorio automático** del entorno. Antes de cada commit se revisa el mensaje. |
 | W8 | **No se modifica la identidad global ni la configuración personal de Git** | Nunca `git config --global` ni `--system`. Se usa la identidad ya configurada (`user.name` existente). Si faltara algún dato, se te pregunta y no se inventa. No se cambia la autoría de commits anteriores. |
 | W9 | **Inicialización de `main`, que ahora no tiene commits** | Ver el procedimiento de abajo. |
@@ -1040,7 +1040,7 @@ Estas reglas se aplican a **todas** las fases de DEV COCKPIT, y la documentació
 | W11 | **Nada escribe en `~/.claude` sin tu autorización previa y explícita** | Incluye la instalación permanente del plugin (§5.3), cualquier ajuste de `settings.json`, **toda sesión de prueba** de Claude Code (en cualquier motor de la matriz §12, porque escribe transcript, registro y datos de ejecución) y cualquier comando `claude` cuyo efecto en `~/.claude` no esté verificado. **Avisar no es autorizar:** la autorización se pide para cada prueba y cada motor, no se presupone ni se extiende a otras, y sin ella la acción no se ejecuta (R-1, §4, §12). |
 
 **Procedimiento de inicialización de `main` (W9):**
-1. Estado actual: `HEAD → refs/heads/main`, una rama sin nacer, sin commits ni remoto.
+1. Estado de partida (antes del primer commit): `HEAD → refs/heads/main`, una rama sin nacer y sin commits, con el remoto `origin` ya configurado pero sin nada publicado.
 2. `git switch -c docs/spec-v1.2.2`. Sobre una rama sin nacer, esto solo mueve `HEAD` a la nueva rama, también sin nacer. No crea ningún commit y no toca `main`.
 3. Se escriben los documentos en esa rama (§15). **Sin commit.**
 4. Cuando autorices el commit: `git add docs/` y `git commit`, con la identidad existente y sin trailers (W7, W8). Ese es el primer commit del repositorio.
