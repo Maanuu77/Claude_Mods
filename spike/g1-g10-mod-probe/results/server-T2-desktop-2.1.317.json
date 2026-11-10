@@ -1,0 +1,30 @@
+{
+  "label": "T2-desktop-2.1.317",
+  "startedAt": 1794340375888,
+  "delayMs": 20000,
+  "endpointWrittenAt": 20035,
+  "requests": [
+    {
+      "atMs": 22341,
+      "method": "GET",
+      "url": "/health",
+      "hasOrigin": false,
+      "status": 200
+    },
+    {
+      "atMs": 22348,
+      "method": "GET",
+      "url": "/health",
+      "hasOrigin": false,
+      "status": 401
+    },
+    {
+      "atMs": 22354,
+      "method": "POST",
+      "url": "/hello",
+      "hasOrigin": false,
+      "helloProbe": "core",
+      "status": 200
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "name": "dev-cockpit-probe-events",
+  "version": "0.0.1",
+  "description": "DEV COCKPIT G-pre probe (disposable): registers the events whose availability G1 checks (session.measure, classic.TaskCreated/TaskCompleted). Observation only."
+}

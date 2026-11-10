@@ -1,0 +1,5 @@
+{
+  "name": "dev-cockpit-probe-core",
+  "version": "0.0.1",
+  "description": "DEV COCKPIT G-pre probe (disposable): checks the mod APIs (G1) and endpoint.json access plus reconnection (G10). Observation only."
+}

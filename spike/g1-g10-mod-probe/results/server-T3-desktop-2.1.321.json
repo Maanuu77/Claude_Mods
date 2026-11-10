@@ -1,0 +1,30 @@
+{
+  "label": "T3-desktop-2.1.321",
+  "startedAt": 1794340475276,
+  "delayMs": 20000,
+  "endpointWrittenAt": 20028,
+  "requests": [
+    {
+      "atMs": 21378,
+      "method": "GET",
+      "url": "/health",
+      "hasOrigin": false,
+      "status": 200
+    },
+    {
+      "atMs": 21383,
+      "method": "GET",
+      "url": "/health",
+      "hasOrigin": false,
+      "status": 401
+    },
+    {
+      "atMs": 21392,
+      "method": "POST",
+      "url": "/hello",
+      "hasOrigin": false,
+      "helloProbe": "core",
+      "status": 200
+    }
+  ]
+}
