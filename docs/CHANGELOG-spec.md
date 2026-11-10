@@ -4,6 +4,13 @@ Documento de referencia: [`SPEC.md`](SPEC.md). Las tablas detalladas de cada ver
 
 ---
 
+## Corrección documental: W6 y remoto (2026-11-10)
+
+Corrige un dato del estado del repositorio. No cambia la arquitectura, ni las reglas, ni el alcance.
+
+- W6 decía «no hay remoto», pero el repositorio tiene configurado `origin` (GitHub). Se corrige el texto y se mantiene la regla: ningún `push` ni ningún cambio de remotos sin autorización. (SPEC §17 W6, [`DEVELOPMENT_WORKFLOW.md`](DEVELOPMENT_WORKFLOW.md) W6)
+- El estado de partida de W9 menciona ahora el remoto. En `DEVELOPMENT_WORKFLOW.md` §2 se deja constancia de que W9 ya se completó (`0eb84f5`). (SPEC §17 W9, [`DEVELOPMENT_WORKFLOW.md`](DEVELOPMENT_WORKFLOW.md) §2)
+
 ## v1.2.2 + revisión correctiva final: **aprobada** (2026-11-10)
 
 No cambia la arquitectura, ni añade funcionalidades, dependencias o fases.

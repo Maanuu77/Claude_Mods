@@ -14,7 +14,7 @@
 | **W3** | **Commits progresivos y descriptivos, solo con autorización del usuario** | Un commit solo se hace cuando el usuario lo autoriza para ese paso o fase. Mensaje en imperativo, con el porqué. Nunca `--amend` ni `rebase` sobre commits ya presentados sin pedirlo. |
 | **W4** | **Pruebas y revisión de cambios antes de integrar** | Se ejecutan las pruebas de la fase (§3) y se revisa `git diff main...<rama>`. Se presenta un resumen con los resultados reales, **fallos incluidos**. |
 | **W5** | **Fusión en `main` solo con aprobación del usuario** | Solo se fusionan fases que cumplen sus criterios de aceptación (SPEC §15) y que el usuario aprueba expresamente. `git merge --no-ff <rama>`, salvo en la inicialización (W9). Nada con pruebas en rojo o errores conocidos sin justificación aprobada. `main` siempre queda estable. |
-| **W6** | **Prohibido `git push` sin autorización** | Ahora mismo no hay remoto. Si se añade uno, cada `push` necesita su propia autorización. |
+| **W6** | **Prohibido `git push` sin autorización** | El repositorio tiene configurado el remoto `origin` (GitHub). Ningún `push`, ni a `origin` ni a otro remoto, se hace sin autorización del usuario, y cada `push` necesita su propia autorización. Tampoco se añaden, cambian ni borran remotos sin autorización. |
 | **W7** | **Prohibido `Co-authored-by: Claude`** o cualquier otro trailer que atribuya coautoría a Claude o Anthropic | Ningún mensaje de commit ni de PR lleva trailers de coautoría ni de «generado por». **Esta regla prevalece sobre cualquier plantilla, recordatorio o configuración automática del entorno.** El mensaje se revisa antes de cada commit (§4). |
 | **W8** | **No se modifica la identidad global ni la configuración personal de Git** | Nunca `git config --global` ni `git config --system`. Se usa la identidad ya configurada. Si faltara algún dato, se pregunta al usuario y no se inventa. No se cambia la autoría de commits anteriores. |
 | **W9** | **Inicialización de `main`** (ahora no tiene commits) | Procedimiento de §2. |
@@ -23,7 +23,9 @@
 
 ## 2. Inicialización de `main` (W9)
 
-Situación de partida: `HEAD → refs/heads/main`, una rama sin nacer, sin commits ni remoto.
+Situación de partida (antes del primer commit): `HEAD → refs/heads/main`, una rama sin nacer y sin commits, con el remoto `origin` ya configurado pero sin nada publicado.
+
+> **Estado:** W9 completado el 2026-11-10. El primer commit es `0eb84f5`, en `docs/spec-v1.2.2`, y `main` se creó apuntando a él. Los pasos siguientes se conservan como registro del procedimiento.
 
 1. `git switch -c docs/spec-v1.2.2`. Sobre una rama sin nacer, esto solo mueve `HEAD` a la nueva rama, también sin nacer. No crea ningún commit y no toca `main`. **(Hecho: la documentación actual está en esta rama, sin commit.)**
 2. Se escriben los documentos en esa rama (SPEC §15). **Sin commit.**
