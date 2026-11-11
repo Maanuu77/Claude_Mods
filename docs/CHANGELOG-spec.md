@@ -4,6 +4,21 @@ Documento de referencia: [`SPEC.md`](SPEC.md). Las tablas detalladas de cada ver
 
 ---
 
+## Precisiones de F3: mod puente (2026-11-11)
+
+No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-11-f3.md`](perf/2026-11-11-f3.md).
+
+- **Matriz de motores:** Desktop 2.1.317 ya no está instalado (la aplicación se actualizó a 2.1.321). El mod compila contra sus tipos, pero no se puede validar ni probar con su binario. (SPEC §12)
+- **G1:** `session.measure` se dispara en 2.1.289, además de existir.
+- **G3 y G4 siguen abiertas**, junto con B3 y la prueba E2E: los motores ejecutados directamente no tienen sesión iniciada y no pueden enviar prompts.
+- **El mod es un solo fichero** (`hooks/register.ts`), sin `privacy.ts` aparte: no está comprobado que el motor cargue módulos relativos. La lista blanca del mod es un espejo de `cockpit-core/src/privacy.rs`. (SPEC §5.1)
+- **Hooks aplazados a F4b:** `classic.TaskCreated/TaskCompleted` y `classic.SubagentStart/SubagentStop` alimentan el Task Monitor y se añaden con él. El `hello` ya envía `agents`, que la app acepta y todavía no guarda. `turn.start` no se envía. (SPEC §5.2)
+- **Reloj:** el mod usa `Date.now()` en lugar de `$.clock.now()`, que es asíncrono y añadiría una espera dentro del hook.
+- **`hook .catch`:** el validador de 2.1.321 marca `tool.call` como hook que puede bloquear. Lleva un `.catch` que deja pasar la herramienta si el código del mod falla.
+- **Orden de `usage_snapshots`:** el último es el último recibido, no el de marca de tiempo más alta.
+- **Tablas nuevas (migración 2):** `mod_instances`, `turns` y `usage_snapshots`, y la columna `sessions.ended_at`.
+- **`DEV_COCKPIT_HTTP_LOG`:** registro de depuración de las peticiones del mod, solo para pruebas.
+
 ## Precisiones de F2: shell Tauri y vista En vivo (2026-11-11)
 
 No cambian la arquitectura ni el alcance. Mediciones en [`perf/2026-11-11.md`](perf/2026-11-11.md).

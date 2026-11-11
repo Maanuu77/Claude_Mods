@@ -16,13 +16,22 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 function liveLabel(session: SessionView): { text: string; tone: "busy" | "idle" | "off" } {
-  if (!session.live) return { text: "Sin proceso", tone: "off" };
+  if (!session.live) {
+    return session.mod_connected ? { text: "Viva", tone: "idle" } : { text: "Sin proceso", tone: "off" };
+  }
   const status = session.live.status ?? "";
   return {
     text: STATUS_LABEL[status] ?? "Viva",
     tone: status === "busy" ? "busy" : "idle",
   };
 }
+
+const RATE_LIMIT_LABEL: Record<string, string> = {
+  five_hour: "5 h",
+  seven_day: "7 días",
+  seven_day_opus: "7 días (Opus)",
+  seven_day_sonnet: "7 días (Sonnet)",
+};
 
 const ENTRYPOINT_LABEL: Record<string, string> = {
   cli: "CLI",
@@ -54,6 +63,9 @@ export function SessionCard({ session, now }: { session: SessionView; now: numbe
   const live = liveLabel(session);
   const name = projectName(session.cwd) ?? `Sesión ${session.id.slice(0, 8)}`;
   const { usage } = session;
+  const snapshot = session.usage_snapshot;
+  const cost = snapshot?.cost_usd ?? session.cost_state_usd;
+  const limits = snapshot?.rate_limits ?? [];
   const finished = session.recent_tools.filter((t) => t.status !== "running").slice(0, 5);
   return (
     <article className={`card card-${live.tone}`}>
@@ -96,13 +108,26 @@ export function SessionCard({ session, now }: { session: SessionView; now: numbe
         </div>
         <div>
           <dt>Coste estimado</dt>
-          <dd>{session.cost_state_usd !== null ? formatUsd(session.cost_state_usd) : "n/d"}</dd>
+          <dd>{cost !== null ? formatUsd(cost) : "n/d"}</dd>
         </div>
         <div>
           <dt>Contexto</dt>
-          <dd title="El porcentaje de contexto solo lo da el mod (F3)">n/d</dd>
+          {snapshot?.context_percent != null ? (
+            <dd>{Math.round(snapshot.context_percent)} %</dd>
+          ) : (
+            <dd title="El porcentaje de contexto solo lo da el mod">n/d</dd>
+          )}
         </div>
       </dl>
+
+      {limits.length > 0 && (
+        <p className="limits">
+          Límites de uso:{" "}
+          {limits
+            .map((l) => `${RATE_LIMIT_LABEL[l.kind] ?? l.kind} ${Math.round(l.percent_used)} %`)
+            .join(" · ")}
+        </p>
+      )}
 
       {session.running_tools.length > 0 && (
         <section>
@@ -127,7 +152,8 @@ export function SessionCard({ session, now }: { session: SessionView; now: numbe
       )}
 
       <footer className="card-foot">
-        Última actividad {formatAgo(session.last_seen_at, now)}
+        {session.mod_connected ? "Mod conectado" : "Sin mod (solo transcript)"} · última actividad{" "}
+        {formatAgo(session.last_seen_at, now)}
         {session.api_errors > 0 && ` · ${formatInt(session.api_errors)} errores de API`}
       </footer>
     </article>

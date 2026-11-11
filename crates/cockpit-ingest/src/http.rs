@@ -50,6 +50,8 @@ struct Shared {
     token: Arc<str>,
     host: Arc<str>,
     submit: Submit,
+    /// Registro de depuración de las peticiones aceptadas (pruebas de privacidad).
+    debug_log: Option<Arc<Path>>,
 }
 
 pub struct HttpIngest {
@@ -70,6 +72,10 @@ impl HttpIngest {
             token: token.as_str().into(),
             host: format!("127.0.0.1:{port}").into(),
             submit,
+            // Solo para las pruebas: nunca está definida en el uso normal.
+            debug_log: std::env::var_os("DEV_COCKPIT_HTTP_LOG")
+                .filter(|v| !v.is_empty())
+                .map(|v| Arc::from(Path::new(&v))),
         };
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
         let runtime = tokio::runtime::Builder::new_current_thread()
@@ -182,6 +188,7 @@ async fn hello(State(shared): State<Shared>, Json(request): Json<HelloRequest>) 
     if request.schema != SCHEMA {
         return StatusCode::UNPROCESSABLE_ENTITY.into_response();
     }
+    debug_log(&shared, "hello", &request);
     let (tx, rx) = oneshot::channel();
     if !(shared.submit)(ModRequest::Hello(Box::new(request), tx)) {
         return StatusCode::SERVICE_UNAVAILABLE.into_response();
@@ -196,6 +203,7 @@ async fn events(State(shared): State<Shared>, Json(request): Json<EventsRequest>
     if request.schema != SCHEMA {
         return StatusCode::UNPROCESSABLE_ENTITY.into_response();
     }
+    debug_log(&shared, "events", &request);
     let (tx, rx) = oneshot::channel();
     if !(shared.submit)(ModRequest::Events(request, tx)) {
         return StatusCode::SERVICE_UNAVAILABLE.into_response();
@@ -204,6 +212,21 @@ async fn events(State(shared): State<Shared>, Json(request): Json<EventsRequest>
         Ok(Ok(EventsOutcome::Ack(ack))) => Json(ack).into_response(),
         Ok(Ok(EventsOutcome::UnknownInstance)) => StatusCode::CONFLICT.into_response(),
         _ => StatusCode::SERVICE_UNAVAILABLE.into_response(),
+    }
+}
+
+/// Vuelca la petición ya validada. Como los tipos rechazan campos desconocidos,
+/// lo que se imprime es todo lo que traía.
+fn debug_log(shared: &Shared, route: &str, request: &impl std::fmt::Debug) {
+    use std::io::Write;
+    let Some(path) = &shared.debug_log else {
+        return;
+    };
+    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(path) {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_millis());
+        let _ = writeln!(file, "{now} {route} {request:?}");
     }
 }
 

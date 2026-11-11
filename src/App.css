@@ -157,6 +157,12 @@ body {
   margin-top: 14px;
 }
 
+.limits {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 10px 0 0;
+}
+
 .pill {
   flex: none;
   font-size: 0.75rem;

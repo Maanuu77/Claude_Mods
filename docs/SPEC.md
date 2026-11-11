@@ -844,7 +844,7 @@ Se mantienen las medidas de v1:
 |---|---|---|---|
 | CLI 2.1.285 | `~/.local/share/claude/versions/2.1.285` | **No** | Sin soporte |
 | **CLI 2.1.289** | `~/.local/bin/claude` | Sí | Objetivo. Tipos pendientes de generar (G1). |
-| Desktop 2.1.317 | `%APPDATA%\Claude\claude-code\2.1.317\…\claude.exe` | Sí | Objetivo |
+| Desktop 2.1.317 | `%APPDATA%\Claude\claude-code\2.1.317\…\claude.exe` | Sí | Objetivo. **Ya no está instalado (2026-11-11):** el Desktop se actualizó a 2.1.321. Solo se puede comprobar con `tsc` contra sus tipos guardados. |
 | **Desktop 2.1.321** | `%APPDATA%\Claude\claude-code\2.1.321\…\claude.exe` | Sí | Tipos ya disponibles (los usa esta especificación) |
 
 **Procedimiento (G-pre con el mod sonda; F3 con el mod real):**
