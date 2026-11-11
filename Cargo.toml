@@ -12,6 +12,13 @@ publish = false
 cockpit-core = { path = "crates/cockpit-core" }
 cockpit-store = { path = "crates/cockpit-store" }
 cockpit-ingest = { path = "crates/cockpit-ingest" }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+rusqlite = { version = "0.41", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tempfile = "3"
+criterion = { version = "0.8", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

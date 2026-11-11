@@ -1,0 +1,408 @@
+[
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304800000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "SessionSeen": {
+        "cwd": "C:\\work\\demo",
+        "entrypoint": "claude-desktop"
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304802000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ApiMessage": {
+        "message_id": "msg_01",
+        "model": "claude-test-1",
+        "usage": {
+          "input": 12,
+          "output": 8,
+          "cache_read": 1000,
+          "cache_creation": 50
+        },
+        "stop_reason": null
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304803000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ApiMessage": {
+        "message_id": "msg_01",
+        "model": "claude-test-1",
+        "usage": {
+          "input": 12,
+          "output": 240,
+          "cache_read": 1000,
+          "cache_creation": 50
+        },
+        "stop_reason": null
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304804000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ApiMessage": {
+        "message_id": "msg_01",
+        "model": "claude-test-1",
+        "usage": {
+          "input": 12,
+          "output": 240,
+          "cache_read": 1000,
+          "cache_creation": 50
+        },
+        "stop_reason": "tool_use"
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304804000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ToolStarted": {
+        "tool_use_id": "toolu_edit",
+        "tool": "Edit",
+        "meta": {
+          "rel_path": "src/main.rs",
+          "host": null,
+          "meta": {
+            "replace_all": false
+          }
+        }
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304805000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ToolFinished": {
+        "tool_use_id": "toolu_edit",
+        "status": "Ok"
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304806000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ApiMessage": {
+        "message_id": "msg_02",
+        "model": "claude-test-1",
+        "usage": {
+          "input": 12,
+          "output": 90,
+          "cache_read": 1000,
+          "cache_creation": 50
+        },
+        "stop_reason": "tool_use"
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304806000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ToolStarted": {
+        "tool_use_id": "toolu_bash",
+        "tool": "Bash",
+        "meta": {
+          "rel_path": null,
+          "host": null,
+          "meta": {
+            "run_in_background": false
+          }
+        }
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304806000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ToolStarted": {
+        "tool_use_id": "toolu_read",
+        "tool": "Read",
+        "meta": {
+          "rel_path": "<externo>",
+          "host": null,
+          "meta": {
+            "ext": ".md"
+          }
+        }
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304807000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ToolFinished": {
+        "tool_use_id": "toolu_bash",
+        "status": "Error"
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304808000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ToolFinished": {
+        "tool_use_id": "toolu_read",
+        "status": "Ok"
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304809000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ApiMessage": {
+        "message_id": "msg_03",
+        "model": "claude-test-1",
+        "usage": {
+          "input": 12,
+          "output": 60,
+          "cache_read": 1000,
+          "cache_creation": 50
+        },
+        "stop_reason": "tool_use"
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304809000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ToolStarted": {
+        "tool_use_id": "toolu_fetch",
+        "tool": "WebFetch",
+        "meta": {
+          "rel_path": null,
+          "host": "docs.example.com",
+          "meta": {}
+        }
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304809000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ToolStarted": {
+        "tool_use_id": "toolu_grep",
+        "tool": "Grep",
+        "meta": {
+          "rel_path": null,
+          "host": null,
+          "meta": {}
+        }
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304809000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ToolStarted": {
+        "tool_use_id": "toolu_plan",
+        "tool": "mcp__ccd_turn__update_plan",
+        "meta": {
+          "rel_path": null,
+          "host": null,
+          "meta": {
+            "server": "ccd_turn",
+            "tool": "update_plan"
+          }
+        }
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304809000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ToolStarted": {
+        "tool_use_id": "toolu_agent",
+        "tool": "Agent",
+        "meta": {
+          "rel_path": null,
+          "host": null,
+          "meta": {
+            "run_in_background": true,
+            "subagent_type": "Explore"
+          }
+        }
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304810000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ToolFinished": {
+        "tool_use_id": "toolu_fetch",
+        "status": "Ok"
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304811000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ToolFinished": {
+        "tool_use_id": "toolu_grep",
+        "status": "Ok"
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304812000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ToolFinished": {
+        "tool_use_id": "toolu_plan",
+        "status": "Ok"
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304814000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ApiError": {
+        "status": null,
+        "error_type": "ECONNRESET"
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304815000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ApiError": {
+        "status": 429,
+        "error_type": "rate_limit"
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304816000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "ApiMessage": {
+        "message_id": "msg_04",
+        "model": "claude-test-1",
+        "usage": {
+          "input": 12,
+          "output": 30,
+          "cache_read": 1000,
+          "cache_creation": 50
+        },
+        "stop_reason": "end_turn"
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304816000,
+    "engine_version": null,
+    "kind": {
+      "CostState": {
+        "total_cost_usd": 0.4242,
+        "usage": {
+          "input": 48,
+          "output": 420,
+          "cache_read": 4000,
+          "cache_creation": 200
+        }
+      }
+    }
+  },
+  {
+    "source": "Transcript",
+    "session_id": "aaaaaaaa-0000-4000-8000-000000000321",
+    "agent_id": null,
+    "ts_ms": 1794304816000,
+    "engine_version": "2.1.321",
+    "kind": {
+      "SessionSeen": {
+        "cwd": "C:\\work\\demo",
+        "entrypoint": "claude-desktop"
+      }
+    }
+  }
+]

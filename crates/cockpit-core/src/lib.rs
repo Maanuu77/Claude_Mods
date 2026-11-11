@@ -1,7 +1,13 @@
-//! Dominio de DEV COCKPIT: modelo canónico, parsers de transcripts, normalizador,
-//! `PrivacyFilter`, precios, agregación y detectores de manifiestos (SPEC §6).
+//! Dominio de DEV COCKPIT: modelo canónico, parser de transcripts y
+//! `PrivacyFilter` (SPEC §6, §10).
 //!
-//! F0: solo el andamiaje. La implementación empieza en F1.
+//! Pendiente de otras fases: precios y coste estimado, agregación diaria (F4a) y
+//! detectores de manifiestos (F4c).
+
+pub mod model;
+pub mod privacy;
+pub mod time;
+pub mod transcript;
 
 /// Versión del esquema del protocolo mod ↔ app (`schema` en SPEC §6.2.1).
 pub const PROTOCOL_SCHEMA: u32 = 1;

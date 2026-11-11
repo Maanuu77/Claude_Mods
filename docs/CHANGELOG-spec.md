@@ -4,6 +4,16 @@ Documento de referencia: [`SPEC.md`](SPEC.md). Las tablas detalladas de cada ver
 
 ---
 
+## Precisiones de F1: ingesta de transcripts (2026-11-11)
+
+No cambian la arquitectura ni el alcance. Salen de implementar F1 contra los transcripts reales.
+
+- **Desempate de la sesión canónica (R-4):** las copias de historial conservan las marcas de tiempo originales, así que `started_at` empata entre la sesión original y la reanudada. Se añade `sessions.file_created_at` y el orden pasa a ser `(started_at, file_created_at, id)`. Con esta regla, el backfill real marca 399 copias, la misma cifra que M8. (SPEC §6.4)
+- **`cost-state` en `sessions`:** la última línea `cost-state` de cada transcript se guarda en columnas `cost_state_*` de `sessions`, para la prioridad de coste de SPEC §3 y para la verificación de F1.
+- **El criterio «deduplicación igual a `cost-state`» no es una igualdad general:** coincide exactamente en 19 de 33 sesiones reales. En el resto, `cost-state` incluye consumo que el transcript no registra. Detalle en [`perf/2026-11-11.md`](perf/2026-11-11.md). (SPEC §15, F1)
+- **Aplazado dentro de F1:** la tabla `pricing` se crea vacía (el coste estimado no se usa hasta que haya interfaz), y `file_offsets` detecta truncados por tamaño, sin `file_id`. La vigilancia en vivo con `notify` y el hilo `DbWriter` pasan a F2, que es donde hay fuentes en vivo.
+- **Validado con el toolchain GNU:** `rusqlite bundled` compila y pasa sus tests.
+
 ## Desviación de F0: toolchain GNU en lugar de MSVC (2026-11-11)
 
 Cambia el toolchain de compilación. No cambia la arquitectura, ni las dependencias de la app, ni el alcance.

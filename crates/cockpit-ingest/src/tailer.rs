@@ -1,0 +1,466 @@
+//! `TranscriptTailer`: lectura incremental de los JSONL de `~/.claude/projects`
+//! (SPEC §6.1). **Solo lectura:** nunca se escribe en esos ficheros.
+//!
+//! F1 cubre el descubrimiento, la lectura por offsets y el backfill. La vigilancia
+//! en vivo con `notify` llega en F2, sobre estas mismas funciones.
+
+use std::fs::{self, File};
+use std::io::{self, BufRead, BufReader, Seek, SeekFrom};
+use std::path::{Path, PathBuf};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+
+use cockpit_core::model::{CockpitEvent, EventKind, Source};
+use cockpit_core::privacy::PrivacyPolicy;
+use cockpit_core::transcript::{LineClass, LineError, TranscriptParser};
+use cockpit_store::{Batch, FileOffset, IngestError, Store, StoreError};
+
+/// Eventos por transacción durante el backfill.
+const FLUSH_EVENTS: usize = 2_000;
+
+#[derive(Debug, thiserror::Error)]
+pub enum IngestFailure {
+    #[error("error de E/S: {0}")]
+    Io(#[from] io::Error),
+    #[error(transparent)]
+    Store(#[from] StoreError),
+}
+
+/// Un JSONL de transcript encontrado en disco.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TranscriptFile {
+    pub path: PathBuf,
+    pub size: u64,
+    pub mtime_ms: i64,
+    pub created_ms: Option<i64>,
+    /// `<sesión>/subagents/agent-*.jsonl`.
+    pub is_subagent: bool,
+}
+
+impl TranscriptFile {
+    /// El fichero principal de una sesión se llama `<session_id>.jsonl`.
+    pub fn session_id(&self) -> Option<&str> {
+        if self.is_subagent {
+            return None;
+        }
+        self.path.file_stem()?.to_str()
+    }
+}
+
+fn millis(t: io::Result<SystemTime>) -> Option<i64> {
+    let d = t.ok()?.duration_since(UNIX_EPOCH).ok()?;
+    i64::try_from(d.as_millis()).ok()
+}
+
+/// Busca todos los `.jsonl` bajo `root`, del más reciente al más antiguo.
+pub fn scan_transcripts(root: &Path) -> io::Result<Vec<TranscriptFile>> {
+    let mut files = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            // Un directorio que desaparece a mitad del recorrido no es un error.
+            Err(e) if e.kind() == io::ErrorKind::NotFound && dir != root => continue,
+            Err(e) => return Err(e),
+        };
+        for entry in entries {
+            let entry = entry?;
+            let Ok(meta) = entry.metadata() else { continue };
+            let path = entry.path();
+            if meta.is_dir() {
+                pending.push(path);
+            } else if path.extension().is_some_and(|e| e == "jsonl") {
+                let is_subagent = path
+                    .parent()
+                    .and_then(Path::file_name)
+                    .is_some_and(|n| n == "subagents");
+                files.push(TranscriptFile {
+                    size: meta.len(),
+                    mtime_ms: millis(meta.modified()).unwrap_or(0),
+                    created_ms: millis(meta.created()),
+                    is_subagent,
+                    path,
+                });
+            }
+        }
+    }
+    files.sort_by(|a, b| {
+        b.mtime_ms
+            .cmp(&a.mtime_ms)
+            .then_with(|| a.path.cmp(&b.path))
+    });
+    Ok(files)
+}
+
+/// Lee las líneas **completas** a partir de `start` y devuelve la nueva posición.
+///
+/// Una última línea sin salto final se deja sin consumir: Claude puede estar a
+/// mitad de escribirla, y se leerá entera en la siguiente pasada.
+pub fn read_complete_lines(
+    file: &mut File,
+    start: u64,
+    mut on_line: impl FnMut(&[u8], u64) -> Result<(), IngestFailure>,
+) -> Result<u64, IngestFailure> {
+    file.seek(SeekFrom::Start(start))?;
+    let mut reader = BufReader::with_capacity(1 << 20, file);
+    let mut buf = Vec::with_capacity(1 << 16);
+    let mut offset = start;
+    loop {
+        buf.clear();
+        let n = reader.read_until(b'\n', &mut buf)?;
+        if n == 0 || buf.last() != Some(&b'\n') {
+            return Ok(offset);
+        }
+        offset += n as u64;
+        on_line(&buf[..n - 1], offset)?;
+    }
+}
+
+/// Contadores de una pasada de ingesta. No contienen rutas ni contenido.
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct IngestStats {
+    pub files_seen: u64,
+    pub files_read: u64,
+    pub bytes_read: u64,
+    pub lines: u64,
+    pub events: u64,
+    pub corrupt_lines: u64,
+    pub drift_lines: u64,
+    pub unknown_lines: u64,
+    pub truncated_files: u64,
+    pub orphan_results: u64,
+    /// Tipos de línea desconocidos y cuántas veces aparecen.
+    pub unknown_types: Vec<(String, u64)>,
+    pub elapsed_secs: f64,
+}
+
+impl IngestStats {
+    pub fn megabytes_per_second(&self) -> f64 {
+        if self.elapsed_secs > 0.0 {
+            self.bytes_read as f64 / 1_048_576.0 / self.elapsed_secs
+        } else {
+            0.0
+        }
+    }
+
+    fn unknown(&mut self, kind: String) {
+        self.unknown_lines += 1;
+        match self.unknown_types.iter_mut().find(|(k, _)| *k == kind) {
+            Some((_, n)) => *n += 1,
+            None => self.unknown_types.push((kind, 1)),
+        }
+    }
+}
+
+fn now_ms() -> i64 {
+    millis(Ok(SystemTime::now())).unwrap_or(0)
+}
+
+/// Ingesta incremental de todo `root`.
+///
+/// Con `store`, cada fichero continúa desde su offset guardado, y los eventos y el
+/// nuevo offset se escriben en la misma transacción: repetir la pasada no duplica
+/// nada. Sin `store` (`--dry-run`) se parsea todo desde cero y no se escribe nada.
+pub fn ingest_tree(
+    root: &Path,
+    mut store: Option<&mut Store>,
+    policy: PrivacyPolicy,
+    mut progress: impl FnMut(&IngestStats, u64),
+) -> Result<IngestStats, IngestFailure> {
+    let started = Instant::now();
+    let files = scan_transcripts(root)?;
+    let total_bytes: u64 = files.iter().map(|f| f.size).sum();
+    let mut stats = IngestStats {
+        files_seen: files.len() as u64,
+        ..Default::default()
+    };
+    for file in &files {
+        ingest_file(file, store.as_deref_mut(), policy, &mut stats)?;
+        progress(&stats, total_bytes);
+    }
+    stats
+        .unknown_types
+        .sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    stats.elapsed_secs = started.elapsed().as_secs_f64();
+    Ok(stats)
+}
+
+fn ingest_file(
+    file: &TranscriptFile,
+    mut store: Option<&mut Store>,
+    policy: PrivacyPolicy,
+    stats: &mut IngestStats,
+) -> Result<(), IngestFailure> {
+    let path_key = file.path.to_string_lossy().into_owned();
+    let mut errors: Vec<IngestError> = Vec::new();
+    let mut start = 0;
+    if let Some(store) = store.as_deref()
+        && let Some(prev) = store.file_offset(&path_key)?
+    {
+        if file.size < prev.offset {
+            // El fichero se ha truncado o reemplazado: se vuelve a leer entero.
+            stats.truncated_files += 1;
+            errors.push(error(&path_key, "truncated", ""));
+        } else if file.size == prev.offset {
+            return Ok(());
+        } else {
+            start = prev.offset;
+        }
+    }
+
+    // En Windows, `File::open` comparte lectura, escritura y borrado: no bloquea a Claude.
+    let mut handle = match File::open(&file.path) {
+        Ok(handle) => handle,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e.into()),
+    };
+    stats.files_read += 1;
+
+    let mut parser = TranscriptParser::new(policy);
+    let mut events: Vec<CockpitEvent> = Vec::new();
+    if start == 0
+        && let (Some(session_id), Some(created)) = (file.session_id(), file.created_ms)
+    {
+        events.push(CockpitEvent {
+            source: Source::Transcript,
+            session_id: session_id.to_owned(),
+            agent_id: None,
+            ts_ms: created,
+            engine_version: None,
+            kind: EventKind::TranscriptFile {
+                created_at_ms: created,
+            },
+        });
+    }
+
+    let end = read_complete_lines(&mut handle, start, |line, offset| {
+        stats.lines += 1;
+        match parser.feed(line, &mut events) {
+            Ok(LineClass::Handled | LineClass::Ignored) => {}
+            Ok(LineClass::Unknown(kind)) => {
+                push_error(&mut errors, "", "unknown_type", &kind);
+                stats.unknown(kind);
+            }
+            Err(LineError::Corrupt) => {
+                stats.corrupt_lines += 1;
+                push_error(&mut errors, &path_key, "corrupt", "");
+            }
+            Err(LineError::Drift(kind)) => {
+                stats.drift_lines += 1;
+                push_error(&mut errors, &path_key, "drift", &kind);
+            }
+        }
+        if events.len() >= FLUSH_EVENTS {
+            flush(
+                store.as_deref_mut(),
+                file,
+                &path_key,
+                offset,
+                &mut events,
+                &mut errors,
+                stats,
+            )?;
+        }
+        Ok(())
+    })?;
+    parser.finish(&mut events);
+    stats.bytes_read += end - start;
+    flush(store, file, &path_key, end, &mut events, &mut errors, stats)
+}
+
+fn error(path: &str, kind: &'static str, detail: &str) -> IngestError {
+    IngestError {
+        path: path.to_owned(),
+        kind,
+        detail: detail.to_owned(),
+        count: 1,
+    }
+}
+
+fn push_error(errors: &mut Vec<IngestError>, path: &str, kind: &'static str, detail: &str) {
+    match errors
+        .iter_mut()
+        .find(|e| e.kind == kind && e.detail == detail && e.path == path)
+    {
+        Some(e) => e.count += 1,
+        None => errors.push(error(path, kind, detail)),
+    }
+}
+
+fn flush(
+    store: Option<&mut Store>,
+    file: &TranscriptFile,
+    path_key: &str,
+    offset: u64,
+    events: &mut Vec<CockpitEvent>,
+    errors: &mut Vec<IngestError>,
+    stats: &mut IngestStats,
+) -> Result<(), IngestFailure> {
+    stats.events += events.len() as u64;
+    if let Some(store) = store {
+        let offsets = [FileOffset {
+            path: path_key.to_owned(),
+            size: file.size,
+            offset,
+            mtime_ms: file.mtime_ms,
+        }];
+        let batch_stats = store.apply(&Batch {
+            events,
+            offsets: &offsets,
+            errors,
+            now_ms: now_ms(),
+        })?;
+        stats.orphan_results += batch_stats.orphan_results;
+    }
+    events.clear();
+    errors.clear();
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    const SESSION: &str = "11111111-1111-4111-8111-111111111111";
+
+    fn assistant(n: u32, output: u32) -> String {
+        format!(
+            r#"{{"type":"assistant","sessionId":"{SESSION}","timestamp":"2026-11-10T10:00:{n:02}.000Z","version":"2.1.321","cwd":"C:\\w\\repo","message":{{"id":"msg_{n}","model":"claude-test","usage":{{"input_tokens":1,"output_tokens":{output}}},"content":[{{"type":"text","text":"hola"}}]}}}}"#
+        )
+    }
+
+    fn transcript(dir: &Path) -> PathBuf {
+        let project = dir.join("C--w-repo");
+        fs::create_dir_all(&project).unwrap();
+        project.join(format!("{SESSION}.jsonl"))
+    }
+
+    fn append(path: &Path, text: &str) {
+        let mut f = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .unwrap();
+        f.write_all(text.as_bytes()).unwrap();
+    }
+
+    fn run(root: &Path, store: &mut Store) -> IngestStats {
+        ingest_tree(root, Some(store), PrivacyPolicy::APP_DEFAULT, |_, _| {}).unwrap()
+    }
+
+    #[test]
+    fn an_incomplete_last_line_waits_for_the_next_pass() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = transcript(dir.path());
+        let second = assistant(2, 20);
+        let (head, tail) = second.split_at(60);
+        append(&path, &format!("{}\n{head}", assistant(1, 10)));
+
+        let mut store = Store::open_in_memory().unwrap();
+        let stats = run(dir.path(), &mut store);
+        assert_eq!(stats.lines, 1);
+        assert_eq!(stats.corrupt_lines, 0);
+        assert_eq!(store.totals().unwrap().api_messages, 1);
+
+        append(&path, &format!("{tail}\n"));
+        let stats = run(dir.path(), &mut store);
+        assert_eq!(stats.lines, 1);
+        let totals = store.totals().unwrap();
+        assert_eq!(totals.api_messages, 2);
+        assert_eq!(totals.usage.output, 30);
+    }
+
+    #[test]
+    fn a_second_pass_without_changes_reads_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = transcript(dir.path());
+        append(
+            &path,
+            &format!("{}\n{}\n", assistant(1, 10), assistant(2, 20)),
+        );
+
+        let mut store = Store::open_in_memory().unwrap();
+        assert_eq!(run(dir.path(), &mut store).files_read, 1);
+        let again = run(dir.path(), &mut store);
+        assert_eq!((again.files_seen, again.files_read, again.lines), (1, 0, 0));
+        assert_eq!(store.totals().unwrap().api_messages, 2);
+    }
+
+    #[test]
+    fn a_truncated_file_is_read_again_from_the_start() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = transcript(dir.path());
+        append(
+            &path,
+            &format!("{}\n{}\n", assistant(1, 10), assistant(2, 20)),
+        );
+        let mut store = Store::open_in_memory().unwrap();
+        run(dir.path(), &mut store);
+
+        fs::write(&path, format!("{}\n", assistant(3, 5))).unwrap();
+        let stats = run(dir.path(), &mut store);
+        assert_eq!(stats.truncated_files, 1);
+        assert_eq!(stats.lines, 1);
+        assert_eq!(store.totals().unwrap().api_messages, 3);
+    }
+
+    #[test]
+    fn corrupt_and_unknown_lines_are_counted_and_do_not_stop_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = transcript(dir.path());
+        append(
+            &path,
+            &format!(
+                "{}\n{{\"type\":\"assistant\", roto\n{{\"type\":\"tipo-nuevo\"}}\n{}\n",
+                assistant(1, 10),
+                assistant(2, 20)
+            ),
+        );
+        let mut store = Store::open_in_memory().unwrap();
+        let stats = run(dir.path(), &mut store);
+        assert_eq!(stats.corrupt_lines, 1);
+        assert_eq!(stats.unknown_types, [("tipo-nuevo".to_owned(), 1)]);
+        assert_eq!(store.totals().unwrap().api_messages, 2);
+        let kinds: Vec<String> = store
+            .connection()
+            .prepare("SELECT kind FROM ingest_errors ORDER BY kind")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        assert_eq!(kinds, ["corrupt", "unknown_type"]);
+    }
+
+    #[test]
+    fn subagent_files_are_found_and_never_named_as_sessions() {
+        let dir = tempfile::tempdir().unwrap();
+        let main = transcript(dir.path());
+        append(&main, &format!("{}\n", assistant(1, 10)));
+        let sub = main.with_extension("").join("subagents");
+        fs::create_dir_all(&sub).unwrap();
+        append(
+            &sub.join("agent-a1.jsonl"),
+            &format!("{}\n", assistant(2, 20)),
+        );
+
+        let files = scan_transcripts(dir.path()).unwrap();
+        assert_eq!(files.len(), 2);
+        let sessions: Vec<_> = files.iter().filter_map(|f| f.session_id()).collect();
+        assert_eq!(sessions, [SESSION]);
+    }
+
+    #[test]
+    fn dry_run_parses_everything_and_writes_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = transcript(dir.path());
+        append(
+            &path,
+            &format!("{}\n{}\n", assistant(1, 10), assistant(2, 20)),
+        );
+        let stats = ingest_tree(dir.path(), None, PrivacyPolicy::APP_DEFAULT, |_, _| {}).unwrap();
+        assert_eq!(stats.lines, 2);
+        // TranscriptFile + SessionSeen + 2 ApiMessage + SessionSeen de cierre.
+        assert_eq!(stats.events, 5);
+    }
+}
