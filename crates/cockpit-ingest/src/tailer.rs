@@ -331,6 +331,7 @@ fn flush(
             offsets: &offsets,
             errors,
             now_ms: now_ms(),
+            mod_ack: None,
         })?;
         stats.orphan_results += batch_stats.orphan_results;
     }

@@ -122,6 +122,48 @@ const MIGRATIONS: &[&str] = &[
         PRIMARY KEY (model_prefix, valid_from)
     );
     "#,
+    // 2: F3, eventos del mod.
+    r#"
+    CREATE TABLE mod_instances(
+        instance_id    TEXT PRIMARY KEY,           -- uuid por carga del módulo
+        session_id     TEXT NOT NULL,
+        hello_seq      INTEGER NOT NULL,
+        ack_seq        INTEGER NOT NULL DEFAULT 0, -- marca de agua de /v1/events
+        engine_version TEXT NULL,
+        mod_version    TEXT NULL,
+        first_hello_at INTEGER NOT NULL,
+        last_hello_at  INTEGER NOT NULL
+    );
+
+    CREATE TABLE turns(
+        session_id            TEXT NOT NULL REFERENCES sessions(id),
+        turn_id               TEXT NOT NULL,
+        agent_id              TEXT NULL,
+        completed_at          INTEGER NOT NULL,
+        duration_ms           INTEGER NOT NULL,
+        is_aborted            INTEGER NOT NULL,
+        model                 TEXT NULL,
+        input_tokens          INTEGER NULL,
+        output_tokens         INTEGER NULL,
+        cache_read_tokens     INTEGER NULL,
+        cache_creation_tokens INTEGER NULL,
+        PRIMARY KEY (session_id, turn_id)
+    );
+
+    CREATE TABLE usage_snapshots(
+        id               INTEGER PRIMARY KEY,
+        session_id       TEXT NOT NULL REFERENCES sessions(id),
+        ts               INTEGER NOT NULL,
+        context_tokens   INTEGER NULL,
+        context_window   INTEGER NULL,
+        context_percent  REAL NULL,
+        rate_limits_json TEXT NOT NULL,
+        cost_usd         REAL NULL
+    );
+    CREATE INDEX usage_snapshots_session ON usage_snapshots(session_id, ts);
+
+    ALTER TABLE sessions ADD COLUMN ended_at INTEGER NULL;
+    "#,
 ];
 
 /// Versión de esquema que produce este binario.

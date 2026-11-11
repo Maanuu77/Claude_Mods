@@ -3,7 +3,7 @@
 //! La base de datos es la verdad: el estado en vivo es una caché de estos
 //! resúmenes, que se vuelven a consultar para las sesiones que cambian.
 
-use cockpit_core::model::TokenUsage;
+use cockpit_core::model::{RateLimit, TokenUsage};
 use rusqlite::{OptionalExtension, params};
 use serde::Serialize;
 
@@ -25,6 +25,17 @@ pub struct ToolView {
     pub rel_path: Option<String>,
 }
 
+/// Último `UsageSnapshot` del mod: contexto, límites y coste del motor.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct UsageView {
+    pub ts: i64,
+    pub context_tokens: Option<i64>,
+    pub context_window: Option<i64>,
+    pub context_percent: Option<f64>,
+    pub rate_limits: Vec<RateLimit>,
+    pub cost_usd: Option<f64>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SessionSummary {
     pub id: String,
@@ -43,6 +54,8 @@ pub struct SessionSummary {
     pub api_errors: u64,
     /// Coste de la última línea `cost-state`: una estimación del cliente.
     pub cost_state_usd: Option<f64>,
+    /// Solo con el mod conectado. Sin él, la interfaz muestra «n/d».
+    pub usage_snapshot: Option<UsageView>,
     pub running_tools: Vec<ToolView>,
     pub recent_tools: Vec<ToolView>,
 }
@@ -128,6 +141,24 @@ impl Store {
             .prepare_cached("SELECT COUNT(*) FROM api_errors WHERE session_id = ?1")?
             .query_row([id], |r| r.get(0))?;
 
+        let usage_snapshot = conn
+            .prepare_cached(
+                "SELECT ts, context_tokens, context_window, context_percent, rate_limits_json, cost_usd
+                 FROM usage_snapshots WHERE session_id = ?1 ORDER BY id DESC LIMIT 1",
+            )?
+            .query_row([id], |r| {
+                let limits: String = r.get(4)?;
+                Ok(UsageView {
+                    ts: r.get(0)?,
+                    context_tokens: r.get(1)?,
+                    context_window: r.get(2)?,
+                    context_percent: r.get(3)?,
+                    rate_limits: serde_json::from_str(&limits).unwrap_or_default(),
+                    cost_usd: r.get(5)?,
+                })
+            })
+            .optional()?;
+
         let running_tools = conn
             .prepare_cached(&format!(
                 "SELECT {TOOL_COLUMNS} FROM tool_calls
@@ -159,6 +190,7 @@ impl Store {
             tool_errors,
             api_errors: api_errors as u64,
             cost_state_usd,
+            usage_snapshot,
             running_tools,
             recent_tools,
         }))

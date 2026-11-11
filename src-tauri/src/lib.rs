@@ -101,10 +101,14 @@ fn live_config() -> Result<LiveConfig, String> {
             .join("dev-cockpit")
             .join(DB_FILE_NAME),
     };
+    // El mod busca `endpoint.json` junto a la base de datos real. Con una base de
+    // pruebas, el fichero queda en la carpeta de pruebas y el mod real no lo ve.
+    let endpoint_path = db_path.parent().map(|dir| dir.join("endpoint.json"));
     Ok(LiveConfig {
         projects_root,
         sessions_dir,
         db_path,
+        endpoint_path,
         policy: PrivacyPolicy::APP_DEFAULT,
     })
 }

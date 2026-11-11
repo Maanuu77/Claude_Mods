@@ -17,7 +17,7 @@ use cockpit_core::time::local_day;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 pub use schema::SCHEMA_VERSION;
-pub use summary::{SessionSummary, ToolView};
+pub use summary::{SessionSummary, ToolView, UsageView};
 
 /// Nombre del fichero de la base de datos dentro de `%APPDATA%\dev-cockpit\`.
 pub const DB_FILE_NAME: &str = "cockpit.db";
@@ -28,6 +28,14 @@ pub type Result<T> = std::result::Result<T, StoreError>;
 pub enum StoreError {
     #[error("error de SQLite: {0}")]
     Sqlite(#[from] rusqlite::Error),
+}
+
+/// Estado guardado de una instancia del mod (SPEC §6.2.1).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModInstance {
+    pub session_id: String,
+    pub hello_seq: i64,
+    pub ack_seq: i64,
 }
 
 /// Posición de lectura de un fichero de transcript.
@@ -57,6 +65,8 @@ pub struct Batch<'a> {
     pub errors: &'a [IngestError],
     /// Instante de la escritura (ms), para las columnas de auditoría.
     pub now_ms: i64,
+    /// Marca de agua de `/v1/events`: `(instance_id, último seq guardado)`.
+    pub mod_ack: Option<(&'a str, i64)>,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -147,6 +157,12 @@ impl Store {
             )?
             .execute(params![batch.now_ms, e.path, e.kind, e.detail, e.count as i64])?;
         }
+        if let Some((instance_id, seq)) = batch.mod_ack {
+            tx.prepare_cached(
+                "UPDATE mod_instances SET ack_seq = MAX(ack_seq, ?1) WHERE instance_id = ?2",
+            )?
+            .execute(params![seq, instance_id])?;
+        }
         tx.commit()?;
         Ok(stats)
     }
@@ -219,6 +235,53 @@ impl Store {
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Instancia del mod registrada con `/v1/hello`.
+    pub fn mod_instance(&self, instance_id: &str) -> Result<Option<ModInstance>> {
+        Ok(self
+            .conn
+            .prepare_cached(
+                "SELECT session_id, hello_seq, ack_seq FROM mod_instances WHERE instance_id = ?1",
+            )?
+            .query_row([instance_id], |r| {
+                Ok(ModInstance {
+                    session_id: r.get(0)?,
+                    hello_seq: r.get(1)?,
+                    ack_seq: r.get(2)?,
+                })
+            })
+            .optional()?)
+    }
+
+    /// Registra un `hello`. Repetirlo no crea filas ni retrocede la marca de agua.
+    pub fn record_hello(
+        &mut self,
+        instance_id: &str,
+        session_id: &str,
+        hello_seq: i64,
+        engine_version: Option<&str>,
+        mod_version: Option<&str>,
+        now_ms: i64,
+    ) -> Result<()> {
+        self.conn
+            .prepare_cached(
+                "INSERT INTO mod_instances(instance_id, session_id, hello_seq, engine_version,
+                                           mod_version, first_hello_at, last_hello_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)
+                 ON CONFLICT(instance_id) DO UPDATE SET
+                     hello_seq = MAX(hello_seq, excluded.hello_seq),
+                     last_hello_at = excluded.last_hello_at",
+            )?
+            .execute(params![
+                instance_id,
+                session_id,
+                hello_seq,
+                engine_version,
+                mod_version,
+                now_ms
+            ])?;
+        Ok(())
     }
 
     /// Acceso de solo lectura para consultas y tests.
@@ -411,6 +474,12 @@ fn apply_event(tx: &Transaction<'_>, e: &CockpitEvent, stats: &mut BatchStats) -
                                         day, rel_path, host, meta_json, source_mask)
                  VALUES (?1, ?2, ?3, ?4, 'running', ?5, ?6, ?7, ?8, ?9, ?10)
                  ON CONFLICT(session_id, tool_use_id) DO UPDATE SET
+                     -- El mod mide el inicio real; el transcript solo lo aproxima.
+                     started_at = CASE WHEN excluded.source_mask = 1 THEN excluded.started_at ELSE started_at END,
+                     day = CASE WHEN excluded.source_mask = 1 THEN excluded.day ELSE day END,
+                     duration_ms = CASE WHEN excluded.source_mask = 1 AND finished_at IS NOT NULL
+                                        THEN MAX(0, finished_at - excluded.started_at) ELSE duration_ms END,
+                     agent_id = COALESCE(agent_id, excluded.agent_id),
                      rel_path = COALESCE(rel_path, excluded.rel_path),
                      host = COALESCE(host, excluded.host),
                      meta_json = COALESCE(meta_json, excluded.meta_json),
@@ -438,9 +507,17 @@ fn apply_event(tx: &Transaction<'_>, e: &CockpitEvent, stats: &mut BatchStats) -
                 .prepare_cached(
                     "UPDATE tool_calls SET status = ?1, finished_at = ?2,
                             duration_ms = MAX(0, ?2 - started_at)
-                     WHERE session_id = ?3 AND tool_use_id = ?4 AND status = 'running'",
+                     WHERE session_id = ?3 AND tool_use_id = ?4
+                       AND (status IN ('running', 'unknown') OR ?5 = 1)",
                 )?
-                .execute(params![status.as_str(), e.ts_ms, e.session_id, tool_use_id])?;
+                // El fin que da el mod es exacto y sustituye al del transcript.
+                .execute(params![
+                    status.as_str(),
+                    e.ts_ms,
+                    e.session_id,
+                    tool_use_id,
+                    e.source.mask()
+                ])?;
             if changed == 0 {
                 let exists: bool = tx
                     .prepare_cached(
@@ -451,6 +528,84 @@ fn apply_event(tx: &Transaction<'_>, e: &CockpitEvent, stats: &mut BatchStats) -
                     stats.orphan_results += 1;
                 }
             }
+        }
+        EventKind::TurnCompleted {
+            turn_id,
+            duration_ms,
+            is_aborted,
+            model,
+            usage,
+        } => {
+            tx.prepare_cached(
+                "INSERT OR REPLACE INTO turns(session_id, turn_id, agent_id, completed_at, duration_ms,
+                     is_aborted, model, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            )?
+            .execute(params![
+                e.session_id,
+                turn_id,
+                e.agent_id,
+                e.ts_ms,
+                *duration_ms as i64,
+                is_aborted,
+                model,
+                usage.map(|u| u.input as i64),
+                usage.map(|u| u.output as i64),
+                usage.map(|u| u.cache_read as i64),
+                usage.map(|u| u.cache_creation as i64)
+            ])?;
+        }
+        EventKind::UsageSnapshot {
+            context_tokens,
+            context_window,
+            context_percent,
+            rate_limits,
+            cost_usd,
+        } => {
+            let limits = serde_json::to_string(rate_limits).unwrap_or_else(|_| "[]".to_owned());
+            // Solo se guarda si cambia respecto al último de la sesión.
+            let same: bool = tx
+                .prepare_cached(
+                    "SELECT COALESCE((SELECT context_tokens IS ?2 AND context_window IS ?3
+                                AND context_percent IS ?4 AND rate_limits_json = ?5 AND cost_usd IS ?6
+                         FROM usage_snapshots WHERE session_id = ?1 ORDER BY id DESC LIMIT 1), 0)",
+                )?
+                .query_row(
+                    params![
+                        e.session_id,
+                        context_tokens.map(|v| v as i64),
+                        context_window.map(|v| v as i64),
+                        context_percent,
+                        limits,
+                        cost_usd
+                    ],
+                    |r| r.get(0),
+                )?;
+            if !same {
+                tx.prepare_cached(
+                    "INSERT INTO usage_snapshots(session_id, ts, context_tokens, context_window,
+                         context_percent, rate_limits_json, cost_usd)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                )?
+                .execute(params![
+                    e.session_id,
+                    e.ts_ms,
+                    context_tokens.map(|v| v as i64),
+                    context_window.map(|v| v as i64),
+                    context_percent,
+                    limits,
+                    cost_usd
+                ])?;
+            }
+        }
+        EventKind::SessionEnded { .. } => {
+            tx.prepare_cached("UPDATE sessions SET ended_at = ?1 WHERE id = ?2")?
+                .execute(params![e.ts_ms, e.session_id])?;
+            // Lo que seguía en curso queda sin resultado conocido (SPEC §5.2).
+            tx.prepare_cached(
+                "UPDATE tool_calls SET status = 'unknown' WHERE session_id = ?1 AND status = 'running'",
+            )?
+            .execute(params![e.session_id])?;
         }
         EventKind::ApiError { status, error_type } => {
             tx.prepare_cached(
