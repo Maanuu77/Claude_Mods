@@ -12,6 +12,12 @@ publish.workspace = true
 name = "dev_cockpit_lib"
 # Solo `rlib`: `staticlib`/`cdylib` son para móvil, y en el target GNU la DLL de
 # depuración supera el límite de 65.535 símbolos exportados del formato PE.
+#
+# Sin tests en la biblioteca: su ejecutable de test no lleva el manifiesto de
+# Windows (solo se enlaza en el binario) y no arranca con los controles comunes v6
+# que necesita la bandeja. La lógica con tests vive en los crates `cockpit-*`.
+test = false
+doctest = false
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -20,7 +26,14 @@ tauri-build = { version = "2", features = [] }
 cockpit-core.workspace = true
 cockpit-store.workspace = true
 cockpit-ingest.workspace = true
-tauri = { version = "~2.12", features = [] }
+serde.workspace = true
+serde_json.workspace = true
+tauri = { version = "~2.12", features = ["tray-icon"] }
+tauri-plugin-single-instance = "2"
+tauri-plugin-window-state = "2"
+# Mismas versiones que usa wry, para compartir los tipos COM de WebView2 (C2, G9).
+webview2-com = "0.39"
+windows-core = "0.62"
 
 [lints]
 workspace = true

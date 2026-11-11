@@ -3,6 +3,8 @@
 //! F1: `TranscriptTailer` (descubrimiento, offsets y backfill). `SessionRegistryWatch`,
 //! `HttpIngest`, `WorkspaceWatcher` y `GitReader` llegan en F2, F3 y F4a.
 
+pub mod live;
+pub mod registry;
 pub mod tailer;
 
 /// Rutas HTTP que expondrá `HttpIngest` (SPEC §6.2).
