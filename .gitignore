@@ -1,0 +1,17 @@
+# Node / Vite
+node_modules/
+dist/
+dist-ssr/
+*.local
+*.log
+
+# Cargo
+/target/
+
+# Tauri (esquemas generados para el autocompletado de capabilities)
+/src-tauri/gen/schemas
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+.idea/

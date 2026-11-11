@@ -1,0 +1,13 @@
+[package]
+name = "cockpit-store"
+description = "DEV COCKPIT: SQLite (rusqlite), migraciones, DbWriter y consultas (SPEC §6.4)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+cockpit-core.workspace = true
+
+[lints]
+workspace = true

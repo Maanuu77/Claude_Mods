@@ -92,7 +92,7 @@ Ahora mismo no hay ninguna vista unificada, en vivo e histórica, de las sesione
 |---|---|---|
 | Motores instalados | CLI `~/.local/bin/claude` → **2.1.289** (también hay 2.1.285 en `versions/`). Desktop: `%APPDATA%\Claude\claude-code\` → **2.1.317** y **2.1.321**. | Hay que validar con 3 motores reales. La 2.1.285 queda **por debajo** del mínimo documentado de mods (2.1.287). |
 | `claude plugin validate` / `plugin test` | Presentes en 2.1.289, 2.1.317 y 2.1.321 | Se puede validar el mod con el binario de cada motor. |
-| Rust / Cargo | **No instalados** | Prerrequisito de F0. |
+| Rust / Cargo | **No instalados** en el momento de la inspección. Instalados en F0 (2026-11-11): rustc/cargo 1.99.1, target `x86_64-pc-windows-gnu`, con MinGW-w64 de WinLibs (gcc 16.2.0). | Prerrequisito de F0. Sin permisos de administrador no se puede instalar MSVC (§15, F0). |
 | Node / Git | Node v22.23.4 · Git 2.51.2.windows.1 | Git ≥ 2.15 soporta `--no-optional-locks`. |
 | `~/.claude/projects` | 521 MB en disco. **471,7 MB en 144 JSONL**, 82.146 líneas, 0 líneas corruptas. | El backfill tiene que ser incremental. |
 | JSONL más grande | 42 MB. Línea p50 = 1,6 KB; **p99 = 640 KB; máx = 854 KB**. | Parseo selectivo y por streaming. |
@@ -967,7 +967,7 @@ Se mantienen las de v1: Electron, sidecar de Node, `tauri-plugin-sql`, `emit` pa
 
 | Fase | Entregable | Criterio de «hecho» |
 |---|---|---|
-| **F0** Toolchain y andamiaje | rustup MSVC + VS Build Tools (Rust ≥ 1.90), `create-tauri-app` (React-TS), workspace de 4 crates, clippy y eslint | `npm run tauri dev` abre una ventana vacía |
+| **F0** Toolchain y andamiaje | rustup con el target **GNU** (`stable-x86_64-pc-windows-gnu`) + MinGW-w64 portátil (WinLibs: `gcc`, `windres`), Rust ≥ 1.90, `create-tauri-app` (React-TS), workspace de 4 crates, clippy y eslint. *Desviación (2026-11-11):* el plan original era rustup MSVC + VS Build Tools, pero su instalador exige permisos de administrador y este equipo no los tiene. | `npm run tauri dev` abre una ventana vacía |
 | **F1** Núcleo de ingesta sin UI | Parser, `PrivacyFilter`, store, tailer, CLI `cockpit-ingest` | Fixtures dorados en verde. Deduplicación igual a `cost-state`. **B1** registrado. |
 | **F2** Shell Tauri y vista En vivo | Channel, Zustand, tarjetas, bandeja, aislamiento de procesos de C2 | Sesión real en vivo. **G9** resuelta. **B4** y una primera B8 aislada registradas. |
 | **F3** Mod puente y compatibilidad | Mod + `HttpIngest` (`/v1/hello`, `/v1/events`, `/v1/health`) + Live Tool Monitor + reconexión §5.4 + política `PRE_HANDSHAKE` + §12 en los 3 motores | **G3, G4** resueltas (G1 y G10 ya resueltas en G-pre). `validate`/`test` en verde ×3. **B2, B3, B11** registrados. **C1 aprobada:** S1–S4 sin reiniciar Claude. Test de que no salen rutas ni títulos antes del primer `hello`. |
