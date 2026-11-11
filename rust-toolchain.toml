@@ -1,0 +1,5 @@
+# Target GNU: este equipo no tiene permisos de administrador para instalar
+# VS Build Tools (MSVC). Requiere MinGW-w64 (gcc, windres) en el PATH.
+[toolchain]
+channel = "stable-x86_64-pc-windows-gnu"
+components = ["rustfmt", "clippy"]

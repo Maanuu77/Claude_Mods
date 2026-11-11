@@ -4,6 +4,15 @@ Documento de referencia: [`SPEC.md`](SPEC.md). Las tablas detalladas de cada ver
 
 ---
 
+## Desviación de F0: toolchain GNU en lugar de MSVC (2026-11-11)
+
+Cambia el toolchain de compilación. No cambia la arquitectura, ni las dependencias de la app, ni el alcance.
+
+- VS Build Tools exige permisos de administrador y este equipo no los tiene. F0 usa `stable-x86_64-pc-windows-gnu` con MinGW-w64 portátil (WinLibs), instalados en el perfil de usuario. Queda fijado en `rust-toolchain.toml`. (SPEC §2, §15 F0)
+- `src-tauri` compila solo como `rlib`: con el target GNU, la DLL de depuración (`cdylib`, que solo hace falta para móvil) supera el límite de símbolos exportados del formato PE.
+- **Aviso conocido, sin resolver:** al enlazar el ejecutable, `ld` emite `.rsrc merge failure: multiple non-default manifests`. La ventana se abre igualmente. Hay que revisarlo antes del instalador de F5.
+- **Pendiente de validar con este toolchain:** G9 (`webview2-com`, F2), `rusqlite bundled` (F1) y el instalador NSIS (F5).
+
 ## Corrección documental: W6 y remoto (2026-11-10)
 
 Corrige un dato del estado del repositorio. No cambia la arquitectura, ni las reglas, ni el alcance.

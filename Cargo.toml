@@ -1,0 +1,28 @@
+[workspace]
+resolver = "3"
+members = ["crates/cockpit-core", "crates/cockpit-store", "crates/cockpit-ingest", "src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+[workspace.dependencies]
+cockpit-core = { path = "crates/cockpit-core" }
+cockpit-store = { path = "crates/cockpit-store" }
+cockpit-ingest = { path = "crates/cockpit-ingest" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+# https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

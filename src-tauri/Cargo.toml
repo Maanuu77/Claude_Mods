@@ -1,0 +1,26 @@
+[package]
+name = "dev-cockpit"
+description = "DEV COCKPIT: observabilidad de sesiones de Claude Code"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+# El sufijo `_lib` evita el conflicto de nombres con el binario en Windows
+# (https://github.com/rust-lang/cargo/issues/8519).
+name = "dev_cockpit_lib"
+# Solo `rlib`: `staticlib`/`cdylib` son para móvil, y en el target GNU la DLL de
+# depuración supera el límite de 65.535 símbolos exportados del formato PE.
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+cockpit-core.workspace = true
+cockpit-store.workspace = true
+cockpit-ingest.workspace = true
+tauri = { version = "~2.12", features = [] }
+
+[lints]
+workspace = true

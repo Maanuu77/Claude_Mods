@@ -1,0 +1,12 @@
+[package]
+name = "cockpit-core"
+description = "DEV COCKPIT: dominio, parsers JSONL, normalizador, PrivacyFilter, precios y agregación (SPEC §6)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true
