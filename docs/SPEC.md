@@ -832,7 +832,7 @@ Se mantienen las medidas de v1:
 **Aislamiento de procesos para B8/B9 (C2).** Otras aplicaciones también usan WebView2 (por ejemplo Outlook, Teams o widgets), así que un `Get-Process msedgewebview2` las contaría. El conjunto de DEV COCKPIT se define así, con contraste de dos métodos:
 1. **Fuente autoritativa [DOC MS]:** `ICoreWebView2Environment8::GetProcessInfos()`, más el evento `ProcessInfosChanged` del entorno WebView2 de la propia app, a través de `webview2-com`. Devuelve los PIDs y el tipo (browser, renderer, GPU, utility…) de **nuestro** grupo. La app lo publica en Diagnóstico y en `GET /v1/health?debug=procs` (solo loopback y con token). La implementación en Tauri está pendiente de **G9 [EXP]**.
 2. **Contraste independiente:** `Get-CimInstance Win32_Process`, filtrando los `msedgewebview2.exe` que **descienden** del PID de `dev-cockpit.exe` (por `ParentProcessId`) **y** cuyo `CommandLine` contiene el `--user-data-dir` propio de la app (`%LOCALAPPDATA%\<identifier>\EBWebView`).
-3. **Criterio de validez:** los conjuntos 1 y 2 deben coincidir. Si no coinciden, la muestra se invalida y se registra.
+3. **Criterio de validez:** los conjuntos 1 y 2 deben coincidir. Si no coinciden, la muestra se invalida y se registra. *Precisión de F2 (2026-11-11):* `GetProcessInfos` no devuelve el proceso `crashpad-handler` del grupo. Se excluye de la comparación y se suma a la memoria como tipo aparte.
 4. **Métrica:** se suman los *private bytes* (`PrivatePageCount`), no el *working set*, porque las páginas compartidas se contarían dos veces. El *working set* se reporta aparte como referencia.
 5. **Desglose del informe:** proceso Rust, browser, renderer(s), GPU, utility y total. Cada entrada lleva la versión del runtime de WebView2.
 
@@ -911,7 +911,7 @@ Se mantienen R1–R11 de v1 (resumidos) y se añaden R12–R17.
 | **G6** | Esquema estable de `update_plan` en el Desktop | Fixtures de 2.1.317 y 2.1.321 | Desactivar A3 |
 | **G7** | ¿`notify-debouncer-full` une los renombrados en NTFS de forma fiable? | B6 con renombrados y movimientos entre carpetas | Eventos Delete + Create sin `from` |
 | **G8** | React Flow + dagre con 200 nodos o más dentro del presupuesto | B8 en la vista Mapa | SVG propio + dagre |
-| **G9** | ¿Se puede obtener `ICoreWebView2Environment8::GetProcessInfos` desde Tauri 2.12 / wry con `webview2-com`? | Prototipo en F2 | Solo el método 2 de C2 (árbol de procesos + `--user-data-dir`), documentado como menos autoritativo |
+| **G9** | ¿Se puede obtener `ICoreWebView2Environment8::GetProcessInfos` desde Tauri 2.12 / wry con `webview2-com`? | Prototipo en F2. **Resuelta (2026-11-11): sí**, con `webview2-com` 0.39 (`src-tauri/src/procs.rs`). | Solo el método 2 de C2 (árbol de procesos + `--user-data-dir`), documentado como menos autoritativo |
 | **G10** | ¿`$.fs.stat` / `$.fs.read` de un mod pueden leer `%APPDATA%\dev-cockpit\endpoint.json`, fuera del proyecto? | Prueba **antes de F0** (a petición tuya) con los 3 motores, usando un mod sonda desechable que no sale del directorio de pruebas | **DETENERSE** y presentarte las alternativas de la lista de abajo. **No se elige ninguna automáticamente.** Escribir en `~/.claude` está prohibido sin tu autorización previa y expresa. |
 
 **Alternativas si falla G10** (se presentan, no se aplican; ninguna está preseleccionada):

@@ -3,7 +3,7 @@
   "productName": "DEV COCKPIT",
   "mainBinaryName": "dev-cockpit",
   "version": "0.1.0",
-  "identifier": "com.devcockpit.app",
+  "identifier": "dev-cockpit",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

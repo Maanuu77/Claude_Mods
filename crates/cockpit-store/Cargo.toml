@@ -9,6 +9,7 @@ publish.workspace = true
 [dependencies]
 cockpit-core.workspace = true
 rusqlite.workspace = true
+serde.workspace = true
 thiserror.workspace = true
 
 [lints]

@@ -9,6 +9,10 @@ publish.workspace = true
 [dependencies]
 cockpit-core.workspace = true
 cockpit-store.workspace = true
+notify.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sysinfo.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

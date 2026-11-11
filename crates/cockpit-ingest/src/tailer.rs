@@ -4,6 +4,7 @@
 //! F1 cubre el descubrimiento, la lectura por offsets y el backfill. La vigilancia
 //! en vivo con `notify` llega en F2, sobre estas mismas funciones.
 
+use std::collections::BTreeSet;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -37,6 +38,30 @@ pub struct TranscriptFile {
 }
 
 impl TranscriptFile {
+    fn from_metadata(path: PathBuf, meta: &fs::Metadata) -> Self {
+        let is_subagent = path
+            .parent()
+            .and_then(Path::file_name)
+            .is_some_and(|n| n == "subagents");
+        Self {
+            size: meta.len(),
+            mtime_ms: millis(meta.modified()).unwrap_or(0),
+            created_ms: millis(meta.created()),
+            is_subagent,
+            path,
+        }
+    }
+
+    /// Estado actual de un JSONL, o `None` si no existe o no es un transcript.
+    pub fn from_path(path: &Path) -> Option<Self> {
+        if path.extension().is_none_or(|e| e != "jsonl") {
+            return None;
+        }
+        let meta = fs::metadata(path).ok()?;
+        meta.is_file()
+            .then(|| Self::from_metadata(path.to_path_buf(), &meta))
+    }
+
     /// El fichero principal de una sesión se llama `<session_id>.jsonl`.
     pub fn session_id(&self) -> Option<&str> {
         if self.is_subagent {
@@ -69,17 +94,7 @@ pub fn scan_transcripts(root: &Path) -> io::Result<Vec<TranscriptFile>> {
             if meta.is_dir() {
                 pending.push(path);
             } else if path.extension().is_some_and(|e| e == "jsonl") {
-                let is_subagent = path
-                    .parent()
-                    .and_then(Path::file_name)
-                    .is_some_and(|n| n == "subagents");
-                files.push(TranscriptFile {
-                    size: meta.len(),
-                    mtime_ms: millis(meta.modified()).unwrap_or(0),
-                    created_ms: millis(meta.created()),
-                    is_subagent,
-                    path,
-                });
+                files.push(TranscriptFile::from_metadata(path, &meta));
             }
         }
     }
@@ -130,6 +145,8 @@ pub struct IngestStats {
     pub orphan_results: u64,
     /// Tipos de línea desconocidos y cuántas veces aparecen.
     pub unknown_types: Vec<(String, u64)>,
+    /// Sesiones con eventos en esta pasada.
+    pub touched_sessions: BTreeSet<String>,
     pub elapsed_secs: f64,
 }
 
@@ -184,7 +201,8 @@ pub fn ingest_tree(
     Ok(stats)
 }
 
-fn ingest_file(
+/// Ingesta incremental de un solo fichero. Ver [`ingest_tree`].
+pub fn ingest_file(
     file: &TranscriptFile,
     mut store: Option<&mut Store>,
     policy: PrivacyPolicy,
@@ -296,6 +314,11 @@ fn flush(
     stats: &mut IngestStats,
 ) -> Result<(), IngestFailure> {
     stats.events += events.len() as u64;
+    for e in events.iter() {
+        if !stats.touched_sessions.contains(&e.session_id) {
+            stats.touched_sessions.insert(e.session_id.clone());
+        }
+    }
     if let Some(store) = store {
         let offsets = [FileOffset {
             path: path_key.to_owned(),

@@ -7,6 +7,7 @@
 //! que solo hacen falta cuando hay varias fuentes en vivo.
 
 mod schema;
+mod summary;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -16,6 +17,7 @@ use cockpit_core::time::local_day;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 pub use schema::SCHEMA_VERSION;
+pub use summary::{SessionSummary, ToolView};
 
 /// Nombre del fichero de la base de datos dentro de `%APPDATA%\dev-cockpit\`.
 pub const DB_FILE_NAME: &str = "cockpit.db";
@@ -94,6 +96,12 @@ pub struct Store {
 impl Store {
     pub fn open(path: &Path) -> Result<Self> {
         Self::init(Connection::open(path)?)
+    }
+
+    /// Conexión de solo lectura para las consultas de la interfaz. No migra ni escribe.
+    pub fn open_read_only(path: &Path) -> Result<Self> {
+        let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        Ok(Self { conn })
     }
 
     pub fn open_in_memory() -> Result<Self> {
@@ -254,6 +262,10 @@ fn upsert_sessions(tx: &Transaction<'_>, events: &[CockpitEvent]) -> Result<()> 
                     Some(prev) => prev.min(*created_at_ms),
                     None => *created_at_ms,
                 });
+                // La creación del fichero puede adelantar el inicio de la sesión,
+                // pero no es actividad: no mueve `last_seen_at`.
+                agg.first = Some(agg.first.map_or(e.ts_ms, |t| t.min(e.ts_ms)));
+                continue;
             }
             EventKind::SessionSeen { cwd, entrypoint } => {
                 if cwd.is_some() {
@@ -289,9 +301,10 @@ fn upsert_sessions(tx: &Transaction<'_>, events: &[CockpitEvent]) -> Result<()> 
     )?;
     for (id, agg) in sessions {
         // Un lote con solo `cost-state` no basta para crear la sesión.
-        let (Some(first), Some(last)) = (agg.first, agg.last) else {
+        let Some(first) = agg.first else {
             continue;
         };
+        let last = agg.last.unwrap_or(first);
         stmt.execute(params![
             id,
             agg.cwd,

@@ -4,6 +4,18 @@ Documento de referencia: [`SPEC.md`](SPEC.md). Las tablas detalladas de cada ver
 
 ---
 
+## Precisiones de F2: shell Tauri y vista En vivo (2026-11-11)
+
+No cambian la arquitectura ni el alcance. Mediciones en [`perf/2026-11-11.md`](perf/2026-11-11.md).
+
+- **G9 resuelta:** `GetProcessInfos` funciona desde Tauri 2.12 con `webview2-com` 0.39. (SPEC §13.2)
+- **Criterio de validez de C2:** `GetProcessInfos` no incluye el proceso `crashpad-handler`. Se excluye de la comparación entre métodos y se suma a la memoria. (SPEC §11.4)
+- **Identificador de la app:** pasa de `com.devcockpit.app` a `dev-cockpit`, para que los datos de WebView2 queden en `%LOCALAPPDATA%\dev-cockpit\EBWebView` y los de la app en `%APPDATA%\dev-cockpit\`. (SPEC §4, §11.4)
+- **Escritor único:** el hilo de la canalización en vivo es el único que escribe en SQLite. No hay un `DbWriter` aparte, porque en F2 solo hay una fuente que escribe. El estado en vivo es una caché de consultas a SQLite, no un agregado paralelo.
+- **`unsafe_code`:** el lint del workspace pasa de `forbid` a `deny`. El único uso permitido es el COM de WebView2 en `src-tauri/src/procs.rs`.
+- **Variables `DEV_COCKPIT_*`:** redirigen las carpetas de entrada y la base de datos, solo para pruebas y mediciones.
+- **Sin hacer todavía:** las notificaciones nativas y el plugin `log`. El nombre de sesión del registro no se lee, porque no está en la lista blanca.
+
 ## Precisiones de F1: ingesta de transcripts (2026-11-11)
 
 No cambian la arquitectura ni el alcance. Salen de implementar F1 contra los transcripts reales.
