@@ -1,0 +1,372 @@
+{"session":"s1","seq":0,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"first_task"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s1","seq":1,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 6 is in progress."}
+{"session":"s1","seq":2,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 6 is in progress."}
+{"session":"s1","seq":3,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 6 is in progress."}
+{"session":"s1","seq":4,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 6 is in progress."}
+{"session":"s1","seq":5,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 6 is in progress."}
+{"session":"s1","seq":6,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s1","seq":7,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s1","seq":8,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 3 is in progress."}
+{"session":"s1","seq":9,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s1","seq":10,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s1","seq":11,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s1","seq":12,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 4 is in progress."}
+{"session":"s1","seq":13,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 4 is in progress."}
+{"session":"s1","seq":14,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s1","seq":15,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (2 steps)."}
+{"session":"s1","seq":16,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s1","seq":17,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s1","seq":18,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s1","seq":19,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 6 is in progress."}
+{"session":"s1","seq":20,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 6 is in progress."}
+{"session":"s1","seq":21,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 6 is in progress."}
+{"session":"s1","seq":22,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 6 is in progress."}
+{"session":"s1","seq":23,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 6 is in progress."}
+{"session":"s1","seq":24,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s1","seq":25,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s1","seq":26,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 3 is in progress."}
+{"session":"s1","seq":27,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 3 is in progress."}
+{"session":"s3","seq":0,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"first_task"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s3","seq":1,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 3 is in progress."}
+{"session":"s3","seq":2,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":3,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s3","seq":4,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":5,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s3","seq":6,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 3 is in progress."}
+{"session":"s3","seq":7,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 3 is in progress."}
+{"session":"s3","seq":8,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":9,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s3","seq":10,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 6 is in progress."}
+{"session":"s3","seq":11,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 6 is in progress."}
+{"session":"s3","seq":12,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 6 is in progress."}
+{"session":"s3","seq":13,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 6 is in progress."}
+{"session":"s3","seq":14,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 6 is in progress."}
+{"session":"s3","seq":15,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":16,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"},{"content":"Paso 8","status":"pending"},{"content":"Paso 9","status":"pending"},{"content":"Paso 10","status":"pending"},{"content":"Paso 11","status":"pending"},{"content":"Paso 12","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (12 steps)."}
+{"session":"s3","seq":17,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 12 is in progress."}
+{"session":"s3","seq":18,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":19,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":20,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":21,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"},{"content":"Paso 8","status":"pending"},{"content":"Paso 9","status":"pending"},{"content":"Paso 10","status":"pending"},{"content":"Paso 11","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (11 steps)."}
+{"session":"s3","seq":22,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":23,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":24,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s3","seq":25,"version":"2.1.308","input":{"done":[1,2],"start":3},"is_error":false,"result":"Plan updated: step 3 of 6 is in progress."}
+{"session":"s3","seq":26,"version":"2.1.308","input":{"done":[3,4],"start":5},"is_error":false,"result":"Plan updated: step 5 of 6 is in progress."}
+{"session":"s3","seq":27,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 6 is in progress."}
+{"session":"s3","seq":28,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":29,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s3","seq":30,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"},{"content":"Paso 8","status":"pending"},{"content":"Paso 9","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (9 steps)."}
+{"session":"s3","seq":31,"version":"2.1.308","input":{"done":[1,4],"start":2},"is_error":false,"result":"Plan updated: step 2 of 9 is in progress."}
+{"session":"s3","seq":32,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 9 is in progress."}
+{"session":"s3","seq":33,"version":"2.1.308","input":{"done":[2,3],"start":5},"is_error":false,"result":"Plan updated: step 5 of 9 is in progress."}
+{"session":"s3","seq":34,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 9 is in progress."}
+{"session":"s3","seq":35,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 7 of 9 is in progress."}
+{"session":"s3","seq":36,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 8 of 9 is in progress."}
+{"session":"s3","seq":37,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 9 of 9 is in progress."}
+{"session":"s3","seq":38,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":39,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":40,"version":"2.1.308","input":{"done":[1,2],"start":3},"is_error":false,"result":"Plan updated: step 3 of 5 is in progress."}
+{"session":"s3","seq":41,"version":"2.1.308","input":{"done":[3],"start":5},"is_error":false,"result":"Plan updated: step 5 of 5 is in progress."}
+{"session":"s3","seq":42,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":43,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s3","seq":44,"version":"2.1.308","input":{"done":[1,2],"start":3},"is_error":false,"result":"Plan updated: step 3 of 7 is in progress."}
+{"session":"s3","seq":45,"version":"2.1.308","input":{"done":[3,4],"start":5},"is_error":false,"result":"Plan updated: step 5 of 7 is in progress."}
+{"session":"s3","seq":46,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 7 is in progress."}
+{"session":"s3","seq":47,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 7 of 7 is in progress."}
+{"session":"s3","seq":48,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":49,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s3","seq":50,"version":"2.1.308","input":{"done":[1,2],"start":3},"is_error":false,"result":"Plan updated: step 3 of 3 is in progress."}
+{"session":"s3","seq":51,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":52,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s3","seq":53,"version":"2.1.308","input":{"done":[1,2],"start":3},"is_error":false,"result":"Plan updated: step 3 of 3 is in progress."}
+{"session":"s3","seq":54,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":55,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s3","seq":56,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"},{"content":"Paso 8","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (8 steps)."}
+{"session":"s3","seq":57,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"completed"},{"content":"Paso 5","status":"completed"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"},{"content":"Paso 8","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (8 steps)."}
+{"session":"s3","seq":58,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":59,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 5 is in progress."}
+{"session":"s3","seq":60,"version":"2.1.309","input":{"done":[2,3,4],"start":5},"is_error":false,"result":"Plan updated: step 5 of 5 is in progress."}
+{"session":"s3","seq":61,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":62,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s3","seq":63,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"completed"},{"content":"Paso 3","status":"completed"},{"content":"Paso 4","status":"completed"},{"content":"Paso 5","status":"in_progress"},{"content":"Paso 6","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s3","seq":64,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 6 is in progress."}
+{"session":"s3","seq":65,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":66,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":67,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"completed"},{"content":"Paso 3","status":"in_progress"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":68,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 5 is in progress."}
+{"session":"s3","seq":69,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 5 is in progress."}
+{"session":"s3","seq":70,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":71,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s3","seq":72,"version":"2.1.309","input":{"done":[1,2],"start":3},"is_error":false,"result":"Plan updated: step 3 of 4 is in progress."}
+{"session":"s3","seq":73,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":74,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":75,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":76,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 5 is in progress."}
+{"session":"s3","seq":77,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 5 is in progress."}
+{"session":"s3","seq":78,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":79,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":80,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 5 is in progress."}
+{"session":"s3","seq":81,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"completed"},{"content":"Paso 3","status":"in_progress"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":82,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 5 is in progress."}
+{"session":"s3","seq":83,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":84,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s3","seq":85,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 4 is in progress."}
+{"session":"s3","seq":86,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 4 is in progress."}
+{"session":"s3","seq":87,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"completed"},{"content":"Paso 3","status":"completed"},{"content":"Paso 4","status":"in_progress"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":88,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 5 is in progress."}
+{"session":"s3","seq":89,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":90,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s3","seq":91,"version":"2.1.309","input":{"done":[1,2],"start":3},"is_error":false,"result":"Plan updated: step 3 of 4 is in progress."}
+{"session":"s3","seq":92,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 4 is in progress."}
+{"session":"s3","seq":93,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":94,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s3","seq":95,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 4 is in progress."}
+{"session":"s3","seq":96,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"completed"},{"content":"Paso 3","status":"completed"},{"content":"Paso 4","status":"in_progress"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s3","seq":97,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 6 is in progress."}
+{"session":"s3","seq":98,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 6 is in progress."}
+{"session":"s3","seq":99,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":100,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s3","seq":101,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":102,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"completed"},{"content":"Paso 3","status":"in_progress"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":103,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 5 is in progress."}
+{"session":"s3","seq":104,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 5 is in progress."}
+{"session":"s3","seq":105,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":106,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s3","seq":107,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 4 is in progress."}
+{"session":"s3","seq":108,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 4 is in progress."}
+{"session":"s3","seq":109,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":110,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s3","seq":111,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 3 is in progress."}
+{"session":"s3","seq":112,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 3 is in progress."}
+{"session":"s3","seq":113,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":114,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s3","seq":115,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":116,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 5 is in progress."}
+{"session":"s3","seq":117,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 5 is in progress."}
+{"session":"s3","seq":118,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 5 is in progress."}
+{"session":"s3","seq":119,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":120,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (2 steps)."}
+{"session":"s3","seq":121,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 2 is in progress."}
+{"session":"s3","seq":122,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s3","seq":123,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"completed"},{"content":"Paso 3","status":"in_progress"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s3","seq":124,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 7 is in progress."}
+{"session":"s3","seq":125,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 7 is in progress."}
+{"session":"s3","seq":126,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 7 is in progress."}
+{"session":"s3","seq":127,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 7 of 7 is in progress."}
+{"session":"s3","seq":128,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":129,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":130,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 5 is in progress."}
+{"session":"s3","seq":131,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s3","seq":132,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s3","seq":133,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s3","seq":134,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"completed"},{"content":"Paso 3","status":"in_progress"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s3","seq":135,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 7 is in progress."}
+{"session":"s3","seq":136,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 7 is in progress."}
+{"session":"s3","seq":137,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 7 is in progress."}
+{"session":"s3","seq":138,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":139,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s3","seq":140,"version":"2.1.309","input":{"done":[4],"start":1},"is_error":false,"result":"Plan updated: step 1 of 4 is in progress."}
+{"session":"s3","seq":141,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":142,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":143,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":144,"version":"2.1.309","input":{"done":[1,2],"start":3},"is_error":false,"result":"Plan updated: step 3 of 4 is in progress."}
+{"session":"s3","seq":145,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":146,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":147,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 5 is in progress."}
+{"session":"s3","seq":148,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 5 is in progress."}
+{"session":"s3","seq":149,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":150,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"completed"},{"content":"Paso 3","status":"in_progress"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s3","seq":151,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":152,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":153,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s3","seq":154,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 5 is in progress."}
+{"session":"s3","seq":155,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":156,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 5 is in progress."}
+{"session":"s3","seq":157,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 5 is in progress."}
+{"session":"s3","seq":158,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s3","seq":159,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s3","seq":160,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s3","seq":161,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 4 is in progress."}
+{"session":"s3","seq":162,"version":"2.1.309","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 4 is in progress."}
+{"session":"s3","seq":163,"version":"2.1.317","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s4","seq":0,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"first_task"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s4","seq":1,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 6 is in progress."}
+{"session":"s4","seq":2,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 6 is in progress."}
+{"session":"s4","seq":3,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s4","seq":4,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"},{"content":"Paso 8","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (8 steps)."}
+{"session":"s4","seq":5,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 8 is in progress."}
+{"session":"s4","seq":6,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 8 is in progress."}
+{"session":"s4","seq":7,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 8 is in progress."}
+{"session":"s4","seq":8,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 8 is in progress."}
+{"session":"s4","seq":9,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 8 is in progress."}
+{"session":"s4","seq":10,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 7 of 8 is in progress."}
+{"session":"s4","seq":11,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 8 of 8 is in progress."}
+{"session":"s4","seq":12,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s4","seq":13,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"},{"content":"Paso 8","status":"pending"},{"content":"Paso 9","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (9 steps)."}
+{"session":"s4","seq":14,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 9 is in progress."}
+{"session":"s4","seq":15,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 9 is in progress."}
+{"session":"s4","seq":16,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 9 is in progress."}
+{"session":"s4","seq":17,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 9 is in progress."}
+{"session":"s4","seq":18,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 9 is in progress."}
+{"session":"s4","seq":19,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 7 of 9 is in progress."}
+{"session":"s4","seq":20,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 8 of 9 is in progress."}
+{"session":"s4","seq":21,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 9 of 9 is in progress."}
+{"session":"s4","seq":22,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s4","seq":23,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s4","seq":24,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 6 is in progress."}
+{"session":"s4","seq":25,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 6 is in progress."}
+{"session":"s4","seq":26,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 6 is in progress."}
+{"session":"s4","seq":27,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 6 is in progress."}
+{"session":"s4","seq":28,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 6 is in progress."}
+{"session":"s4","seq":29,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s4","seq":30,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s9","seq":0,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"first_task"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s9","seq":1,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 3 is in progress."}
+{"session":"s9","seq":2,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s9","seq":3,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s9","seq":4,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"completed"},{"content":"Paso 3","status":"in_progress"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s9","seq":5,"version":"2.1.308","input":{"done":[3,4,5],"start":6},"is_error":false,"result":"Plan updated: step 6 of 7 is in progress."}
+{"session":"s9","seq":6,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 7 of 7 is in progress."}
+{"session":"s9","seq":7,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s9","seq":8,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s9","seq":9,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 3 is in progress."}
+{"session":"s9","seq":10,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 3 is in progress."}
+{"session":"s9","seq":11,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s9","seq":12,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s9","seq":13,"version":"2.1.308","input":{"done":[1,2,3],"start":4},"is_error":false,"result":"Plan updated: step 4 of 5 is in progress."}
+{"session":"s9","seq":14,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 5 is in progress."}
+{"session":"s9","seq":15,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s9","seq":16,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s9","seq":17,"version":"2.1.309","input":{"done":[1,2],"start":4},"is_error":false,"result":"Plan updated: step 4 of 5 is in progress."}
+{"session":"s9","seq":18,"version":"2.1.309","input":{"done":[4],"start":3},"is_error":false,"result":"Plan updated: step 3 of 5 is in progress."}
+{"session":"s9","seq":19,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s9","seq":20,"version":"2.1.309","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s9","seq":21,"version":"2.1.309","input":{"done":[1,2],"start":3},"is_error":false,"result":"Plan updated: step 3 of 5 is in progress."}
+{"session":"s9","seq":22,"version":"2.1.309","input":{"done":[3,4],"start":5},"is_error":false,"result":"Plan updated: step 5 of 5 is in progress."}
+{"session":"s9","seq":23,"version":"2.1.309","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s9","seq":24,"version":"2.1.317","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s9","seq":25,"version":"2.1.317","input":{"done":[1,2,3,4,5],"start":6},"is_error":false,"result":"Plan updated: step 6 of 7 is in progress."}
+{"session":"s9","seq":26,"version":"2.1.317","input":{"advance":true},"is_error":false,"result":"Plan updated: step 7 of 7 is in progress."}
+{"session":"s9","seq":27,"version":"2.1.317","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s9","seq":28,"version":"2.1.317","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s9","seq":29,"version":"2.1.317","input":{"done":[1,2,3],"start":4},"is_error":false,"result":"Plan updated: step 4 of 7 is in progress."}
+{"session":"s9","seq":30,"version":"2.1.317","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 7 is in progress."}
+{"session":"s9","seq":31,"version":"2.1.317","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 7 is in progress."}
+{"session":"s9","seq":32,"version":"2.1.317","input":{"advance":true},"is_error":false,"result":"Plan updated: step 7 of 7 is in progress."}
+{"session":"s9","seq":33,"version":"2.1.317","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s9","seq":34,"version":"2.1.317","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s9","seq":35,"version":"2.1.317","input":{"done":[1,2,4,5],"start":6},"is_error":false,"result":"Plan updated: step 6 of 7 is in progress."}
+{"session":"s9","seq":36,"version":"2.1.317","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s9","seq":37,"version":"2.1.317","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s9","seq":38,"version":"2.1.317","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s10","seq":0,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"},{"content":"Paso 8","status":"pending"}],"scope":"first_task"},"is_error":false,"result":"Plan shown (8 steps)."}
+{"session":"s10","seq":1,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s10","seq":2,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s10","seq":3,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s10","seq":4,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 7 is in progress."}
+{"session":"s10","seq":5,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 7 is in progress."}
+{"session":"s10","seq":6,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 7 is in progress."}
+{"session":"s10","seq":7,"version":"2.1.308","input":{"done":[4],"start":6},"is_error":false,"result":"Plan updated: step 6 of 7 is in progress."}
+{"session":"s10","seq":8,"version":"2.1.308","input":{"done":[6],"start":5},"is_error":false,"result":"Plan updated: step 5 of 7 is in progress."}
+{"session":"s10","seq":9,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"completed"},{"content":"Paso 3","status":"completed"},{"content":"Paso 4","status":"completed"},{"content":"Paso 5","status":"completed"},{"content":"Paso 6","status":"completed"},{"content":"Paso 7","status":"in_progress"},{"content":"Paso 8","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (8 steps)."}
+{"session":"s10","seq":10,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 8 of 8 is in progress."}
+{"session":"s10","seq":11,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s10","seq":12,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s10","seq":13,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s10","seq":14,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s10","seq":15,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s10","seq":16,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s10","seq":17,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 3 is in progress."}
+{"session":"s10","seq":18,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 3 is in progress."}
+{"session":"s10","seq":19,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s10","seq":20,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s10","seq":21,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s10","seq":22,"version":"2.1.308","input":{"done":[1,2,3],"start":4},"is_error":false,"result":"Plan updated: step 4 of 6 is in progress."}
+{"session":"s10","seq":23,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s10","seq":24,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s10","seq":25,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 4 is in progress."}
+{"session":"s10","seq":26,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 4 is in progress."}
+{"session":"s10","seq":27,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s10","seq":28,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s10","seq":29,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 3 is in progress."}
+{"session":"s10","seq":30,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 3 is in progress."}
+{"session":"s10","seq":31,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s10","seq":32,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s10","seq":33,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s10","seq":34,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"in_progress"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s10","seq":35,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 5 is in progress."}
+{"session":"s10","seq":36,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 5 is in progress."}
+{"session":"s10","seq":37,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 5 is in progress."}
+{"session":"s10","seq":38,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s10","seq":39,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s10","seq":40,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 5 is in progress."}
+{"session":"s10","seq":41,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 5 is in progress."}
+{"session":"s10","seq":42,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 5 is in progress."}
+{"session":"s10","seq":43,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 5 is in progress."}
+{"session":"s10","seq":44,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s12","seq":0,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (1 steps)."}
+{"session":"s12","seq":1,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s12","seq":2,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s12","seq":3,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 7 is in progress."}
+{"session":"s12","seq":4,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 7 is in progress."}
+{"session":"s12","seq":5,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s12","seq":6,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"},{"content":"Paso 8","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (8 steps)."}
+{"session":"s12","seq":7,"version":"2.1.308","input":{"done":[2,3,4],"start":5},"is_error":false,"result":"Plan updated: steps 1, 5 of 8 are in progress; keep one and send {\"done\": [n]} for any you finished."}
+{"session":"s12","seq":8,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s12","seq":9,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s12","seq":10,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 7 is in progress."}
+{"session":"s12","seq":11,"version":"2.1.308","input":{"done":[2,3,5],"start":4},"is_error":false,"result":"Plan updated: step 4 of 7 is in progress."}
+{"session":"s12","seq":12,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 7 is in progress."}
+{"session":"s12","seq":13,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 7 of 7 is in progress."}
+{"session":"s12","seq":14,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s12","seq":15,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s12","seq":16,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 6 is in progress."}
+{"session":"s12","seq":17,"version":"2.1.308","input":{"done":[2,3],"start":4},"is_error":false,"result":"Plan updated: step 4 of 6 is in progress."}
+{"session":"s12","seq":18,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s12","seq":19,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s12","seq":20,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 7 is in progress."}
+{"session":"s12","seq":21,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 7 is in progress."}
+{"session":"s12","seq":22,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 7 is in progress."}
+{"session":"s12","seq":23,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 7 is in progress."}
+{"session":"s12","seq":24,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 7 is in progress."}
+{"session":"s12","seq":25,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s12","seq":26,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s12","seq":27,"version":"2.1.308","input":{"done":[1,2],"start":3},"is_error":false,"result":"Plan updated: step 3 of 6 is in progress."}
+{"session":"s12","seq":28,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 4 of 6 is in progress."}
+{"session":"s12","seq":29,"version":"2.1.308","input":{"done":[4,5],"start":6},"is_error":false,"result":"Plan updated: step 6 of 6 is in progress."}
+{"session":"s12","seq":30,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s12","seq":31,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (3 steps)."}
+{"session":"s12","seq":32,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 3 is in progress."}
+{"session":"s12","seq":33,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 3 is in progress."}
+{"session":"s12","seq":34,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"completed"},{"content":"Paso 2","status":"completed"},{"content":"Paso 3","status":"completed"},{"content":"Paso 4","status":"in_progress"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s12","seq":35,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 7 is in progress."}
+{"session":"s12","seq":36,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 7 is in progress."}
+{"session":"s12","seq":37,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 7 of 7 is in progress."}
+{"session":"s12","seq":38,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s15","seq":0,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"},{"content":"Paso 7","status":"pending"}],"scope":"first_task"},"is_error":false,"result":"Plan shown (7 steps)."}
+{"session":"s15","seq":1,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 7 is in progress."}
+{"session":"s15","seq":2,"version":"2.1.308","input":{"done":[2,3,4],"start":5},"is_error":false,"result":"Plan updated: step 5 of 7 is in progress."}
+{"session":"s15","seq":3,"version":"2.1.308","input":{"done":[5,6],"start":7},"is_error":false,"result":"Plan updated: step 7 of 7 is in progress."}
+{"session":"s15","seq":4,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s19","seq":0,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"},{"content":"Paso 6","status":"pending"}],"scope":"first_task"},"is_error":false,"result":"Plan shown (6 steps)."}
+{"session":"s19","seq":1,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 6 is in progress."}
+{"session":"s19","seq":2,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 6 is in progress."}
+{"session":"s19","seq":3,"version":"2.1.308","input":{"done":[3,4],"start":5},"is_error":false,"result":"Plan updated: step 5 of 6 is in progress."}
+{"session":"s19","seq":4,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 6 of 6 is in progress."}
+{"session":"s19","seq":5,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s21","seq":0,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"first_task"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s21","seq":1,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 4 is in progress."}
+{"session":"s21","seq":2,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 3 of 4 is in progress."}
+{"session":"s21","seq":3,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s22","seq":0,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"first_task"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s22","seq":1,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 4 is in progress."}
+{"session":"s22","seq":2,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s23","seq":0,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"}],"scope":"first_task"},"is_error":false,"result":"Plan shown (4 steps)."}
+{"session":"s23","seq":1,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s23","seq":2,"version":"2.1.308","input":{"items":[{"content":"Paso 1","status":"in_progress"},{"content":"Paso 2","status":"pending"},{"content":"Paso 3","status":"pending"},{"content":"Paso 4","status":"pending"},{"content":"Paso 5","status":"pending"}],"scope":"continuation"},"is_error":false,"result":"Plan shown (5 steps)."}
+{"session":"s23","seq":3,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 2 of 5 is in progress."}
+{"session":"s23","seq":4,"version":"2.1.308","input":{"done":[2,3],"start":4},"is_error":false,"result":"Plan updated: step 4 of 5 is in progress."}
+{"session":"s23","seq":5,"version":"2.1.308","input":{"advance":true},"is_error":false,"result":"Plan updated: step 5 of 5 is in progress."}
+{"session":"s23","seq":6,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}
+{"session":"s23","seq":7,"version":"2.1.308","tool":"wrap_up","is_error":false,"result":"ok"}

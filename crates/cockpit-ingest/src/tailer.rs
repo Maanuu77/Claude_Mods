@@ -12,6 +12,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use cockpit_core::model::{CockpitEvent, EventKind, Source};
 use cockpit_core::privacy::PrivacyPolicy;
+use cockpit_core::tasks::{self, AgentState};
 use cockpit_core::transcript::{LineClass, LineError, TranscriptParser};
 use cockpit_store::{Batch, FileOffset, IngestError, Store, StoreError};
 
@@ -39,10 +40,8 @@ pub struct TranscriptFile {
 
 impl TranscriptFile {
     fn from_metadata(path: PathBuf, meta: &fs::Metadata) -> Self {
-        let is_subagent = path
-            .parent()
-            .and_then(Path::file_name)
-            .is_some_and(|n| n == "subagents");
+        // `subagents/agent-*.jsonl` y también `subagents/workflows/<wf>/agent-*.jsonl`.
+        let is_subagent = subagents_dir(&path).is_some();
         Self {
             size: meta.len(),
             mtime_ms: millis(meta.modified()).unwrap_or(0),
@@ -69,6 +68,68 @@ impl TranscriptFile {
         }
         self.path.file_stem()?.to_str()
     }
+}
+
+/// La carpeta `subagents` que contiene `path`, si la hay (como mucho tres niveles).
+fn subagents_dir(path: &Path) -> Option<&Path> {
+    path.ancestors()
+        .skip(1)
+        .take(3)
+        .find(|a| a.file_name().is_some_and(|n| n == "subagents"))
+}
+
+/// Metadatos de un subagente que se pueden leer: nunca su `description`.
+#[derive(serde::Deserialize)]
+struct SubagentMeta {
+    #[serde(rename = "agentType", default)]
+    agent_type: Option<String>,
+    #[serde(default)]
+    finished: Option<bool>,
+}
+
+/// `.meta.json` de un subagente (A4): `<sesión>/subagents/…/agent-<id>.meta.json`.
+pub fn is_subagent_meta(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|n| n.starts_with("agent-") && n.ends_with(".meta.json"))
+        && subagents_dir(path).is_some()
+}
+
+/// Tipo y fin de un subagente según su `.meta.json` [INT]. Solo se leen `agentType`
+/// y `finished`; la sesión sale de la carpeta y el agente, del nombre del fichero.
+pub fn subagent_meta_event(meta_path: &Path, ts_ms: i64) -> Option<CockpitEvent> {
+    let name = meta_path.file_name()?.to_str()?;
+    let agent = tasks::clean_id(name.strip_prefix("agent-")?.strip_suffix(".meta.json")?)?;
+    let session_id = subagents_dir(meta_path)?
+        .parent()?
+        .file_name()?
+        .to_str()?
+        .to_owned();
+    let meta: SubagentMeta = serde_json::from_slice(&fs::read(meta_path).ok()?).ok()?;
+    let agent_type = meta.agent_type.as_deref().and_then(tasks::clean_agent_type);
+    let status = (meta.finished == Some(true)).then_some(AgentState::Completed);
+    if agent_type.is_none() && status.is_none() {
+        return None;
+    }
+    Some(CockpitEvent {
+        source: Source::Transcript,
+        session_id,
+        agent_id: None,
+        ts_ms,
+        engine_version: None,
+        kind: EventKind::AgentStatus {
+            agent,
+            agent_type,
+            status,
+            duration_ms: None,
+        },
+    })
+}
+
+fn meta_path_of(jsonl: &Path) -> PathBuf {
+    let mut name = jsonl.file_stem().unwrap_or_default().to_os_string();
+    name.push(".meta.json");
+    jsonl.with_file_name(name)
 }
 
 fn millis(t: io::Result<SystemTime>) -> Option<i64> {
@@ -140,6 +201,8 @@ pub struct IngestStats {
     pub events: u64,
     pub corrupt_lines: u64,
     pub drift_lines: u64,
+    /// Llamadas a herramientas de tareas con una forma que el adaptador no conoce.
+    pub adapter_drift: u64,
     pub unknown_lines: u64,
     pub truncated_files: u64,
     pub orphan_results: u64,
@@ -267,6 +330,11 @@ pub fn ingest_file(
                 push_error(&mut errors, &path_key, "drift", &kind);
             }
         }
+        // Una herramienta de tareas con forma inesperada: la línea vale, la operación no.
+        for note in parser.take_notes() {
+            stats.adapter_drift += 1;
+            push_error(&mut errors, &path_key, "drift", &note);
+        }
         if events.len() >= FLUSH_EVENTS {
             flush(
                 store.as_deref_mut(),
@@ -281,6 +349,12 @@ pub fn ingest_file(
         Ok(())
     })?;
     parser.finish(&mut events);
+    if file.is_subagent
+        && end > start
+        && let Some(event) = subagent_meta_event(&meta_path_of(&file.path), file.mtime_ms)
+    {
+        events.push(event);
+    }
     stats.bytes_read += end - start;
     flush(store, file, &path_key, end, &mut events, &mut errors, stats)
 }
@@ -472,6 +546,62 @@ mod tests {
         assert_eq!(files.len(), 2);
         let sessions: Vec<_> = files.iter().filter_map(|f| f.session_id()).collect();
         assert_eq!(sessions, [SESSION]);
+    }
+
+    #[test]
+    fn workflow_subagents_are_subagents_and_their_meta_is_read_without_description() {
+        let dir = tempfile::tempdir().unwrap();
+        let session = "33333333-3333-4333-8333-333333333333";
+        let wf = dir
+            .path()
+            .join("proyecto")
+            .join(session)
+            .join("subagents/workflows/wf_1");
+        fs::create_dir_all(&wf).unwrap();
+        let jsonl = wf.join("agent-a1b2c3.jsonl");
+        append(&jsonl, &format!("{}\n", assistant(1, 10)));
+        fs::write(
+            wf.join("agent-a1b2c3.meta.json"),
+            r#"{"agentType":"workflow-subagent","description":"SECRETO-TRAMPA","finished":true,"spawnDepth":1}"#,
+        )
+        .unwrap();
+
+        let file = TranscriptFile::from_path(&jsonl).unwrap();
+        assert!(file.is_subagent);
+        assert_eq!(file.session_id(), None);
+
+        let meta = wf.join("agent-a1b2c3.meta.json");
+        assert!(is_subagent_meta(&meta));
+        let event = subagent_meta_event(&meta, 7).unwrap();
+        assert_eq!(event.session_id, session);
+        assert!(!format!("{event:?}").contains("SECRETO"));
+        assert!(matches!(
+            event.kind,
+            EventKind::AgentStatus { ref agent, status: Some(AgentState::Completed), ref agent_type, .. }
+                if agent == "a1b2c3" && agent_type.as_deref() == Some("workflow-subagent")
+        ));
+
+        // Ninguna sesión llamada `agent-*`: solo la real.
+        let mut store = Store::open_in_memory().unwrap();
+        run(dir.path(), &mut store);
+        let ids: Vec<String> = store
+            .connection()
+            .prepare("SELECT id FROM sessions")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert!(ids.iter().all(|id| !id.starts_with("agent-")), "{ids:?}");
+        let agents: i64 = store
+            .connection()
+            .query_row(
+                "SELECT COUNT(*) FROM agents WHERE agent_type = 'workflow-subagent'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(agents, 1);
     }
 
     #[test]

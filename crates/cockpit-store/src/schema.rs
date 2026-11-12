@@ -1,8 +1,8 @@
 //! Esquema y migraciones (SPEC §6.4). La versión vive en `PRAGMA user_version`.
 //!
 //! La migración 1 crea las tablas que alimenta el transcript, la 2 las del mod
-//! (F3) y la 3 las del Workspace Watcher y la agregación (F4a). `agents`, `tasks`
-//! y las del Project Map llegan con sus fases en migraciones nuevas.
+//! (F3), la 3 las del Workspace Watcher y la agregación (F4a) y la 4 las del Task
+//! Monitor (F4b). Las del Project Map llegan con su fase.
 
 use rusqlite::Connection;
 
@@ -252,6 +252,62 @@ const MIGRATIONS: &[&str] = &[
          AND ((root_id = COALESCE(OLD.root_id, 0) AND day = OLD.day)
            OR (root_id = COALESCE(NEW.root_id, 0) AND day = NEW.day));
     END;
+    "#,
+    // 4: F4b, Task Monitor (§8): tareas declaradas y subagentes.
+    r#"
+    -- Registro de operaciones: el estado de cada lista es su reproducción ordenada,
+    -- así que el mod y el transcript pueden entregar la misma en cualquier orden.
+    CREATE TABLE task_ops(
+        session_id  TEXT NOT NULL REFERENCES sessions(id),
+        op_key      TEXT NOT NULL,                 -- create:<id> | completed:<id> | tool:<tool_use_id>
+        source      TEXT NOT NULL,                 -- task_tools | todo_write | desktop_plan
+        ts          INTEGER NOT NULL,
+        agent_id    TEXT NULL,                     -- bucle que la declaró
+        op_json     TEXT NOT NULL,                 -- §10: ids, estados, responsables, títulos (D1)
+        source_mask INTEGER NOT NULL,
+        PRIMARY KEY (session_id, op_key)
+    );
+    CREATE INDEX task_ops_list ON task_ops(session_id, source, ts);
+
+    -- Estado actual de cada lista: se reescribe entero con cada operación nueva.
+    CREATE TABLE tasks(
+        session_id      TEXT NOT NULL REFERENCES sessions(id),
+        source          TEXT NOT NULL,
+        task_id         TEXT NOT NULL,             -- id de TaskCreate; posición 1…n en las listas
+        subject         TEXT NULL,                 -- 120 caracteres; NULL sin capture_task_titles
+        status          TEXT NOT NULL,             -- pending|in_progress|completed|deleted
+        owner           TEXT NULL,
+        blocked_by_json TEXT NOT NULL,
+        position        INTEGER NOT NULL,
+        created_at      INTEGER NOT NULL,
+        updated_at      INTEGER NOT NULL,
+        completed_at    INTEGER NULL,
+        PRIMARY KEY (session_id, source, task_id)
+    );
+
+    CREATE TABLE agents(
+        session_id  TEXT NOT NULL REFERENCES sessions(id),
+        agent_id    TEXT NOT NULL,
+        agent_type  TEXT NULL,
+        status      TEXT NULL,                     -- pending|running|waiting|idle|completed|failed|killed
+        status_ts   INTEGER NOT NULL,              -- el estado más reciente gana
+        parent_id   TEXT NULL,                     -- NULL = lo lanzó el bucle principal
+        first_seen  INTEGER NOT NULL,
+        last_seen   INTEGER NOT NULL,
+        duration_ms INTEGER NULL,
+        source_mask INTEGER NOT NULL,
+        PRIMARY KEY (session_id, agent_id)
+    );
+
+    -- Hasta F4b, `subagents/workflows/<wf>/agent-*.jsonl` se tomaba por el fichero de
+    -- una sesión llamada `agent-*`, que quedaba vacía (solo su fecha de creación).
+    -- Ningún id de sesión real empieza así: se borran las que no tienen nada.
+    DELETE FROM sessions WHERE id LIKE 'agent-%'
+       AND NOT EXISTS (SELECT 1 FROM api_messages m WHERE m.session_id = sessions.id)
+       AND NOT EXISTS (SELECT 1 FROM tool_calls t WHERE t.session_id = sessions.id)
+       AND NOT EXISTS (SELECT 1 FROM turns u WHERE u.session_id = sessions.id)
+       AND NOT EXISTS (SELECT 1 FROM usage_snapshots s WHERE s.session_id = sessions.id)
+       AND NOT EXISTS (SELECT 1 FROM api_errors e WHERE e.session_id = sessions.id);
     "#,
 ];
 

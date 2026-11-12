@@ -122,6 +122,7 @@ fn hello_then_events_is_idempotent_and_feeds_the_live_state() {
             db_path: dir.path().join("cockpit.db"),
             endpoint_path: Some(dir.path().join("endpoint.json")),
             policy: PrivacyPolicy::APP_DEFAULT,
+            desktop_plan: true,
         },
         state.clone(),
     )
@@ -257,4 +258,77 @@ fn hello_then_events_is_idempotent_and_feeds_the_live_state() {
     // Cierre limpio: desaparece `endpoint.json`.
     drop(pipeline);
     assert!(!dir.path().join("endpoint.json").exists());
+}
+
+/// Task Monitor por el mod (SPEC §8): operaciones de tareas, hooks y subagentes.
+#[test]
+fn task_ops_and_agents_reach_the_session_view() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("projects")).unwrap();
+    let state = LiveState::new(|| {});
+    let _pipeline = LivePipeline::spawn(
+        LiveConfig {
+            projects_root: dir.path().join("projects"),
+            sessions_dir: None,
+            db_path: dir.path().join("cockpit.db"),
+            endpoint_path: Some(dir.path().join("endpoint.json")),
+            policy: PrivacyPolicy::APP_DEFAULT,
+            desktop_plan: true,
+        },
+        state.clone(),
+    )
+    .unwrap();
+    let client = Client::new(dir.path());
+    let now = now_ms();
+    assert_eq!(client.post("/v1/hello", &hello("2.1.321", 1, now)).0, 200);
+
+    let batch = format!(
+        r#"{{"schema":1,"instance_id":"{INSTANCE}","session_id":"{SESSION}","events":[
+            {{"kind":"task_op","seq":1,"t":{now},"tool_use_id":"toolu_p1","source":"desktop_plan",
+              "op":{{"type":"replace","items":[{{"subject":"Leer la SPEC","status":"in_progress"}},{{"subject":"Escribir","status":"pending"}},{{"status":"pending"}}]}}}},
+            {{"kind":"task_op","seq":2,"t":{},"tool_use_id":"toolu_p2","source":"desktop_plan","op":{{"type":"advance"}}}},
+            {{"kind":"task_op","seq":3,"t":{now},"source":"task_tools","op":{{"type":"create","task_id":"1","subject":"Revisar"}}}},
+            {{"kind":"task_op","seq":4,"t":{},"tool_use_id":"toolu_u1","agent_id":"a1","source":"task_tools",
+              "op":{{"type":"update","task_id":"1","status":"in_progress","owner":"ana","blocked_by":["2"]}}}},
+            {{"kind":"task_op","seq":5,"t":{now},"tool_use_id":"toolu_bad","source":"desktop_plan","op":{{"type":"create","task_id":"9"}}}},
+            {{"kind":"agents","seq":6,"t":{now},"agents":[
+                {{"id":"a1","type":"Explore","status":"running"}},
+                {{"id":"a2","type":"general-purpose","status":"completed","parent_id":"a1"}}]}}
+        ]}}"#,
+        now + 1,
+        now + 2
+    );
+    let (status, ack) = client.post("/v1/events", &batch);
+    assert_eq!(status, 200);
+    assert_eq!(ack["ack_seq"], 6);
+
+    let view = wait_for(|| session(&state).filter(|s| s.summary.tasks.len() == 2)).summary;
+    let plan = view
+        .tasks
+        .iter()
+        .find(|l| l.source == cockpit_core::tasks::TaskSource::DesktopPlan)
+        .unwrap();
+    let statuses: Vec<_> = plan.items.iter().map(|i| i.status.as_str()).collect();
+    assert_eq!(statuses, ["completed", "in_progress", "pending"]);
+    assert_eq!((plan.progress.completed, plan.progress.total), (1, 3));
+    // Sin título: la interfaz lo numera.
+    assert_eq!(plan.items[2].subject, None);
+    let tasks = view
+        .tasks
+        .iter()
+        .find(|l| l.source == cockpit_core::tasks::TaskSource::TaskTools)
+        .unwrap();
+    assert_eq!(tasks.items.len(), 1, "un `create` en A3 se descarta");
+    assert_eq!(tasks.items[0].owner.as_deref(), Some("ana"));
+    assert_eq!(tasks.items[0].blocked_by, ["2"]);
+    assert_eq!(view.agents.len(), 2);
+    assert_eq!(view.agents[1].parent_id.as_deref(), Some("a1"));
+
+    // Un campo fuera de la lista blanca en una operación tumba el lote.
+    let leaked = format!(
+        r#"{{"schema":1,"instance_id":"{INSTANCE}","session_id":"{SESSION}","events":[
+            {{"kind":"task_op","seq":7,"t":{now},"tool_use_id":"toolu_x","source":"todo_write",
+              "op":{{"type":"replace","items":[{{"subject":"a","status":"pending","activeForm":"SECRETO"}}]}}}}]}}"#
+    );
+    assert_eq!(client.post("/v1/events", &leaked).0, 422);
 }

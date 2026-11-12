@@ -212,6 +212,7 @@ impl Env {
                 db_path: db_dir.join("cockpit.db"),
                 endpoint_path: Some(db_dir.join("endpoint.json")),
                 policy: PrivacyPolicy::APP_DEFAULT,
+                desktop_plan: true,
             },
             state.clone(),
         )

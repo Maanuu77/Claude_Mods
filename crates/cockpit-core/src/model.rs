@@ -6,6 +6,7 @@
 use serde::Serialize;
 
 use crate::privacy::ToolMeta;
+use crate::tasks::{AgentState, TaskOp, TaskSource};
 
 /// Origen de un evento.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -147,5 +148,35 @@ pub enum EventKind {
     CostState {
         total_cost_usd: f64,
         usage: TokenUsage,
+    },
+    /// Operación declarada sobre una lista de tareas (SPEC §8, A1–A3).
+    /// Identidad: `(session_id, op_key)`; ver [`TaskOp::key`].
+    TaskOp {
+        source: TaskSource,
+        op_key: String,
+        op: TaskOp,
+    },
+    /// Estado de un subagente (A4). `agent_id` del evento es el **padre**: el bucle
+    /// que lo lanzó (`None` = el principal).
+    AgentStatus {
+        agent: String,
+        agent_type: Option<String>,
+        status: Option<AgentState>,
+        duration_ms: Option<u64>,
+    },
+    /// Lo que los adaptadores necesitan del resultado de una herramienta del
+    /// transcript. El parser no sabe de qué herramienta es (lee cada tramo nuevo
+    /// del fichero con un parser nuevo): el store lo resuelve por `tool_use_id`.
+    ToolResultMeta {
+        tool_use_id: String,
+        is_error: bool,
+        /// `TaskCreate`: id asignado y título ya filtrado por la política.
+        task_id: Option<String>,
+        task_subject: Option<String>,
+        /// `Agent`: el subagente lanzado. `agent_id` del evento es su padre.
+        agent: Option<String>,
+        agent_type: Option<String>,
+        agent_status: Option<AgentState>,
+        duration_ms: Option<u64>,
     },
 }

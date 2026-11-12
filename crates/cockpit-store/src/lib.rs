@@ -9,18 +9,21 @@
 mod compact;
 mod schema;
 mod summary;
+mod tasks;
 mod workspace;
 
 use std::collections::HashMap;
 use std::path::Path;
 
-use cockpit_core::model::{CockpitEvent, EventKind, TokenUsage};
+use cockpit_core::model::{CockpitEvent, EventKind, TokenUsage, ToolStatus};
+use cockpit_core::tasks::TaskSource;
 use cockpit_core::time::local_day;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 pub use compact::{CompactOptions, CompactReport, Target};
 pub use schema::SCHEMA_VERSION;
 pub use summary::{SessionSummary, ToolView, UsageView};
+pub use tasks::{ACTIVITY_MINUTES, ActivityView, AgentView, TaskItemView, TaskListView};
 pub use workspace::{FileEventView, NewProject, StoredChange, ToolInterval};
 
 /// Nombre del fichero de la base de datos dentro de `%APPDATA%\dev-cockpit\`.
@@ -108,6 +111,8 @@ impl CostStateCheck {
 
 pub struct Store {
     conn: Connection,
+    /// Adaptadores de tareas desactivados (A3 es desactivable, SPEC §8).
+    disabled_sources: Vec<TaskSource>,
 }
 
 impl Store {
@@ -118,7 +123,10 @@ impl Store {
     /// Conexión de solo lectura para las consultas de la interfaz. No migra ni escribe.
     pub fn open_read_only(path: &Path) -> Result<Self> {
         let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-        Ok(Self { conn })
+        Ok(Self {
+            conn,
+            disabled_sources: Vec::new(),
+        })
     }
 
     pub fn open_in_memory() -> Result<Self> {
@@ -130,16 +138,25 @@ impl Store {
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
         schema::migrate(&mut conn)?;
-        Ok(Self { conn })
+        Ok(Self {
+            conn,
+            disabled_sources: Vec::new(),
+        })
     }
 
     /// Aplica un lote en una transacción: o entra entero, o no entra nada.
     pub fn apply(&mut self, batch: &Batch<'_>) -> Result<BatchStats> {
         let tx = self.conn.transaction()?;
         let mut stats = BatchStats::default();
+        let mut touched = tasks::Touched::new();
         upsert_sessions(&tx, batch.events)?;
+        tasks::touch_agents(&tx, batch.events)?;
         for event in batch.events {
-            apply_event(&tx, event, &mut stats)?;
+            apply_event(&tx, event, &mut stats, &mut touched)?;
+        }
+        // Cada lista con operaciones nuevas se reproduce una sola vez por lote.
+        for (session_id, source) in &touched {
+            tasks::rebuild(&tx, session_id, *source)?;
         }
         for o in batch.offsets {
             tx.prepare_cached(
@@ -403,8 +420,35 @@ fn session_rank(tx: &Transaction<'_>, id: &str) -> Result<(i64, i64)> {
         .query_row([id], |r| Ok((r.get(0)?, r.get(1)?)))?)
 }
 
-fn apply_event(tx: &Transaction<'_>, e: &CockpitEvent, stats: &mut BatchStats) -> Result<()> {
+fn apply_event(
+    tx: &Transaction<'_>,
+    e: &CockpitEvent,
+    stats: &mut BatchStats,
+    touched: &mut tasks::Touched,
+) -> Result<()> {
     match &e.kind {
+        EventKind::TaskOp { source, op_key, op } => {
+            tasks::record_op(tx, e, *source, op_key, op, touched)?;
+        }
+        EventKind::ToolResultMeta { .. } => tasks::apply_result_meta(tx, e, touched)?,
+        EventKind::AgentStatus {
+            agent,
+            agent_type,
+            status,
+            duration_ms,
+        } => tasks::upsert_agent(
+            tx,
+            &tasks::AgentUpdate {
+                session_id: &e.session_id,
+                agent,
+                agent_type: agent_type.as_deref(),
+                status: *status,
+                parent_id: e.agent_id.as_deref(),
+                ts: e.ts_ms,
+                duration_ms: *duration_ms,
+                mask: e.source.mask(),
+            },
+        )?,
         EventKind::SessionSeen { .. } | EventKind::TranscriptFile { .. } => {}
         EventKind::ApiMessage {
             message_id,
@@ -536,6 +580,9 @@ fn apply_event(tx: &Transaction<'_>, e: &CockpitEvent, stats: &mut BatchStats) -
                 if !exists {
                     stats.orphan_results += 1;
                 }
+            }
+            if matches!(status, ToolStatus::Error | ToolStatus::Interrupted) {
+                tasks::drop_failed_op(tx, &e.session_id, tool_use_id, touched)?;
             }
         }
         EventKind::ToolPermission {
