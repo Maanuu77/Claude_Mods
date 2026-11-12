@@ -14,6 +14,9 @@ No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-12-f4c.md
   3. rinde con margen: 200 nodos y 398 aristas, layout en 4,6 ms y pintado en 33 ms.
 
   La lista de componentes que hay junto al grafo es su alternativa en texto.
+- **Caché del mapa (migración 5):** `project_components` y `project_deps` llevan, además de las columnas de §6.4, lo necesario para reconstruir el mapa entero (id del componente, grupo, partes de Rojo, rango de versión y orden), y una tabla nueva, `project_map_state`, guarda la fecha del escaneo, la huella de los manifiestos (ruta, bytes y fecha de modificación), los problemas y la marca `stale`. Solo metadatos de manifiestos. (SPEC §6.4, §9)
+- **Invalidación por huella además del Watcher:** §9 dice que la caché «se invalida solo cuando el Watcher ve cambiar un manifiesto». Se invalida también si la huella no coincide, para cubrir los cambios hechos con la raíz sin vigilar o con la app cerrada, que el Watcher no puede ver. Es más estricto, nunca muestra un mapa más viejo. (SPEC §9)
+- **Medido:** la caché no acelera el escaneo en los proyectos reales (≈ 30–40 ms con y sin ella), porque lo dominan `git ls-files` y el `stat` de cada fichero, no los manifiestos.
 
 ## Cierre de F4b: Task Monitor, G6 y desviaciones aceptadas (2026-11-12)
 

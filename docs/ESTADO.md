@@ -36,7 +36,7 @@ Están en [`DEVELOPMENT_WORKFLOW.md`](DEVELOPMENT_WORKFLOW.md) (W1–W11). Las q
 | F3 mod puente | Hecha y fusionada | `mods/dev-cockpit-bridge`, `crates/cockpit-ingest/src/http.rs`, `wire.rs` |
 | F4a Workspace Watcher | Hecha y fusionada | `crates/cockpit-ingest/src/{git,watcher,workspace}.rs`, `cockpit-core/src/attribution.rs`, `cockpit-store/src/{compact,workspace}.rs`, `src/changes/` |
 | F4b Task Monitor | Hecha y fusionada (desviaciones del criterio aceptadas por el usuario) | `crates/cockpit-core/src/tasks.rs`, `cockpit-store/src/tasks.rs`, `src/tasks/` |
-| **F4c Project Map** | **En curso** en `feature/f4c-project-map`: mapa, histórico, diagnóstico y grafo G8 hechos; falta la caché persistente del mapa (migración 5) | `cockpit-core/src/project_map.rs`, `cockpit-ingest/src/project_scan.rs`, `cockpit-store/src/{diagnostics,history}.rs`, `src/{map,history,diag}/`; informe `docs/perf/2026-11-12-f4c.md` en esa rama |
+| **F4c Project Map** | **Hecha en `feature/f4c-project-map`, sin fusionar:** criterios cumplidos (G8, consultas < 100 ms); falta que el usuario decida sobre «borrar rutas ahora» | `cockpit-core/src/project_map.rs`, `cockpit-ingest/src/project_scan.rs`, `cockpit-store/src/{diagnostics,history,project_cache}.rs`, `src/{map,history,diag}/`; informe `docs/perf/2026-11-12-f4c.md` en esa rama |
 | F5 endurecimiento | Sin empezar | — |
 
 `main` contiene la fusión de F4b (`git log --merges -1 main`). La calibración de G5 (SPEC §7.3) y las desviaciones del criterio de F4b las aceptó el usuario el 2026-11-12.
@@ -117,11 +117,30 @@ Resultados en [`perf/2026-11-12-f4b.md`](perf/2026-11-12-f4b.md):
 | E2E con el mod en los motores | **pasa con `TaskCreate`/`TaskUpdate`** (repetido a las 22:32, autorizado): en CLI 2.1.289 y Desktop 2.1.321, 5 operaciones por sesión, todas de mod + transcript, sin duplicados, y la lista reconstruida correcta. Sin rutas ni títulos antes del handshake. **`TodoWrite` no se pudo probar en vivo:** los motores no la ofrecen junto a las herramientas de tareas. Esa desviación y la de `update_plan` con el mod las **aceptó el usuario** (2026-11-12) |
 | Base real | migrada a la versión 4 y releída; **copia previa** en `%APPDATA%\dev-cockpit\backups\pre-f4b-2026-11-12\` |
 
+## F4c: lo que está hecho (2026-11-12)
+
+Rama `feature/f4c-project-map`, con `main` (F4b) ya fusionado en ella.
+
+- **Project Map** (`cockpit-core/src/project_map.rs`, `cockpit-ingest/src/project_scan.rs`): detectores de manifiestos de §9 y resumen del árbol (`git ls-files` o recorrido con `.gitignore`; solo `stat` y manifiestos). Vista «Mapa» con el árbol, los componentes, sus relaciones y el grafo.
+- **G8:** grafo con SVG y layout por capas propios, sin React Flow ni dagre (desviación por delegación del usuario, en `CHANGELOG-spec.md`).
+- **Vistas «Diagnóstico» e «Histórico»** (`cockpit-store/src/{diagnostics,history}.rs`, `src/{diag,history}/`).
+- **Caché del mapa:** migración 5 (`project_components`, `project_deps`, `project_map_state`). Se reutiliza mientras la huella de los manifiestos no cambie y el Watcher no haya visto cambiar ninguno; si se recalcula, se guarda a través del escritor único.
+
+Resultados en `perf/2026-11-12-f4c.md` (en la rama):
+
+| Criterio | Resultado |
+|---|---|
+| **G8** (200 nodos) | **resuelta:** layout 4,6 ms, pintado 33 ms |
+| Consultas < 100 ms | **pasa:** `diagnostics` 42 ms en frío y 12 ms en caliente; `history` 5–28 ms (7–90 días) |
+| Caché del mapa | migración 4 → 5 sin errores sobre una copia de la base real; en 5 proyectos reales el mapa de la caché es idéntico al recalculado. **No acelera** el escaneo (≈ 30–40 ms con y sin ella): lo dominan `git ls-files` y el `stat` |
+| Tests | 175 en verde (1 ignorado); fmt, clippy, typecheck y lint sin avisos |
+| «Borrar rutas ahora» (§6.4.1) | **sin hacer:** depende de los ajustes de privacidad, que aún no tienen interfaz |
+
 ## Siguiente paso
 
-**F4c, Project Map:** traer `main` a `feature/f4c-project-map`, añadir la caché persistente del mapa (migración 5: `project_components` y `project_deps`, SPEC §9), probarla y cerrar F4c.
+**Cerrar F4c.** Hace falta que el usuario decida si se fusiona F4c en `main` sin «borrar rutas ahora» (desviación: ese botón solo tiene sentido con `privacy.record_paths = false`, que aún no se puede elegir). Si lo acepta, se fusiona y se registra; después, **F5**.
 
-Decisión pendiente del usuario: **qué hacer con los hooks `classic.TaskCreated`/`TaskCompleted` del mod.** Son redundantes con `TaskCreate`/`TaskUpdate`, y en el Desktop el motor los salta y avisa al modelo cada vez. Quitarlos es una desviación de §5.2. Mientras no decida, se quedan.
+Otra decisión pendiente del usuario: **qué hacer con los hooks `classic.TaskCreated`/`TaskCompleted` del mod.** Son redundantes con `TaskCreate`/`TaskUpdate`, y en el Desktop el motor los salta y avisa al modelo cada vez. Quitarlos es una desviación de §5.2. Mientras no decida, se quedan.
 
 ## Hallazgos que afectan a fases futuras
 
@@ -135,7 +154,7 @@ Decisión pendiente del usuario: **qué hacer con los hooks `classic.TaskCreated
 - **Aviso del enlazador** `.rsrc merge failure: multiple non-default manifests`: sigue sin resolver; hay que mirarlo antes del instalador de F5.
 - **Tabla `pricing` vacía:** no hay precios de modelos cargados.
 - **Primera ejecución de F4a sobre la base real:** la compactación agregará todos los días cerrados y **purgará las rutas de más de 30 días** (D3). Es lo previsto, pero no se puede deshacer; las pruebas de F4a usaron una copia.
-- **F4c (Diagnóstico):** faltan los avisos de §6.4.2 (días sin agregar, reconciliación con diferencias) y «borrar rutas ahora». `Store::reconcile` ya existe.
+- **F4c (Diagnóstico):** «borrar rutas ahora» sigue sin hacer; llegará con los ajustes de privacidad. Los avisos de §6.4.2 ya están en la vista.
 - **Atribución, límites conocidos:** un cambio externo durante un `Bash` de la misma raíz se atribuye a ese `Bash` (R3), y un `Bash` en segundo plano que sigue escribiendo cuando la herramienta ya ha terminado queda como `unknown`.
 - **Unidades de red con letra:** no se detectan (solo rutas UNC); se vigilarían con `ReadDirectoryChangesW`, que Microsoft no garantiza en red.
 

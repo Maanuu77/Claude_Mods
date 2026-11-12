@@ -457,7 +457,7 @@ Se mantiene v1: WAL, `synchronous=NORMAL`, un solo hilo escritor y un pool de 2 
 - `file_change_daily(root_id, day, actor, change, ext, files_touched, events)`, con **PRIMARY KEY `(root_id, day, actor, change, ext)`** (v1.2.2). **Agregado indefinido (D3), sin rutas individuales.** `ext` es la extensión (`.ts`, `.rs`…, `''` si no tiene), un dato que no es una ruta. *v1.2.1:* se quita `top_dir`, que era un fragmento de ruta.
 - `tool_usage_daily(root_id, day, tool, calls, errors, interrupted, p50_ms, p95_ms, total_ms)`, con **PRIMARY KEY `(root_id, day, tool)`** (v1.2.2). **Agregado indefinido** de `tool_calls`, sin rutas (*nuevo en v1.2.1*). `root_id` usa `0` para «sin proyecto resuelto», nunca `NULL`, para que la clave sea única.
 - `aggregation_ledger(target, root_id, day, state, source_rows, aggregated_at, purged_at)`, con **PRIMARY KEY `(target, root_id, day)`** (v1.2.2). `target` vale `file_change_daily` o `tool_usage_daily`. `state` vale `done` o `dirty`. Es el registro de qué días están agregados (§6.4.2).
-- `project_components(root_id, kind, name, rel_dir, manifest_rel_path, version?)` y `project_deps(root_id, from_component, to_name, to_component?, scope)`: solo metadatos. Es una **instantánea actual** que se recalcula con los cambios. No es un histórico, y al dejar de estar activa la raíz se conserva solo la última.
+- `project_components(root_id, kind, name, rel_dir, manifest_rel_path, version?)` y `project_deps(root_id, from_component, to_name, to_component?, scope)`: solo metadatos. Es una **instantánea actual** que se recalcula con los cambios. No es un histórico, y al dejar de estar activa la raíz se conserva solo la última. *(F4c: migración 5, con columnas de más para reconstruir el mapa y la tabla `project_map_state`; ver `CHANGELOG-spec.md`.)*
 
 ##### 6.4.1 Retención (D3, coherente para todas las rutas en v1.2.1)
 
@@ -729,6 +729,7 @@ Detalle y cifras en `CHANGELOG-spec.md` y `perf/2026-11-12-f4a.md`.
 - **Capas superpuestas:** mapa de calor de los `file_events` de la sesión o del día y actividad de herramientas por directorio.
 - **Render:** árbol virtualizado y grafo de componentes con **React Flow (`@xyflow/react`) + dagre** para el layout. El tamaño del bundle y el rendimiento con 200 nodos o más se validan en F4 (**[EXP] G8**). Alternativa si no rinde: SVG propio con dagre.
 - **Caché:** se calcula en Rust y se guarda en `project_components` y `project_deps`. Se invalida solo cuando el Watcher ve cambiar un manifiesto.
+  - *Precisión de F4c (2026-11-12):* también se invalida si la huella de los manifiestos (ruta, bytes y fecha) no coincide con la guardada en `project_map_state`, para los cambios hechos con la raíz sin vigilar o con la app cerrada. Detalle en `CHANGELOG-spec.md`.
 - **v2 (fuera de alcance):** grafo de imports con tree-sitter, métricas de acoplamiento y detección de capas o arquitectura.
 
 ---
