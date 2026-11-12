@@ -23,6 +23,7 @@ use cockpit_core::PATH_DETAIL_DAYS;
 use cockpit_core::attribution::{
     Attribution, Candidate, Observed, SETTLE_MS, attribute, should_replace, tool_class,
 };
+use cockpit_core::project_map::manifest_kind;
 use cockpit_core::time::local_day_minus;
 use cockpit_core::workspace::{FileChange, root_relative};
 use cockpit_store::{FileEventView, NewProject, Store};
@@ -699,6 +700,10 @@ impl Workspaces {
         ) else {
             return;
         };
+        // Un manifiesto que cambia invalida el mapa guardado de la raíz (§9).
+        if touches_manifest(&changes) {
+            let _ = store.mark_project_map_stale(root_id);
+        }
         let candidates = self.candidates(store, root_id, from, to, now);
         let active = self.live_count(root_id);
         let rows: Vec<(FileChange, Attribution)> = changes
@@ -867,9 +872,47 @@ impl Workspaces {
     }
 }
 
+/// Algún cambio crea, modifica, borra o renombra un manifiesto de §9.
+fn touches_manifest(changes: &[FileChange]) -> bool {
+    changes.iter().any(|c| {
+        std::iter::once(c.rel_path.as_str())
+            .chain(c.from_rel_path.as_deref())
+            .any(|p| manifest_kind(p).is_some())
+    })
+}
+
 #[cfg(test)]
 mod tests {
+    use cockpit_core::workspace::ChangeKind;
+
     use super::*;
+
+    #[test]
+    fn only_manifest_changes_invalidate_the_cached_map() {
+        let change = |path: &str, from: Option<&str>| FileChange {
+            rel_path: path.to_owned(),
+            change: if from.is_some() {
+                ChangeKind::Renamed
+            } else {
+                ChangeKind::Modified
+            },
+            from_rel_path: from.map(str::to_owned),
+            size: None,
+            ts_ms: 0,
+        };
+        assert!(!touches_manifest(&[change("src/main.rs", None)]));
+        assert!(touches_manifest(&[
+            change("src/main.rs", None),
+            change("crates/core/Cargo.toml", None),
+        ]));
+        // Renombrar un manifiesto a otro nombre también lo quita del mapa.
+        assert!(touches_manifest(&[change("old.txt", Some("package.json"))]));
+        // Los de dependencias de terceros no cuentan.
+        assert!(!touches_manifest(&[change(
+            "node_modules/react/package.json",
+            None
+        )]));
+    }
 
     #[test]
     fn cwd_keys_ignore_case_and_separators() {

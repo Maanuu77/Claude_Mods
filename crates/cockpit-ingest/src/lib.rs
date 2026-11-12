@@ -8,6 +8,7 @@
 pub mod git;
 pub mod http;
 pub mod live;
+pub mod project_scan;
 pub mod registry;
 pub mod tailer;
 pub mod watcher;

@@ -652,6 +652,416 @@ body {
   font-size: 0.85rem;
 }
 
+/* --- Mapa del proyecto (SPEC §9) ------------------------------------------ */
+
+.pm-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pm-head .tab {
+  margin-left: auto;
+}
+
+.pm-tree {
+  height: calc(100vh - 290px);
+  min-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.pm-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 10px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border);
+}
+
+.pm-toggle {
+  flex: none;
+  width: 18px;
+  font: inherit;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.pm-toggle:disabled {
+  cursor: default;
+}
+
+.pm-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-num {
+  flex: none;
+  min-width: 48px;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pm-bytes {
+  min-width: 72px;
+}
+
+.pm-eco + .pm-eco {
+  margin-top: 14px;
+}
+
+.pm-comps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.pm-comp {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.pm-comp-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pm-version {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+
+.pm-dir {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+
+.pm-line {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.pm-ext {
+  margin-top: 6px;
+  font-size: 0.85rem;
+}
+
+.pm-ext summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.pm-ext ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.pm-ext li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+/* --- Diagnóstico (SPEC §7, vista 5) --------------------------------------- */
+
+.dg-head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.dg-list {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.dg-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 40%) 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.dg-row dt {
+  color: var(--muted);
+}
+
+.dg-row dd {
+  margin: 0;
+}
+
+.dg-sessions {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.dg-sessions li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.dg-mono {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+}
+
+.dg-wide {
+  grid-column: 1 / -1;
+}
+
+.dg-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.dg-table th,
+.dg-table td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dg-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* --- Histórico y límites (SPEC §7, vistas 3 y 4) -------------------------- */
+/* Serie 1 y 2: paleta de referencia de la guía de visualización, validada para
+   CVD y contraste sobre las dos superficies de la app. */
+
+:root {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --series-1: #3987e5;
+    --series-2: #d95926;
+  }
+}
+
+.hs-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.hs-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 2px;
+}
+
+.hs-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.hs-section {
+  margin-bottom: 12px;
+}
+
+.hs-grid {
+  margin-top: 0;
+}
+
+.hs-figure {
+  margin: 0;
+}
+
+.hs-figure figcaption {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.hs-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.hs-bar {
+  fill: var(--series-1);
+}
+
+.hs-line {
+  fill: none;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.hs-line.hs-s1 {
+  stroke: var(--series-1);
+}
+
+.hs-line.hs-s2 {
+  stroke: var(--series-2);
+}
+
+.hs-hit {
+  fill: transparent;
+}
+
+.hs-hit:hover {
+  fill: var(--off-bg);
+  fill-opacity: 0.5;
+}
+
+.hs-axis {
+  stroke: var(--border);
+  stroke-width: 1px;
+}
+
+.hs-gridline {
+  stroke: var(--border);
+  stroke-dasharray: 3 3;
+}
+
+.hs-tick {
+  fill: var(--muted);
+  /* En unidades del viewBox: el SVG se escala con el ancho. */
+  font-size: 8px;
+}
+
+.hs-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+
+.hs-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
+.hs-swatch.hs-s1 {
+  background: var(--series-1);
+}
+
+.hs-swatch.hs-s2 {
+  background: var(--series-2);
+}
+
+/* --- Grafo de componentes (SPEC §9, G8) ----------------------------------- */
+
+.pm-graph {
+  margin: 18px 0 0;
+}
+
+.pm-graph figcaption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.pm-graph-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.pm-graph-scroll {
+  overflow: auto;
+  max-height: 60vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  justify-content: safe center;
+}
+
+.pm-node {
+  fill: var(--surface);
+  stroke: var(--border);
+  stroke-width: 1px;
+}
+
+.pm-node-group {
+  fill: var(--off-bg);
+}
+
+.pm-node-name {
+  fill: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pm-node-meta {
+  fill: var(--muted);
+  font-size: 10px;
+}
+
+.pm-edge {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.5px;
+}
+
+.pm-edge-module {
+  stroke-dasharray: 4 3;
+}
+
+.pm-arrow {
+  fill: var(--muted);
+}
+
 /* --- Task Monitor (SPEC §8) ------------------------------------------------ */
 
 .tm-card section {

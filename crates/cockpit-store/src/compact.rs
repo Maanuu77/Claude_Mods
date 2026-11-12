@@ -298,40 +298,13 @@ impl Store {
     /// Compara cada agregado con su tabla cruda en los días no purgados y marca
     /// como `dirty` los días `done` que no cuadran. Devuelve cuántos (Diagnóstico).
     pub fn reconcile(&mut self, purge_before: &str) -> Result<usize> {
-        let pairs = [
-            (
-                Target::ToolUsageDaily,
-                "SELECT COALESCE(root_id, 0), day, COUNT(*) FROM tool_calls
-                 WHERE is_copy = 0 AND day >= ?1 GROUP BY 1, 2",
-                "SELECT root_id, day, SUM(calls) FROM tool_usage_daily WHERE day >= ?1 GROUP BY 1, 2",
-            ),
-            (
-                Target::FileChangeDaily,
-                "SELECT COALESCE(root_id, 0), day, COUNT(*) FROM file_events
-                 WHERE day >= ?1 GROUP BY 1, 2",
-                "SELECT root_id, day, SUM(events) FROM file_change_daily WHERE day >= ?1 GROUP BY 1, 2",
-            ),
-        ];
         let mut marked = 0;
-        for (target, raw_sql, agg_sql) in pairs {
-            let read = |sql: &str| -> Result<BTreeMap<(i64, String), i64>> {
-                let mut stmt = self.conn.prepare(sql)?;
-                let rows =
-                    stmt.query_map([purge_before], |r| Ok(((r.get(0)?, r.get(1)?), r.get(2)?)))?;
-                Ok(rows.collect::<rusqlite::Result<_>>()?)
-            };
-            let raw = read(raw_sql)?;
-            let agg = read(agg_sql)?;
-            let keys: BTreeSet<&(i64, String)> = raw.keys().chain(agg.keys()).collect();
-            for key in keys {
-                if raw.get(key).copied().unwrap_or(0) != agg.get(key).copied().unwrap_or(0) {
-                    marked += self.conn.execute(
-                        "UPDATE aggregation_ledger SET state = 'dirty'
-                         WHERE target = ?1 AND root_id = ?2 AND day = ?3 AND state = 'done'",
-                        params![target.name(), key.0, key.1],
-                    )?;
-                }
-            }
+        for (target, root_id, day) in self.aggregate_mismatches(purge_before)? {
+            marked += self.conn.execute(
+                "UPDATE aggregation_ledger SET state = 'dirty'
+                 WHERE target = ?1 AND root_id = ?2 AND day = ?3 AND state = 'done'",
+                params![target.name(), root_id, day],
+            )?;
         }
         Ok(marked)
     }

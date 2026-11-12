@@ -27,6 +27,10 @@ sysinfo = { version = "0.37", default-features = false, features = ["system"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 getrandom = "0.3"
 tokio = { version = "1", features = ["rt", "net", "sync", "time"] }
+# Project Map (F4c): manifiestos TOML y XML. Las dos versiones ya estaban en el
+# lockfile como dependencias de Tauri.
+toml = "1"
+quick-xml = "0.42"
 criterion = { version = "0.8", default-features = false }
 
 [workspace.lints.rust]

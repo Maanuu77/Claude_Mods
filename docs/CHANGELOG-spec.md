@@ -4,6 +4,22 @@ Documento de referencia: [`SPEC.md`](SPEC.md). Las tablas detalladas de cada ver
 
 ---
 
+## Cierre de F4c: Project Map, G8 y desviación aceptada (2026-11-12)
+
+No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-12-f4c.md`](perf/2026-11-12-f4c.md).
+
+- **G8: grafo de componentes con SVG propio y layout por capas propio, sin React Flow ni dagre (desviación de §9 y de la alternativa de G8, decidida por delegación del usuario: «Haz lo que creas mejor», 2026-11-12).** §9 pedía React Flow (`@xyflow/react`) + dagre, y G8 preveía «SVG propio + dagre» si no rendía. Se usa SVG con un Sugiyama simplificado escrito para el proyecto (`src/map/layout.ts`): capas por camino más largo, nodos virtuales para las aristas que saltan capas, baricentros y posición por regresión isotónica. Motivos:
+  1. no añade dependencias, así que no hace falta instalar nada ni crece el bundle;
+  2. el grafo es de solo lectura: no necesita el arrastre ni la edición de React Flow;
+  3. rinde con margen: 200 nodos y 398 aristas, layout en 4,6 ms y pintado en 33 ms.
+
+  La lista de componentes que hay junto al grafo es su alternativa en texto.
+- **Caché del mapa (migración 5):** `project_components` y `project_deps` llevan, además de las columnas de §6.4, lo necesario para reconstruir el mapa entero (id del componente, grupo, partes de Rojo, rango de versión y orden), y una tabla nueva, `project_map_state`, guarda la fecha del escaneo, la huella de los manifiestos (ruta, bytes y fecha de modificación), los problemas y la marca `stale`. Solo metadatos de manifiestos. (SPEC §6.4, §9)
+- **Invalidación por huella además del Watcher:** §9 dice que la caché «se invalida solo cuando el Watcher ve cambiar un manifiesto». Se invalida también si la huella no coincide, para cubrir los cambios hechos con la raíz sin vigilar o con la app cerrada, que el Watcher no puede ver. Es más estricto, nunca muestra un mapa más viejo. (SPEC §9)
+- **Medido:** la caché no acelera el escaneo en los proyectos reales (≈ 30–40 ms con y sin ella), porque lo dominan `git ls-files` y el `stat` de cada fichero, no los manifiestos.
+- **Criterios de F4c cumplidos:** G8 resuelta y consultas por debajo de 100 ms. (SPEC §15)
+- **Desviación aceptada por el usuario (2026-11-12): «borrar rutas ahora» se aplaza a F5.** §6.4.1 lo pone en Diagnóstico para cuando `privacy.record_paths = false`, pero ese ajuste todavía no se puede cambiar desde la interfaz (la app usa la política por defecto). Llegará junto con los ajustes de privacidad. (SPEC §6.4.1, §10)
+
 ## Cierre de F4b: Task Monitor, G6 y desviaciones aceptadas (2026-11-12)
 
 No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-12-f4b.md`](perf/2026-11-12-f4b.md).

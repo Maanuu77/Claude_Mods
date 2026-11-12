@@ -16,6 +16,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use cockpit_core::model::{EventKind, TokenUsage};
 use cockpit_core::privacy::PrivacyPolicy;
+use cockpit_core::project_map::{ManifestPrint, ProjectMap};
 use cockpit_core::tasks::TaskSource;
 use cockpit_core::time::{closed_before, local_day_minus};
 use cockpit_core::{MIN_ENGINE, PATH_DETAIL_DAYS};
@@ -342,7 +343,15 @@ enum Msg {
     Rescan,
     /// Watcher, Git o resolutor de raíces (§7).
     Workspace(Box<WorkspaceMsg>),
+    /// Mapa recién calculado de una raíz, para la caché (§9).
+    ProjectMap(Box<SavedMap>),
     Stop,
+}
+
+struct SavedMap {
+    root_id: i64,
+    map: ProjectMap,
+    print: ManifestPrint,
 }
 
 /// Canalización en marcha. Al soltarla se detiene el hilo.
@@ -408,6 +417,17 @@ impl LivePipeline {
             tx,
             thread: Some(thread),
         })
+    }
+}
+
+impl LivePipeline {
+    /// Guarda el mapa de una raíz en la caché, a través del escritor único (§6.4).
+    pub fn save_project_map(&self, root_id: i64, map: ProjectMap, print: ManifestPrint) {
+        let _ = self.tx.send(Msg::ProjectMap(Box::new(SavedMap {
+            root_id,
+            map,
+            print,
+        })));
     }
 }
 
@@ -503,6 +523,10 @@ impl Worker {
                     self.settle();
                     continue;
                 }
+                Ok(Msg::ProjectMap(saved)) => {
+                    self.save_project_map(*saved);
+                    continue;
+                }
                 Ok(msg) => {
                     let mut pending = Some(msg);
                     let deadline = Instant::now() + DEBOUNCE;
@@ -512,6 +536,7 @@ impl Worker {
                             // El mod y el Watcher se atienden al momento, sin esperar a la agrupación.
                             Msg::Mod(request) => self.handle_mod(request),
                             Msg::Workspace(msg) => self.handle_workspace(*msg),
+                            Msg::ProjectMap(saved) => self.save_project_map(*saved),
                             Msg::Rescan => rescan = true,
                             Msg::Fs(path) => {
                                 if self.is_registry_path(&path) {
@@ -616,6 +641,14 @@ impl Worker {
                 self.state.push_file_events(events);
             }
         }
+    }
+
+    /// Si no se puede guardar, la caché sigue como estaba y el próximo escaneo vuelve
+    /// a leer los manifiestos: no se pierde nada.
+    fn save_project_map(&mut self, saved: SavedMap) {
+        let _ = self
+            .store
+            .save_project_map(saved.root_id, &saved.map, &saved.print, now_ms());
     }
 
     fn handle_workspace(&mut self, msg: WorkspaceMsg) {
@@ -1217,6 +1250,56 @@ mod tests {
         assert_eq!(
             updated.summary.recent_tools[0].rel_path.as_deref(),
             Some("a.rs")
+        );
+    }
+    #[test]
+    fn a_project_map_is_saved_through_the_single_writer() {
+        let dir = tempfile::tempdir().unwrap();
+        let projects = dir.path().join("projects");
+        fs::create_dir_all(&projects).unwrap();
+        let db = dir.path().join("cockpit.db");
+        // La raíz ya existe en la base, como cuando el Watcher la activó.
+        let root_id = Store::open(&db)
+            .unwrap()
+            .upsert_project(
+                &cockpit_store::NewProject {
+                    root: "C:/w/repo",
+                    git_dir: None,
+                    is_worktree: false,
+                    main_root: None,
+                },
+                1,
+            )
+            .unwrap();
+        let pipeline = LivePipeline::spawn(
+            LiveConfig {
+                projects_root: projects,
+                sessions_dir: None,
+                db_path: db.clone(),
+                endpoint_path: None,
+                policy: PrivacyPolicy::APP_DEFAULT,
+                desktop_plan: true,
+            },
+            LiveState::new(|| {}),
+        )
+        .unwrap();
+
+        let map = cockpit_core::project_map::build_map(
+            "repo",
+            &[(
+                "package.json".to_owned(),
+                r#"{"name":"web","dependencies":{"react":"^19"}}"#.to_owned(),
+            )],
+        );
+        let print = ManifestPrint(vec![("package.json".to_owned(), 45, 7)]);
+        pipeline.save_project_map(root_id, map.clone(), print.clone());
+
+        // La interfaz lo lee con su conexión de solo lectura.
+        let reader = Store::open_read_only(&db).unwrap();
+        let cached = wait_for(|| reader.project_map_cache(root_id).ok().flatten());
+        assert_eq!(
+            (cached.map, cached.print, cached.stale),
+            (map, print, false)
         );
     }
 }

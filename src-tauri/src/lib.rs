@@ -17,8 +17,9 @@ use std::time::Duration;
 use cockpit_core::privacy::PrivacyPolicy;
 use cockpit_ingest::git::{FileDiff, GitReader};
 use cockpit_ingest::live::{LiveConfig, LiveDelta, LivePipeline, LiveState};
+use cockpit_ingest::project_scan::{self, ProjectScan};
 use cockpit_ingest::workspace::{FilePreview, read_preview};
-use cockpit_store::{DB_FILE_NAME, FileEventView, Store};
+use cockpit_store::{DB_FILE_NAME, Diagnostics, FileEventView, History, Store};
 use tauri::ipc::Channel;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -41,7 +42,7 @@ struct AppState {
     db_path: PathBuf,
     /// Conexión de solo lectura para las consultas, abierta la primera vez.
     reader: Mutex<Option<Store>>,
-    _pipeline: LivePipeline,
+    pipeline: LivePipeline,
 }
 
 impl AppState {
@@ -54,6 +55,16 @@ impl AppState {
             .find(|w| w.root_id == root_id)
             .map(|w| PathBuf::from(w.root))
             .ok_or_else(|| "la raíz no está activa".to_owned())
+    }
+
+    /// Consulta con la conexión de solo lectura, que se abre la primera vez.
+    fn read<T>(&self, query: impl FnOnce(&Store) -> cockpit_store::Result<T>) -> Result<T, String> {
+        let mut reader = self.reader.lock().unwrap_or_else(|e| e.into_inner());
+        if reader.is_none() {
+            *reader = Some(Store::open_read_only(&self.db_path).map_err(|e| e.to_string())?);
+        }
+        let store = reader.as_ref().ok_or("sin base de datos")?;
+        query(store).map_err(|e| e.to_string())
     }
 }
 
@@ -72,6 +83,85 @@ fn query_file_events(
     let store = reader.as_ref().ok_or("sin base de datos")?;
     store
         .file_events_page(root_id, before_id, limit.unwrap_or(200).min(MAX_PAGE))
+        .map_err(|e| e.to_string())
+}
+
+/// Project Map de una raíz activa (SPEC §9): estructura (ficheros, bytes y lenguajes
+/// por directorio) y componentes de sus manifiestos. Solo lectura y sin contenido:
+/// de los ficheros solo se mira el tamaño y solo se leen los manifiestos.
+///
+/// Los componentes salen de la caché mientras la huella de los manifiestos no cambie
+/// y el Watcher no haya visto cambiar ninguno; si se calculan de nuevo, se guardan
+/// a través del escritor único.
+#[tauri::command]
+async fn project_map(state: State<'_, AppState>, root_id: i64) -> Result<ProjectScan, String> {
+    let root = state.active_root(root_id)?;
+    // Sin caché legible se calcula entero: la caché nunca impide ver el mapa.
+    let cached = state
+        .read(|store| store.project_map_cache(root_id))
+        .ok()
+        .flatten();
+    let (scan, print) = tauri::async_runtime::spawn_blocking(move || {
+        project_scan::scan_with_cache(&root, &GitReader::new(), cached.as_ref())
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    if let Some(print) = print {
+        state
+            .pipeline
+            .save_project_map(root_id, scan.map.clone(), print);
+    }
+    Ok(scan)
+}
+
+/// Diagnóstico (SPEC §7, vista 5, y avisos de §6.4.2), con los mismos cortes que la
+/// compactación, más el tamaño de la base en disco. Solo lectura.
+#[derive(serde::Serialize)]
+struct DiagnosticsView {
+    #[serde(flatten)]
+    store: Diagnostics,
+    db_bytes: u64,
+    wal_bytes: u64,
+}
+
+#[tauri::command]
+fn diagnostics(state: State<'_, AppState>) -> Result<DiagnosticsView, String> {
+    let mut reader = state.reader.lock().unwrap_or_else(|e| e.into_inner());
+    if reader.is_none() {
+        *reader = Some(Store::open_read_only(&state.db_path).map_err(|e| e.to_string())?);
+    }
+    let store = reader.as_ref().ok_or("sin base de datos")?;
+    let now = cockpit_ingest::live::now_ms();
+    let closed = cockpit_core::time::closed_before(now);
+    let purge = cockpit_core::time::local_day_minus(now, cockpit_core::PATH_DETAIL_DAYS);
+    let size = |suffix: &str| {
+        let mut path = state.db_path.clone().into_os_string();
+        path.push(suffix);
+        std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+    };
+    Ok(DiagnosticsView {
+        store: store
+            .diagnostics(&closed, &purge)
+            .map_err(|e| e.to_string())?,
+        db_bytes: size(""),
+        wal_bytes: size("-wal"),
+    })
+}
+
+/// Histórico y límites de los últimos `days` días (SPEC §7, vistas 3 y 4). Solo lectura.
+#[tauri::command]
+fn history(state: State<'_, AppState>, days: u32) -> Result<History, String> {
+    let days = days.clamp(1, 365);
+    let mut reader = state.reader.lock().unwrap_or_else(|e| e.into_inner());
+    if reader.is_none() {
+        *reader = Some(Store::open_read_only(&state.db_path).map_err(|e| e.to_string())?);
+    }
+    let store = reader.as_ref().ok_or("sin base de datos")?;
+    let now = cockpit_ingest::live::now_ms();
+    let since_day = cockpit_core::time::local_day_minus(now, days - 1);
+    let since_ms = now - i64::from(days) * 86_400_000;
+    store
+        .history(&since_day, since_ms)
         .map_err(|e| e.to_string())
 }
 
@@ -249,7 +339,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         perf_log: env_path("DEV_COCKPIT_PERF_LOG"),
         db_path,
         reader: Mutex::new(None),
-        _pipeline: pipeline,
+        pipeline,
     });
 
     // Mediciones de memoria (B8, B9): publica cada segundo los PIDs del grupo propio.
@@ -330,7 +420,10 @@ pub fn run() {
             perf_mark,
             query_file_events,
             git_diff,
-            read_file_preview
+            read_file_preview,
+            project_map,
+            diagnostics,
+            history
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
