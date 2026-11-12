@@ -793,25 +793,27 @@ Se mantienen las medidas de v1:
 | M8 | Unicidad entre sesiones (R-4), en los 144 JSONL | **399 de 13.769 `tool_use_id`** y **242 de 9.945 `message.id`** aparecen en **más de un fichero de sesión**. En los 399 casos, la fila tiene el **mismo `timestamp` y el mismo `uuid`** en todas las sesiones, y el campo `sessionId` está reescrito con el de cada fichero. | Son **copias de historial** (reanudación o bifurcación), no ejecuciones nuevas. `tool_use_id` **no es único como clave de fila entre sesiones** → PK `(session_id, tool_use_id)` + `is_copy`. |
 
 ### 11.2 Objetivos (se mantienen los de v1 y se añaden los nuevos; «Medido» se rellena en F5)
+
+*F5 (2026-11-12):* «Medido» recoge el resultado de cada benchmark en la fase en que se midió, en este equipo (Windows 11, i5-11400H, 12 núcleos lógicos, WebView2 157). Detalle en `docs/perf/`.
 | Métrica | Objetivo | Medido | Benchmark |
 |---|---|---|---|
-| Latencia `ToolStarted` en el mod → UI (p95) | **< 300 ms** (v1) | pendiente | B3 |
-| Latencia transcript → UI (p95) | < 2,5 s (v1) | pendiente | B4 |
-| Latencia cambio de fichero → UI (p95, sin `numstat`) | < 700 ms (nuevo) | pendiente | B6 |
-| Actualización `numstat` tras un cambio (p95) | < 1,5 s (nuevo) | pendiente (M4: 128–687 ms solo para git) | B7 |
-| CPU en reposo, sin sesiones | < 0,5 % (v1) | pendiente | B8 |
-| CPU con una sesión al pico de 107 herramientas/min | < 3 % (nuevo) | pendiente | B5 |
-| RAM del proceso Rust | < 60 MB (v1) | pendiente | B8 |
-| RAM total con WebView2 **de DEV COCKPIT únicamente** (Rust + su grupo de procesos WebView2, *private bytes*; C2) | < 250 MB (v1) | pendiente (referencia de terceros: unos 109 MB para una app mínima) | B8 |
-| Reconexión del mod, S1, sin actividad en la sesión | ≤ 15 s (nuevo, C1) | pendiente | B11 |
-| Reconexión del mod, S1/S2, con actividad | ≤ 1 s tras el siguiente evento (nuevo, C1) | pendiente | B11 |
-| Backfill de 471,7 MB | < 60 s con UI fluida (v1) | Referencia M1: 3,46 s con Node, parseo completo | B1 |
-| Throughput del parser Rust | ≥ 150 MB/s (nuevo) | pendiente (referencia M1: 136 MB/s) | B1 |
-| Coste propio del mod por herramienta | < 1 ms (v1) | pendiente | B2 |
-| Timers activos del mod con la sesión inactiva y **conectado** | **0** (nuevo) | pendiente | B2 |
-| Timers activos del mod con la sesión inactiva y **desconectado** | **≤ 1** (`stat` cada 15 s; nuevo, C1) | pendiente | B2 |
-| Instalador NSIS | < 15 MB (v1) | pendiente | B10 |
-| Prueba de 24 h | Crecimiento de RAM < 10 %, 0 pánicos (nuevo) | pendiente | B9 |
+| Latencia `ToolStarted` en el mod → UI (p95) | **< 300 ms** (v1) | **189 ms** (F3) | B3 |
+| Latencia transcript → UI (p95) | < 2,5 s (v1) | **260 ms** (F2) | B4 |
+| Latencia cambio de fichero → UI (p95, sin `numstat`) | < 700 ms (nuevo) | **317 ms** (F4a) | B6 |
+| Actualización `numstat` tras un cambio (p95) | < 1,5 s (nuevo) | **1,19 s** (F4a, con la coalescencia limitada a 1 s) | B7 |
+| CPU en reposo, sin sesiones | < 0,5 % (v1) | **0,01 %** de media, 0,35 % de máximo (F5, 5 min) | B8 |
+| CPU con una sesión al pico de 107 herramientas/min | < 3 % (nuevo) | **0,06 %** de media, 0,71 % de máximo (F5, 30 min, 3.210 herramientas) | B5 |
+| RAM del proceso Rust | < 60 MB (v1) | **6,3 MB** en reposo; **8,9 MB** con carga (F5) | B8 |
+| RAM total con WebView2 **de DEV COCKPIT únicamente** (Rust + su grupo de procesos WebView2, *private bytes*; C2) | < 250 MB (v1) | **194 MB** en reposo; **224 MB** con carga (F5) | B8 |
+| Reconexión del mod, S1, sin actividad en la sesión | ≤ 15 s (nuevo, C1) | **9,2 s** (CLI) y **10,6 s** (Desktop), una muestra por motor (F3, desviación aceptada) | B11 |
+| Reconexión del mod, S1/S2, con actividad | ≤ 1 s tras el siguiente evento (nuevo, C1) | Sin medir en sesión real; lógica cubierta por `plugin test` (F3, desviación aceptada). Latencia mod → app: p95 de 84 ms | B11 |
+| Backfill de 471,7 MB | < 60 s con UI fluida (v1) | **0,95 s** para 486 MB, a una base vacía (F1) | B1 |
+| Throughput del parser Rust | ≥ 150 MB/s (nuevo) | **782–875 MB/s** sobre los transcripts reales (F1) | B1 |
+| Coste propio del mod por herramienta | < 1 ms (v1) | Sin medir aislado; cota superior 1,3 ms con el despacho del motor incluido (F3, desviación aceptada) | B2 |
+| Timers activos del mod con la sesión inactiva y **conectado** | **0** (nuevo) | **0** (F3) | B2 |
+| Timers activos del mod con la sesión inactiva y **desconectado** | **≤ 1** (`stat` cada 15 s; nuevo, C1) | **1** (F3) | B2 |
+| Instalador NSIS | < 15 MB (v1) | **3,55 MiB** (F5; binario 10,3 MiB, bundle JS 304 KiB) | B10 |
+| Prueba de 24 h | Crecimiento de RAM < 10 %, 0 pánicos (nuevo) | Pendiente: se ejecuta en otro equipo (F5) | B9 |
 
 ### 11.3 Sondeos: eliminados y conservados (punto 7)
 | Sondeo | v1 | v1.1 | Justificación |

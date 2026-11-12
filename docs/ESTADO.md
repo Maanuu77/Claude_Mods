@@ -37,7 +37,7 @@ Están en [`DEVELOPMENT_WORKFLOW.md`](DEVELOPMENT_WORKFLOW.md) (W1–W11). Las q
 | F4a Workspace Watcher | Hecha y fusionada | `crates/cockpit-ingest/src/{git,watcher,workspace}.rs`, `cockpit-core/src/attribution.rs`, `cockpit-store/src/{compact,workspace}.rs`, `src/changes/` |
 | F4b Task Monitor | Hecha y fusionada (desviaciones del criterio aceptadas por el usuario) | `crates/cockpit-core/src/tasks.rs`, `cockpit-store/src/tasks.rs`, `src/tasks/` |
 | F4c Project Map | Hecha y fusionada (sin «borrar rutas ahora», desviación aceptada por el usuario) | `cockpit-core/src/project_map.rs`, `cockpit-ingest/src/project_scan.rs`, `cockpit-store/src/{diagnostics,history,project_cache}.rs`, `src/{map,history,diag}/`; informe `docs/perf/2026-11-12-f4c.md` en esa rama |
-| F5 endurecimiento | Sin empezar | — |
+| **F5 endurecimiento** | **En curso** en `feature/f5-hardening`: hecho todo menos **B9**, que el usuario ejecuta en otro equipo | `src-tauri/{build.rs,windows-app-manifest.xml}`, `cockpit-ingest/src/settings.rs`, `cockpit-store/src/compact.rs` (`clear_paths_now`), `src/diag/PrivacySettings.tsx`, `scripts/measure/{b9-soak.ps1,replay-transcript.mjs}`; informe `docs/perf/2026-11-12-f5.md` |
 
 `main` contiene la fusión de F4c (`git log --merges -1 main`). La calibración de G5 (SPEC §7.3), las desviaciones del criterio de F4b y la de F4c («borrar rutas ahora» aplazado) las aceptó el usuario el 2026-11-12.
 
@@ -136,9 +136,30 @@ Resultados en [`perf/2026-11-12-f4c.md`](perf/2026-11-12-f4c.md):
 | Tests | 175 en verde (1 ignorado); fmt, clippy, typecheck y lint sin avisos |
 | «Borrar rutas ahora» (§6.4.1) | **aplazado a F5**, con los ajustes de privacidad que aún no tienen interfaz. Desviación **aceptada por el usuario** (2026-11-12) |
 
+## F5: lo que está hecho (2026-11-12)
+
+Rama `feature/f5-hardening`. Commits `a85080a` (manifiesto, pánicos, instalador y guion de B9) y `8b324f3` (ajustes y «borrar rutas ahora»).
+
+- **Aviso del enlazador resuelto:** el GCC de MinGW añadía un segundo manifiesto (`default-manifest.o`). `build.rs` lo sustituye por un objeto vacío y Tauri embebe uno solo con Common Controls v6, `asInvoker` y `longPathAware`.
+- **Instalador NSIS** por usuario, sin administrador, con `WebView2Loader.dll`. NSIS 3.13 y `nsis_tauri_utils` se descargaron a `%LOCALAPPDATA%\tauri\NSIS` con autorización del usuario.
+- **Ajustes de privacidad y retención** (§10) en `%APPDATA%\dev-cockpit\settings.json`, editables en Diagnóstico; se aplican al reiniciar.
+- **«Borrar rutas ahora»** (§6.4.1) en Diagnóstico, con confirmación.
+- **`panics.log`** junto a la base: hora, hilo y `fichero:línea`, sin el mensaje.
+- **Tabla «Medido» de §11.2** rellena con los resultados de F1–F5.
+
+Resultados en [`perf/2026-11-12-f5.md`](perf/2026-11-12-f5.md):
+
+| Criterio | Resultado |
+|---|---|
+| **B10** instalador | **3,55 MiB** (objetivo < 15 MB); binario 10,3 MiB, bundle JS 304 KiB |
+| **B8** reposo (5 min) | 194 MB en total y 6,3 MB el proceso Rust (objetivos < 250 y < 60); CPU 0,01 % (objetivo < 0,5 %); 298/300 muestras válidas |
+| **B5** carga (30 min, 107 herramientas/min) | CPU **0,06 %** de media y 0,71 % de máximo (objetivo < 3 %); **224 MB** en total y 8,9 MB el proceso Rust; 3.210 de 3.210 herramientas guardadas; 1.799/1.800 muestras válidas |
+| **B9** 24 h | **pendiente:** el usuario la lanza en otro equipo con `target\b9-kit` (instalador de `8b324f3`, `b9-soak.ps1` y `LEEME.txt`). Hay que traer `Escritorio\dev-cockpit-b9` y resumirla con `b9-soak.ps1 -Summarize -OutDir <carpeta>` |
+| Tests | 180 en verde (1 ignorado); fmt, clippy, typecheck y lint sin avisos |
+
 ## Siguiente paso
 
-**F5, endurecimiento** (SPEC §15): rama nueva `feature/f5-hardening` desde `main`. Instalador NSIS, tabla «Medido» de §11.2 completa y B5, B8, B9 y B10 con la memoria aislada de C2. Además, lo aplazado: los ajustes de privacidad en la interfaz con «borrar rutas ahora» (de F4c) y el aviso del enlazador `.rsrc merge failure` antes del instalador. **El instalador NSIS puede necesitar descargar herramientas: se pregunta antes de instalar nada.**
+**Cerrar F5** cuando llegue el resultado de B9: resumirlo, rellenar su fila en §11.2 y el informe, y fusionar `feature/f5-hardening` en `main` si cumple (crecimiento < 10 % y 0 pánicos). Si no cumple, investigar antes de fusionar.
 
 Otra decisión pendiente del usuario: **qué hacer con los hooks `classic.TaskCreated`/`TaskCompleted` del mod.** Son redundantes con `TaskCreate`/`TaskUpdate`, y en el Desktop el motor los salta y avisa al modelo cada vez. Quitarlos es una desviación de §5.2. Mientras no decida, se quedan.
 
@@ -151,10 +172,8 @@ Otra decisión pendiente del usuario: **qué hacer con los hooks `classic.TaskCr
 - **F4b, sesiones antiguas:** las listas de sesiones que terminaron sin completar su plan conservan un paso «en curso». La vista solo muestra sesiones con actividad reciente, así que no se ve; habrá que tenerlo en cuenta en el histórico.
 - **Reinicio de la app:** una sesión inactiva con el mod no se entera y aparece como «sin mod» hasta su siguiente evento.
 - **`cost-state`:** los tokens deduplicados del transcript solo coinciden exactamente con `cost-state` en 19 de 33 sesiones.
-- **Aviso del enlazador** `.rsrc merge failure: multiple non-default manifests`: sigue sin resolver; hay que mirarlo antes del instalador de F5.
 - **Tabla `pricing` vacía:** no hay precios de modelos cargados.
 - **Primera ejecución de F4a sobre la base real:** la compactación agregará todos los días cerrados y **purgará las rutas de más de 30 días** (D3). Es lo previsto, pero no se puede deshacer; las pruebas de F4a usaron una copia.
-- **F4c (Diagnóstico):** «borrar rutas ahora» sigue sin hacer; llegará con los ajustes de privacidad. Los avisos de §6.4.2 ya están en la vista.
 - **Atribución, límites conocidos:** un cambio externo durante un `Bash` de la misma raíz se atribuye a ese `Bash` (R3), y un `Bash` en segundo plano que sigue escribiendo cuando la herramienta ya ha terminado queda como `unknown`.
 - **Unidades de red con letra:** no se detectan (solo rutas UNC); se vigilarían con `ReadDirectoryChangesW`, que Microsoft no garantiza en red.
 
@@ -170,10 +189,11 @@ npx tsc -p compat/tsconfig.2.1.289.json        (y .317, .321)
 claude plugin validate mods/dev-cockpit-bridge
 claude plugin test mods/dev-cockpit-bridge
 npm run tauri build -- --no-bundle             (deja target\release\dev-cockpit.exe)
+npm run tauri build                            (instalador en target\release\bundle\nsis\)
 cargo run -p cockpit-ingest --release --example workspace_gates -- g5 g5.json   (y g7)
 ```
 
-Scripts de medición en `scripts/measure/`: `gen-transcript.mjs` (B4), `sample-procs.ps1` (B8), `app-cycle.ps1` (B11) y `workspace-cycle.ps1` + `fs-ops.mjs` (B6, B7).
+Scripts de medición en `scripts/measure/`: `gen-transcript.mjs` (B4), `sample-procs.ps1` (B8), `replay-transcript.mjs` (B5), `b9-soak.ps1` (B9), `app-cycle.ps1` (B11) y `workspace-cycle.ps1` + `fs-ops.mjs` (B6, B7).
 
 ## Restos en el equipo
 
@@ -182,4 +202,6 @@ Scripts de medición en `scripts/measure/`: `gen-transcript.mjs` (B4), `sample-p
 - `target\e2e\`: ficheros de las pruebas E2E (ignorado por Git).
 - Registros obsoletos en `~/.claude/sessions` de las sesiones de prueba cerradas de golpe; Claude los limpia solo al arrancar.
 - Las pruebas con prompts reales consumieron tokens de la cuenta (alrededor de 0,50 USD estimados por sesión, unas cinco sesiones).
+- `%LOCALAPPDATA%\tauri\NSIS`: NSIS 3.13 y `nsis_tauri_utils.dll`, que descarga `tauri build` para el instalador (autorizado el 2026-11-12).
+- `target\b9-kit\`: instalador, guion e instrucciones de B9 (ignorado por Git).
 - `%APPDATA%\dev-cockpit\endpoint.json`: quedó de una ejecución anterior que no se cerró limpiamente (estaba antes de F4a). La app lo reescribe al arrancar.

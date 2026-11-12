@@ -4,6 +4,18 @@ Documento de referencia: [`SPEC.md`](SPEC.md). Las tablas detalladas de cada ver
 
 ---
 
+## Precisiones de F5: endurecimiento (2026-11-12)
+
+No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-12-f5.md`](perf/2026-11-12-f5.md).
+
+- **Ajustes (§10):** se guardan en `settings.json`, junto a la base de datos (`%APPDATA%\dev-cockpit\`), y se editan en Diagnóstico. Se aplican **al reiniciar la app**: así cada mod adopta la política nueva en su siguiente `hello` (§5.4). El `policy_id` de la respuesta a `hello` refleja la política en vigor (`app-1-` y un bit por ajuste). `DEV_COCKPIT_DISABLE_DESKTOP_PLAN` sigue desactivando A3 para las pruebas.
+- **`retention.path_detail_days` va de 1 a 30:** §10 no fija un rango. El máximo es el de D3, así que el ajuste solo puede acortar la retención. (SPEC §6.4.1, §10)
+- **«Borrar rutas ahora» (§6.4.1):** adelanta la purga sin purgar ningún día sin agregar (§6.4.2). Purga todos los días agregados, quita la ruta y el host de todas las herramientas (no los usa ningún agregado) y borra `ingest_errors`. Las rutas de los cambios de fichero de hoy se conservan hasta que hoy se agregue, porque hacen falta para contar ficheros distintos; las compactaciones siguientes las purgan en cuanto pueden. Está disponible aunque `record_paths` siga activado, y la interfaz avisa de que entonces se siguen guardando rutas nuevas.
+- **Manifiesto de Windows único:** con el toolchain GNU (F0), el GCC de MinGW añadía un segundo manifiesto. Ahora hay uno solo, con Common Controls v6, `asInvoker` y `longPathAware`. (SPEC §6.6)
+- **Registro de pánicos:** `panics.log`, junto a la base de datos, con la hora, el hilo y el `fichero:línea` del código; nunca el mensaje, que podría llevar un dato del usuario. Sirve para el criterio «0 pánicos» de B9. (SPEC §10, §11.2)
+- **Instalador por usuario, sin administrador:** NSIS en modo `currentUser`, en `%LOCALAPPDATA%\DEV COCKPIT`. Incluye `WebView2Loader.dll`, que el build GNU carga como DLL. (SPEC §15)
+- **B9 en otro equipo**, a petición del usuario: el resultado describirá ese equipo, no este.
+
 ## Cierre de F4c: Project Map, G8 y desviación aceptada (2026-11-12)
 
 No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-12-f4c.md`](perf/2026-11-12-f4c.md).
