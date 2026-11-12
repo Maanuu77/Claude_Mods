@@ -299,6 +299,11 @@ const MIGRATIONS: &[&str] = &[
         PRIMARY KEY (session_id, agent_id)
     );
 
+    -- Versión del parser con la que se leyó cada fichero (`transcript::PARSER_VERSION`).
+    -- Lo ingerido hasta F4a es la 1: se vuelve a leer para recuperar sus tareas y
+    -- subagentes, aplicando solo los eventos de la versión 2.
+    ALTER TABLE file_offsets ADD COLUMN parser_version INTEGER NOT NULL DEFAULT 1;
+
     -- Hasta F4b, `subagents/workflows/<wf>/agent-*.jsonl` se tomaba por el fichero de
     -- una sesión llamada `agent-*`, que quedaba vacía (solo su fecha de creación).
     -- Ningún id de sesión real empieza así: se borran las que no tienen nada.

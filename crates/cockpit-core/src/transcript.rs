@@ -58,6 +58,25 @@ const KNOWN_SYSTEM_SUBTYPES: &[&str] = &[
 /// Modelo que usa el cliente para los mensajes que genera él mismo (errores).
 const SYNTHETIC_MODEL: &str = "<synthetic>";
 
+/// Versión del parser. Sube cuando una versión extrae eventos que la anterior no
+/// veía: los ficheros ingeridos con una versión anterior se vuelven a leer, pero de
+/// la parte ya ingerida solo se aplican los eventos nuevos ([`introduced_in`]).
+/// Así el histórico se completa sin repetir el resto ni recuperar rutas ya purgadas.
+///
+/// - 1: F1–F4a.
+/// - 2: F4b, tareas (A1–A3) y subagentes (A4).
+pub const PARSER_VERSION: u32 = 2;
+
+/// Primera versión del parser que produce este tipo de evento.
+pub fn introduced_in(kind: &EventKind) -> u32 {
+    match kind {
+        EventKind::TaskOp { .. }
+        | EventKind::AgentStatus { .. }
+        | EventKind::ToolResultMeta { .. } => 2,
+        _ => 1,
+    }
+}
+
 /// Qué se hizo con una línea.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LineClass {

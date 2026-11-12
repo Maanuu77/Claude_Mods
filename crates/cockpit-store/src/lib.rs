@@ -55,6 +55,9 @@ pub struct FileOffset {
     pub size: u64,
     pub offset: u64,
     pub mtime_ms: i64,
+    /// Versión del parser con la que se leyó hasta `offset`
+    /// (`cockpit_core::transcript::PARSER_VERSION`).
+    pub parser_version: u32,
 }
 
 /// Incidencia de la ingesta. `detail` es un nombre de tipo, nunca contenido.
@@ -160,17 +163,19 @@ impl Store {
         }
         for o in batch.offsets {
             tx.prepare_cached(
-                "INSERT INTO file_offsets(path, size, offset, mtime_ms, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5)
+                "INSERT INTO file_offsets(path, size, offset, mtime_ms, updated_at, parser_version)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
                  ON CONFLICT(path) DO UPDATE SET size = excluded.size, offset = excluded.offset,
-                     mtime_ms = excluded.mtime_ms, updated_at = excluded.updated_at",
+                     mtime_ms = excluded.mtime_ms, updated_at = excluded.updated_at,
+                     parser_version = excluded.parser_version",
             )?
             .execute(params![
                 o.path,
                 o.size as i64,
                 o.offset as i64,
                 o.mtime_ms,
-                batch.now_ms
+                batch.now_ms,
+                o.parser_version
             ])?;
         }
         for e in batch.errors {
@@ -194,13 +199,16 @@ impl Store {
     pub fn file_offset(&self, path: &str) -> Result<Option<FileOffset>> {
         Ok(self
             .conn
-            .prepare_cached("SELECT size, offset, mtime_ms FROM file_offsets WHERE path = ?1")?
+            .prepare_cached(
+                "SELECT size, offset, mtime_ms, parser_version FROM file_offsets WHERE path = ?1",
+            )?
             .query_row([path], |r| {
                 Ok(FileOffset {
                     path: path.to_owned(),
                     size: r.get::<_, i64>(0)? as u64,
                     offset: r.get::<_, i64>(1)? as u64,
                     mtime_ms: r.get(2)?,
+                    parser_version: r.get(3)?,
                 })
             })
             .optional()?)
@@ -1039,6 +1047,7 @@ mod tests {
             size: 100,
             offset: 80,
             mtime_ms: T0,
+            parser_version: 2,
         };
         let error = IngestError {
             path: String::new(),

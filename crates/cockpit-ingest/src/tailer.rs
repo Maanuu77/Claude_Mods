@@ -13,7 +13,9 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use cockpit_core::model::{CockpitEvent, EventKind, Source};
 use cockpit_core::privacy::PrivacyPolicy;
 use cockpit_core::tasks::{self, AgentState};
-use cockpit_core::transcript::{LineClass, LineError, TranscriptParser};
+use cockpit_core::transcript::{
+    LineClass, LineError, PARSER_VERSION, TranscriptParser, introduced_in,
+};
 use cockpit_store::{Batch, FileOffset, IngestError, Store, StoreError};
 
 /// Eventos por transacción durante el backfill.
@@ -205,6 +207,9 @@ pub struct IngestStats {
     pub adapter_drift: u64,
     pub unknown_lines: u64,
     pub truncated_files: u64,
+    /// Ficheros leídos con una versión anterior del parser que se releen para
+    /// recuperar solo los eventos nuevos ([`PARSER_VERSION`]).
+    pub reread_files: u64,
     pub orphan_results: u64,
     /// Tipos de línea desconocidos y cuántas veces aparecen.
     pub unknown_types: Vec<(String, u64)>,
@@ -274,6 +279,9 @@ pub fn ingest_file(
     let path_key = file.path.to_string_lossy().into_owned();
     let mut errors: Vec<IngestError> = Vec::new();
     let mut start = 0;
+    // Lo leído hasta `until` con un parser anterior (`old`): se relee entero, pero de
+    // esa parte solo se aplican los eventos que la versión `old` no producía.
+    let mut catch_up: Option<CatchUp> = None;
     if let Some(store) = store.as_deref()
         && let Some(prev) = store.file_offset(&path_key)?
     {
@@ -281,6 +289,12 @@ pub fn ingest_file(
             // El fichero se ha truncado o reemplazado: se vuelve a leer entero.
             stats.truncated_files += 1;
             errors.push(error(&path_key, "truncated", ""));
+        } else if prev.parser_version < PARSER_VERSION {
+            stats.reread_files += 1;
+            catch_up = Some(CatchUp {
+                until: prev.offset,
+                old: prev.parser_version,
+            });
         } else if file.size == prev.offset {
             return Ok(());
         } else {
@@ -299,6 +313,7 @@ pub fn ingest_file(
     let mut parser = TranscriptParser::new(policy);
     let mut events: Vec<CockpitEvent> = Vec::new();
     if start == 0
+        && catch_up.is_none()
         && let (Some(session_id), Some(created)) = (file.session_id(), file.created_ms)
     {
         events.push(CockpitEvent {
@@ -315,12 +330,17 @@ pub fn ingest_file(
 
     let end = read_complete_lines(&mut handle, start, |line, offset| {
         stats.lines += 1;
+        // Parte ya ingerida con un parser anterior: sus incidencias ya constan.
+        let old_part = catch_up.filter(|c| offset <= c.until);
+        let before = events.len();
         match parser.feed(line, &mut events) {
             Ok(LineClass::Handled | LineClass::Ignored) => {}
+            Ok(LineClass::Unknown(_)) if old_part.is_some() => {}
             Ok(LineClass::Unknown(kind)) => {
                 push_error(&mut errors, "", "unknown_type", &kind);
                 stats.unknown(kind);
             }
+            Err(_) if old_part.is_some() => {}
             Err(LineError::Corrupt) => {
                 stats.corrupt_lines += 1;
                 push_error(&mut errors, &path_key, "corrupt", "");
@@ -330,8 +350,15 @@ pub fn ingest_file(
                 push_error(&mut errors, &path_key, "drift", &kind);
             }
         }
+        if let Some(c) = old_part {
+            c.keep_new(&mut events, before);
+        }
         // Una herramienta de tareas con forma inesperada: la línea vale, la operación no.
+        // Los adaptadores son de la versión 2: también cuentan en la parte releída.
         for note in parser.take_notes() {
+            if old_part.is_some_and(|c| c.old >= 2) {
+                continue;
+            }
             stats.adapter_drift += 1;
             push_error(&mut errors, &path_key, "drift", &note);
         }
@@ -340,7 +367,7 @@ pub fn ingest_file(
                 store.as_deref_mut(),
                 file,
                 &path_key,
-                offset,
+                recorded(offset, catch_up),
                 &mut events,
                 &mut errors,
                 stats,
@@ -348,7 +375,11 @@ pub fn ingest_file(
         }
         Ok(())
     })?;
+    let before = events.len();
     parser.finish(&mut events);
+    if let Some(c) = catch_up.filter(|c| end <= c.until) {
+        c.keep_new(&mut events, before);
+    }
     if file.is_subagent
         && end > start
         && let Some(event) = subagent_meta_event(&meta_path_of(&file.path), file.mtime_ms)
@@ -356,7 +387,43 @@ pub fn ingest_file(
         events.push(event);
     }
     stats.bytes_read += end - start;
-    flush(store, file, &path_key, end, &mut events, &mut errors, stats)
+    flush(
+        store,
+        file,
+        &path_key,
+        recorded(end, catch_up),
+        &mut events,
+        &mut errors,
+        stats,
+    )
+}
+
+/// Relectura de lo ingerido con un parser anterior (ver [`PARSER_VERSION`]).
+#[derive(Debug, Clone, Copy)]
+struct CatchUp {
+    /// Hasta dónde se había leído.
+    until: u64,
+    /// Versión del parser con la que se leyó.
+    old: u32,
+}
+
+impl CatchUp {
+    /// Quita de `events[from..]` lo que la versión anterior ya producía.
+    fn keep_new(self, events: &mut Vec<CockpitEvent>, from: usize) {
+        let mut tail = events.split_off(from);
+        tail.retain(|e| introduced_in(&e.kind) > self.old);
+        events.append(&mut tail);
+    }
+}
+
+/// Offset y versión que se guardan tras leer hasta `offset`. Mientras quede parte
+/// antigua por releer se conserva lo que había: si la relectura se interrumpe,
+/// vuelve a empezar y nunca aplica dos veces los eventos antiguos.
+fn recorded(offset: u64, catch_up: Option<CatchUp>) -> (u64, u32) {
+    match catch_up {
+        Some(c) if offset < c.until => (c.until, c.old),
+        _ => (offset, PARSER_VERSION),
+    }
 }
 
 fn error(path: &str, kind: &'static str, detail: &str) -> IngestError {
@@ -382,7 +449,7 @@ fn flush(
     store: Option<&mut Store>,
     file: &TranscriptFile,
     path_key: &str,
-    offset: u64,
+    (offset, parser_version): (u64, u32),
     events: &mut Vec<CockpitEvent>,
     errors: &mut Vec<IngestError>,
     stats: &mut IngestStats,
@@ -399,6 +466,7 @@ fn flush(
             size: file.size,
             offset,
             mtime_ms: file.mtime_ms,
+            parser_version,
         }];
         let batch_stats = store.apply(&Batch {
             events,
@@ -602,6 +670,97 @@ mod tests {
             )
             .unwrap();
         assert_eq!(agents, 1);
+    }
+
+    fn tool_line(n: u32, tool_id: &str, name: &str, input: &str) -> String {
+        format!(
+            r#"{{"type":"assistant","sessionId":"{SESSION}","timestamp":"2026-11-10T10:01:{n:02}.000Z","version":"2.1.321","cwd":"C:\\w\\repo","message":{{"id":"msg_t{n}","model":"claude-test","usage":{{"input_tokens":1,"output_tokens":1}},"content":[{{"type":"tool_use","id":"{tool_id}","name":"{name}","input":{input}}}]}}}}"#
+        )
+    }
+
+    fn count(store: &Store, sql: &str) -> i64 {
+        store.connection().query_row(sql, [], |r| r.get(0)).unwrap()
+    }
+
+    #[test]
+    fn history_read_by_an_older_parser_gets_only_the_new_events() {
+        // Base ingerida hasta F4a (parser 1): sin tareas, y con la ruta de una
+        // herramienta ya purgada por la retención (D3).
+        let dir = tempfile::tempdir().unwrap();
+        let path = transcript(dir.path());
+        append(
+            &path,
+            &format!(
+                "{}\n{}\n{}\n",
+                assistant(1, 10),
+                tool_line(
+                    2,
+                    "t_edit",
+                    "Edit",
+                    r#"{"file_path":"C:\\w\\repo\\src\\a.rs","old_string":"x","new_string":"y"}"#
+                ),
+                tool_line(
+                    3,
+                    "t_todo",
+                    "TodoWrite",
+                    r#"{"todos":[{"content":"Leer","status":"completed"},{"content":"Escribir","status":"in_progress"}]}"#
+                ),
+            ),
+        );
+        let mut store = Store::open_in_memory().unwrap();
+        run(dir.path(), &mut store);
+        assert_eq!(
+            count(
+                &store,
+                "SELECT COUNT(*) FROM tool_calls WHERE rel_path IS NOT NULL"
+            ),
+            1
+        );
+        store
+            .connection()
+            .execute_batch(
+                "DELETE FROM task_ops; DELETE FROM tasks;
+                 UPDATE tool_calls SET rel_path = NULL;
+                 UPDATE file_offsets SET parser_version = 1;",
+            )
+            .unwrap();
+        let messages = store.totals().unwrap().api_messages;
+        let errors = count(&store, "SELECT COALESCE(SUM(count), 0) FROM ingest_errors");
+
+        // El fichero ha crecido mientras tanto.
+        append(&path, &format!("{}\n", assistant(4, 5)));
+        let stats = run(dir.path(), &mut store);
+        assert_eq!(stats.reread_files, 1);
+        // Las tareas vuelven; lo demás no se repite.
+        assert_eq!(count(&store, "SELECT COUNT(*) FROM tasks"), 2);
+        assert_eq!(store.totals().unwrap().api_messages, messages + 1);
+        assert_eq!(
+            count(
+                &store,
+                "SELECT COUNT(*) FROM tool_calls WHERE rel_path IS NOT NULL"
+            ),
+            0,
+            "la relectura no recupera rutas purgadas"
+        );
+        assert_eq!(
+            count(&store, "SELECT COALESCE(SUM(count), 0) FROM ingest_errors"),
+            errors
+        );
+        let offset = store.file_offset(&path.to_string_lossy()).unwrap().unwrap();
+        assert_eq!(offset.parser_version, PARSER_VERSION);
+        assert_eq!(offset.offset, fs::metadata(&path).unwrap().len());
+
+        let again = run(dir.path(), &mut store);
+        assert_eq!((again.reread_files, again.files_read), (0, 0));
+    }
+
+    #[test]
+    fn an_interrupted_reread_keeps_the_old_offset_and_version() {
+        let c = Some(CatchUp { until: 50, old: 1 });
+        assert_eq!(recorded(10, c), (50, 1));
+        assert_eq!(recorded(50, c), (50, PARSER_VERSION));
+        assert_eq!(recorded(60, c), (60, PARSER_VERSION));
+        assert_eq!(recorded(5, None), (5, PARSER_VERSION));
     }
 
     #[test]
