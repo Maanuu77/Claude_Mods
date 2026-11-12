@@ -622,21 +622,23 @@ Sin cambios desde v1: single-instance, cerrar la ventana la oculta en la bandeja
 ### 7.1 Qué se vigila
 - **Raíces activas:** el `git rev-parse --show-toplevel` del `cwd` de cada sesión viva (que llega por el mod, por `sessions/*.json` o por el transcript). Cada worktree cuenta como raíz propia. Si no hay Git, se usa el `cwd` de inicio de sesión.
 - Una **raíz se desactiva** cuando pasan 10 minutos sin sesiones vivas en ella. Ese margen es configurable y evita reabrir el watcher en cada sesión corta.
-- **Un watcher `notify` recursivo por raíz** [DOC]. `ReadDirectoryChangesW` cubre el subárbol con un único handle (buffer de 64 KiB). El filtrado ocurre en el espacio de usuario:
+- **Un watcher `notify` recursivo por raíz** [DOC]. `ReadDirectoryChangesW` cubre el subárbol con un único handle (buffer de 64 KiB; *precisión de F4a:* `notify` 8.2.2 usa 16 KiB). El filtrado ocurre en el espacio de usuario:
   1. Siempre se excluyen `.git/` (salvo `HEAD`, `index` y `refs/` para detectar commits y checkouts), `node_modules`, `target`, `dist`, `build`, `.venv`, `Library/` (Unity) y `.claude/worktrees`, que se vigilan como raíces aparte.
   2. Después se aplican las reglas de `.gitignore`, `.git/info/exclude` y la configuración global (crate `ignore`).
 - **Cambios detectados:** `notify-debouncer-full` 0.7 agrupa los eventos en ventanas de 200 ms, une las parejas de renombrado (on Windows usa file-IDs) y suprime los duplicados de crear seguido de modificar. Así salen eventos `Created | Modified | Deleted | Renamed{from}`.
 - **Tormentas de eventos** (npm install, builds): si una raíz supera los 500 eventos/s, el watcher pasa a modo «cambio masivo en <dir>», pausa el procesamiento fichero a fichero durante 2 s y luego resincroniza con una sola llamada a `git status`.
-- **Overflow (`Rescan`)** [DOC]: se resincroniza con `git status` (unos 100 ms medidos) en lugar de recorrer el árbol.
+- **Overflow (`Rescan`)** [DOC]: se resincroniza con `git status` (unos 100 ms medidos) en lugar de recorrer el árbol. *Precisión de F4a:* según su código, `notify` 8.2.2 no emite `Rescan` en Windows y, ante un error desconocido de `ReadDirectoryChangesW`, deja de vigilar la carpeta sin avisar (no reproducido: una ráfaga de 20.000 ficheros no lo desbordó). Lo cubren el modo «cambio masivo» y el `git status` que sigue a cada ráfaga.
+- *(F4a)* **Guardado atómico y movimientos:** el temporal `<nombre>.tmp.<pid>.<hex>` del `Edit`/`Write` de Claude Code se descarta y el cambio queda como un único `Modified` o `Created`. Un movimiento entre carpetas (que Windows entrega como borrado + creado) se une como `Renamed{from}` solo si el nombre del fichero no cambia y no hay ambigüedad en el lote.
 - **Unidades de red o UNC:** el watcher se desactiva y aparece un aviso en Diagnóstico. Microsoft documenta que el buffer de 64 KB falla en red y que `PollWatcher` sería costoso.
 
 ### 7.2 Git exclusivamente de solo lectura [DOC]
 - Se usa el **binario `git`** del sistema, no `git2` ni `gix`. Motivo: paridad exacta con la configuración del usuario (autocrlf, filtros, LFS, safe.directory, worktrees). Los procesos se lanzan desde Rust (`std::process`/`tokio::process`), no con `plugin-shell`.
 - **Endurecimiento obligatorio de cada invocación:**
   ```
-  git --no-optional-locks -c core.fsmonitor=false -c gc.auto=0 -c maintenance.auto=false -C <root> <cmd>
+  git --no-optional-locks -c core.fsmonitor=false -c gc.auto=0 -c maintenance.auto=false -c diff.autoRefreshIndex=false -C <root> <cmd>
   ```
   - `--no-optional-locks` [DOC git ≥ 2.15] evita que `status` reescriba el índice. **Medido:** el mtime de `.git/index` no cambia en 4 repos reales (§11).
+  - `diff.autoRefreshIndex=false` *(añadido en F4a)*: sin él, `git diff … HEAD` reescribe el índice cuando hay ficheros con `stat` obsoleto, **aunque lleve `--no-optional-locks`**. Lo detectó el test M5 automatizado.
   - `env GIT_TERMINAL_PROMPT=0`, `GIT_OPTIONAL_LOCKS=0`.
   - Nunca se ejecuta `fetch`, `pull`, `checkout`, `add`, `stash`, `gc` ni ningún comando de escritura. La lista blanca de subcomandos se aplica en el código: `status`, `diff`, `rev-parse`, `ls-files`, `log -n`, `show --stat`, `worktree list`, `cat-file -s`.
 - **Consultas:**
@@ -644,7 +646,7 @@ Sin cambios desde v1: single-instance, cerrar la ventana la oculta en la bandeja
   - Resumen de cambios: `diff --no-ext-diff --no-textconv --numstat -z HEAD` → +/− por fichero.
   - Diff de un fichero, bajo demanda: `diff --no-ext-diff --no-textconv --no-color HEAD -- <rel_path>`. Se limita a 2 MB y, si el fichero es binario, se marca como tal.
   - Ficheros sin seguimiento: vista previa con `read_file_preview` (primeros 256 KB, en memoria, nunca persistida).
-- **Planificación:** una consulta en vuelo por repositorio y coalescencia de 500 ms tras el último evento de fichero. No se sondea nunca. Si el repo tiene más de 20.000 ficheros versionados, `--untracked-files=normal`.
+- **Planificación:** una consulta en vuelo por repositorio y coalescencia de 500 ms tras el último evento de fichero (*F4a:* con un tope de 1 s desde el primer cambio pendiente, para que la actividad continua no la aplace sin fin). No se sondea nunca. Si el repo tiene más de 20.000 ficheros versionados, `--untracked-files=normal`.
 - **Lo que no se guarda:** ni contenido ni diffs en SQLite. Solo `file_events`, el resumen `numstat` (contadores) y `GitStateChanged`.
 
 ### 7.3 Atribución del cambio por intervalo completo (v1.2.1)
@@ -673,6 +675,13 @@ Sin cambios desde v1: single-instance, cerrar la ventana la oculta en la bandeja
 - un `ToolFinished` que llega más tarde de la ventana (por una reconexión, §5.4) puede **subir** una atribución `unknown` a R1 o R2, pero nunca rebaja una que ya era `high`.
 
 Respaldo: [DOC] para los eventos y el intervalo. La heurística es propia, así que la precisión se valida experimentalmente en **G5** (§13.2), con objetivos numéricos.
+
+**Calibración de G5 (F4a, 2026-11-12; pendiente de aprobación):**
+- **R2** solo se aplica a herramientas de edición **sin ruta comparable** (sin ruta o fuera del `cwd`). Un `Edit`/`Write` con ruta conocida distinta no es candidato: esas herramientas solo escriben su propio fichero.
+- **Primer desempate:** si alguna candidata contiene `t` en su intervalo real `[started_at, finished_at]`, sin ε ni δ, solo cuentan esas.
+- **Asentamiento:** además de `unknown` → R1/R2, una atribución definitiva puede subir a R1 si la confianza sube. Nunca se rebaja una `high`.
+
+Detalle y cifras en `CHANGELOG-spec.md` y `perf/2026-11-12-f4a.md`.
 
 ### 7.4 Vista «Cambios en directo»
 - Lista virtualizada por raíz: fichero, tipo de cambio, actor, +/− y hora.
@@ -907,9 +916,9 @@ Se mantienen R1–R11 de v1 (resumidos) y se añaden R12–R17.
 | **G2** | ¿Cuánto cuesta hookear `turn.step` (passthrough)? | B2 con y sin el hook | No se usa (por defecto) |
 | **G3** | ¿El tiempo en `next` de `tool.call` incluye el diálogo de permisos? **Resuelta (F3): sí.** | Herramienta con aprobación manual cronometrada | Estado `awaiting_permission` con el veredicto `ask` de `tool.check` (`classic.PermissionRequest` no llega en sesiones interactivas) |
 | **G4** | ¿Ve el mod las herramientas de los subagentes con `agentId`? **Resuelta (F3): sí.** | E2E con 1 subagente | Completar desde `subagents/*.jsonl` |
-| **G5** | Precisión de la atribución por intervalo (§7.3) | Guion con verdad conocida de ≥ 200 cambios: ediciones de Claude (Edit/Write), cambios hechos por `Bash` de Claude, cambios externos durante una sesión activa, herramientas en paralelo y dos sesiones en la misma raíz. Se publica la matriz de confusión por regla y se calibran ε y δ. **Objetivos:** precisión ≥ 0,95 en `high`, ≥ 0,80 en `medium`, 0 casos `external` mal atribuidos a `claude`. | Ajustar ε y δ. Si aun así no se llega, rebajar la regla afectada un nivel de confianza o mostrar solo `unknown`/`external`. |
+| **G5** | Precisión de la atribución por intervalo (§7.3) **Resuelta (F4a), con la calibración de §7.3 pendiente de aprobación:** 256 cambios, `high` 1,00, `medium` 0,86, 0 externos atribuidos a `claude`. | Guion con verdad conocida de ≥ 200 cambios: ediciones de Claude (Edit/Write), cambios hechos por `Bash` de Claude, cambios externos durante una sesión activa, herramientas en paralelo y dos sesiones en la misma raíz. Se publica la matriz de confusión por regla y se calibran ε y δ. **Objetivos:** precisión ≥ 0,95 en `high`, ≥ 0,80 en `medium`, 0 casos `external` mal atribuidos a `claude`. | Ajustar ε y δ. Si aun así no se llega, rebajar la regla afectada un nivel de confianza o mostrar solo `unknown`/`external`. |
 | **G6** | Esquema estable de `update_plan` en el Desktop | Fixtures de 2.1.317 y 2.1.321 | Desactivar A3 |
-| **G7** | ¿`notify-debouncer-full` une los renombrados en NTFS de forma fiable? | B6 con renombrados y movimientos entre carpetas | Eventos Delete + Create sin `from` |
+| **G7** | ¿`notify-debouncer-full` une los renombrados en NTFS de forma fiable? **Resuelta (F4a): dentro de un directorio sí (40/40).** Entre carpetas, Windows entrega borrado + creado y el debouncer no los une; F4a los une si el nombre no cambia (20/20). Con otro nombre, respaldo (20/20). | B6 con renombrados y movimientos entre carpetas | Eventos Delete + Create sin `from` |
 | **G8** | React Flow + dagre con 200 nodos o más dentro del presupuesto | B8 en la vista Mapa | SVG propio + dagre |
 | **G9** | ¿Se puede obtener `ICoreWebView2Environment8::GetProcessInfos` desde Tauri 2.12 / wry con `webview2-com`? | Prototipo en F2. **Resuelta (2026-11-11): sí**, con `webview2-com` 0.39 (`src-tauri/src/procs.rs`). | Solo el método 2 de C2 (árbol de procesos + `--user-data-dir`), documentado como menos autoritativo |
 | **G10** | ¿`$.fs.stat` / `$.fs.read` de un mod pueden leer `%APPDATA%\dev-cockpit\endpoint.json`, fuera del proyecto? | Prueba **antes de F0** (a petición tuya) con los 3 motores, usando un mod sonda desechable que no sale del directorio de pruebas | **DETENERSE** y presentarte las alternativas de la lista de abajo. **No se elige ninguna automáticamente.** Escribir en `~/.claude` está prohibido sin tu autorización previa y expresa. |

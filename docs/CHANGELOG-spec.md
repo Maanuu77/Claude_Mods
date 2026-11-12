@@ -4,6 +4,31 @@ Documento de referencia: [`SPEC.md`](SPEC.md). Las tablas detalladas de cada ver
 
 ---
 
+## Precisiones de F4a: Workspace Watcher (2026-11-12)
+
+No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-12-f4a.md`](perf/2026-11-12-f4a.md).
+
+- **Calibración de la atribución tras G5 (desviación de §7.3, pendiente de aprobación del usuario).** Con las reglas de §7.3 al pie de la letra, G5 no llegaba a los objetivos (`medium` 0,73 y 8 cambios externos atribuidos a `claude`). Siguiendo la vía que prevé G5 para ese caso («rebajar la regla afectada o mostrar solo `unknown`»), se cambian tres cosas:
+  1. **R2 solo se aplica a ediciones sin ruta comparable** (`PRE_HANDSHAKE`, `record_paths = false` o fuera del `cwd`). Un `Edit`/`Write` con ruta conocida que no coincide deja de ser candidato, porque esas herramientas solo escriben su propio fichero. Ese cambio queda en R3, R4 o R5.
+  2. **Desempate por intervalo real:** si alguna candidata contiene el cambio en `[started_at, finished_at]` (sin ε ni δ), solo cuentan esas. La cola δ de una herramienta ya terminada deja de empatar con la que está en curso.
+  3. **Subida tardía:** una atribución definitiva también puede pasar a R1 si la confianza sube (por ejemplo, un R2 o un R3 que resulta ser un `Edit` del mismo fichero cuyo aviso llegó tarde). Sigue sin rebajarse nunca una `high`.
+  
+  ε (250 ms) y δ (1.500 ms) no cambian. (SPEC §7.3, §13.2 G5)
+- **Endurecimiento de Git ampliado con `-c diff.autoRefreshIndex=false`.** El test M5 automatizado demostró que `git diff … HEAD` (el `numstat` y el diff de un fichero) **reescribe `.git/index`** cuando hay ficheros con `stat` obsoleto, aunque lleve `--no-optional-locks` (Git 2.51.2.windows.1). `status`, `rev-parse` y `ls-files` no lo hacen. Con la opción desactivada, el índice no cambia y la salida es la misma. Es más estricto que §7.2, no una relajación. (SPEC §7.2, R14)
+- **`notify` 8.2.2 en Windows** (lectura de su código): usa un buffer de 16 KiB (la SPEC decía 64 KiB), **ningún camino emite `Rescan`**, y un código de error desconocido de `ReadDirectoryChangesW` deja de vigilar la carpeta sin avisar. Una sonda de 20.000 ficheros a unos 5.000/s no llegó a desbordarlo (40.000 de 40.000 eventos), así que la pérdida no está reproducida. La red de seguridad es el modo «cambio masivo» y el `git status` posterior, que es la verdad del estado del árbol. Detectar un watcher caído queda para F5. (SPEC §7.1, R4)
+- **Coalescencia de Git con tope:** 500 ms sin cambios, y como máximo 1 s **desde el primer cambio pendiente**. Sin tope, con actividad continua Git no se consultaría nunca; con un tope de 2 s contado desde el aviso, B7 por cambio daba un p95 de 2,4 s. (SPEC §7.2, B7)
+- **Caché de file-IDs propia (`PairCache`)** en lugar de la `FileIdMap` recomendada, que recorre el árbol entero (siguiendo enlaces) al vigilar una raíz y con cada directorio nuevo, y abre cada fichero para leer su id. `PairCache` empareja cada `RENAMED_NEW_NAME` con el `RENAMED_OLD_NAME` inmediatamente anterior, que es como los entrega Windows. (SPEC §7.1)
+- **G7:** dentro de un directorio, los renombrados se unen con su origen. Un movimiento **entre carpetas** llega de Windows como `REMOVED` + `ADDED`, y el debouncer no los une. F4a los une si, en el mismo lote, hay un único borrado y un único creado con el mismo nombre de fichero y a menos de 20 ms. Si además cambia el nombre, queda como borrado + creado sin `from`: el respaldo previsto en G7. (SPEC §7.1, §13.2)
+- **Guardado atómico de Claude Code** (medido con Desktop 2.1.321): `Edit` y `Write` escriben `<nombre>.tmp.<pid>.<hex>`, borran el original si existe y renombran el temporal sobre él. El Watcher descarta los temporales y deja un único `modified` (o `created`, si el fichero es nuevo). Para distinguirlos usa la fecha de creación, que NTFS conserva del fichero sustituido (*tunneling*). (SPEC §7.1)
+- **`file_events`:** columnas añadidas `id` (para actualizar la atribución), `ext` (la agregación no depende de la ruta) y `settled` (atribución definitiva, §7.3). `rel_path` admite `NULL` para `privacy.record_paths = false`. Un `CHECK` exige que `actor_session` y `actor_tool_use_id` vayan juntos (R-4). (SPEC §6.4)
+- **Rutas de las herramientas:** el mod y el parser las relativizan al `cwd` de la sesión, y el Watcher a la raíz de Git. La atribución las traduce con el prefijo de `git rev-parse --show-prefix`. Una edición fuera del `cwd` pero dentro de la raíz llega como `<externo>` y cae en R2. (SPEC §7.3, §10)
+- **Raíces sin Git:** no se vigilan si son una unidad entera, la carpeta del usuario o una que la contenga (sin `.gitignore`, sería vigilar medio disco). Las unidades de red se detectan solo por ruta UNC; una unidad de red con letra no se detecta. (SPEC §7.1)
+- **Raíces del histórico:** al arrancar se resuelve en segundo plano la raíz del `cwd` de todas las sesiones guardadas, para que la agregación sea por proyecto. Los triggers de §6.4.2 recalculan lo que ya estaba agregado con `root_id = 0`.
+- **Estado de Git** (rama, `HEAD`, ficheros con cambios y `numstat`) solo en memoria, publicado a la interfaz. No se guarda en SQLite. (SPEC §7.2)
+- **Vista «Cambios en directo»:** agrupa por herramienta y sesión, no por turno, porque los eventos de herramienta del mod no llevan el turno. El diff y la vista previa solo se admiten sobre raíces activas. (SPEC §7.4)
+- **Compactación:** al arrancar (tras el backfill) y cada 24 h. La primera ejecución sobre la base real agrega todos los días cerrados y purga las rutas de más de 30 días (D3).
+- **Fallo previo corregido:** `PidProbe` no devolvía ningún proceso vivo si la lista tenía un PID repetido.
+
 ## Cierre de F3: G3, G4 y desviaciones aceptadas (2026-11-12)
 
 No cambia la arquitectura ni el alcance. Resultados en [`perf/2026-11-11-f3.md`](perf/2026-11-11-f3.md), sección «Actualización».
