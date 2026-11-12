@@ -255,6 +255,30 @@ fn env_path(name: &str) -> Option<PathBuf> {
 
 /// Rutas de la canalización. Las variables `DEV_COCKPIT_*` solo existen para las
 /// pruebas, que no deben tocar `~/.claude` ni la base de datos real.
+/// Registro de pánicos, junto a la base de datos (B9 pide «0 pánicos»).
+const PANICS_FILE: &str = "panics.log";
+
+/// En release, un pánico aborta el proceso (`panic = "abort"`). Antes, se apunta
+/// una línea: hora (ms), hilo y `fichero:línea` del código. **El mensaje no se
+/// guarda**: podría llevar una ruta o un dato del usuario (SPEC §10).
+fn record_panics(path: PathBuf) {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let at = info
+            .location()
+            .map(|l| format!("{}:{}", l.file(), l.line()))
+            .unwrap_or_else(|| "?".to_owned());
+        let thread = thread::current().name().unwrap_or("?").to_owned();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_millis());
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&path) {
+            let _ = writeln!(file, "{now}\t{thread}\t{at}");
+        }
+        previous(info);
+    }));
+}
+
 fn live_config() -> Result<LiveConfig, String> {
     let claude = home_dir().map(|h| h.join(".claude"));
     let projects_root = env_path("DEV_COCKPIT_PROJECTS_DIR")
@@ -323,6 +347,9 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     });
     let config = live_config()?;
     let db_path = config.db_path.clone();
+    if let Some(dir) = db_path.parent() {
+        record_panics(dir.join(PANICS_FILE));
+    }
     let pipeline = LivePipeline::spawn(config, live.clone())?;
     let subscriber = Subscriber::default();
 
