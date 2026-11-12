@@ -791,3 +791,73 @@ body {
   gap: 8px;
   align-items: baseline;
 }
+
+/* --- Diagnóstico (SPEC §7, vista 5) --------------------------------------- */
+
+.dg-head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.dg-list {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.dg-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 40%) 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.dg-row dt {
+  color: var(--muted);
+}
+
+.dg-row dd {
+  margin: 0;
+}
+
+.dg-sessions {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.dg-sessions li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.dg-mono {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+}
+
+.dg-wide {
+  grid-column: 1 / -1;
+}
+
+.dg-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.dg-table th,
+.dg-table td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dg-table th {
+  color: var(--muted);
+  font-weight: 600;
+}

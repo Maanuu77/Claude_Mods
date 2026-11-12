@@ -7,6 +7,7 @@
 //! las consultas de la interfaz abren conexiones de solo lectura.
 
 mod compact;
+mod diagnostics;
 mod schema;
 mod summary;
 mod workspace;
@@ -19,6 +20,7 @@ use cockpit_core::time::local_day;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 pub use compact::{CompactOptions, CompactReport, Target};
+pub use diagnostics::{AggregationHealth, Diagnostics, EngineSeen, ErrorGroup, PathDetail};
 pub use schema::SCHEMA_VERSION;
 pub use summary::{SessionSummary, ToolView, UsageView};
 pub use workspace::{FileEventView, NewProject, StoredChange, ToolInterval};

@@ -19,7 +19,7 @@ use cockpit_ingest::git::{FileDiff, GitReader};
 use cockpit_ingest::live::{LiveConfig, LiveDelta, LivePipeline, LiveState};
 use cockpit_ingest::project_scan::{self, ProjectScan};
 use cockpit_ingest::workspace::{FilePreview, read_preview};
-use cockpit_store::{DB_FILE_NAME, FileEventView, Store};
+use cockpit_store::{DB_FILE_NAME, Diagnostics, FileEventView, Store};
 use tauri::ipc::Channel;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -85,6 +85,40 @@ async fn project_map(state: State<'_, AppState>, root_id: i64) -> Result<Project
     tauri::async_runtime::spawn_blocking(move || project_scan::scan(&root, &GitReader::new()))
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Diagnóstico (SPEC §7, vista 5, y avisos de §6.4.2), con los mismos cortes que la
+/// compactación, más el tamaño de la base en disco. Solo lectura.
+#[derive(serde::Serialize)]
+struct DiagnosticsView {
+    #[serde(flatten)]
+    store: Diagnostics,
+    db_bytes: u64,
+    wal_bytes: u64,
+}
+
+#[tauri::command]
+fn diagnostics(state: State<'_, AppState>) -> Result<DiagnosticsView, String> {
+    let mut reader = state.reader.lock().unwrap_or_else(|e| e.into_inner());
+    if reader.is_none() {
+        *reader = Some(Store::open_read_only(&state.db_path).map_err(|e| e.to_string())?);
+    }
+    let store = reader.as_ref().ok_or("sin base de datos")?;
+    let now = cockpit_ingest::live::now_ms();
+    let closed = cockpit_core::time::closed_before(now);
+    let purge = cockpit_core::time::local_day_minus(now, cockpit_core::PATH_DETAIL_DAYS);
+    let size = |suffix: &str| {
+        let mut path = state.db_path.clone().into_os_string();
+        path.push(suffix);
+        std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+    };
+    Ok(DiagnosticsView {
+        store: store
+            .diagnostics(&closed, &purge)
+            .map_err(|e| e.to_string())?,
+        db_bytes: size(""),
+        wal_bytes: size("-wal"),
+    })
 }
 
 /// Diff de un fichero respecto a `HEAD`, bajo demanda. Solo viaja en la respuesta:
@@ -341,7 +375,8 @@ pub fn run() {
             query_file_events,
             git_diff,
             read_file_preview,
-            project_map
+            project_map,
+            diagnostics
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
