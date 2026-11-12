@@ -20,6 +20,10 @@ const BATCH_MAX = 500
 const FLUSH_DELAY_MS = 50
 const WATCH_MS = 15_000
 const EXTERNAL_PATH = '<externo>'
+const PLAN_TOOL = 'mcp__ccd_turn__update_plan'
+const SUBJECT_MAX = 120
+const LIST_MAX = 200
+const AGENTS_MAX = 100
 
 // ---------------------------------------------------------------------------
 // Lo que el mod usa del motor. `tsc` comprueba contra los tipos de cada motor
@@ -92,7 +96,20 @@ type WireEvent = { seq: number; t: number } & (
   | { kind: 'permission_requested'; tool_use_id: string }
   | { kind: 'permission_resolved'; tool_use_id: string }
   | { kind: 'session_ended'; reason?: string }
+  | { kind: 'task_op'; tool_use_id?: string; agent_id?: string; source: TaskSource; op: TaskOp }
+  | { kind: 'agents'; agents: AgentWire[] }
 )
+// Task Monitor (SPEC §8). Espejo de crates/cockpit-core/src/tasks.rs.
+type TaskSource = 'task_tools' | 'todo_write' | 'desktop_plan'
+type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'deleted'
+type TaskOp =
+  | { type: 'create'; task_id: string; subject?: string }
+  | { type: 'update'; task_id: string; status?: TaskStatus; subject?: string; owner?: string; blocked_by?: string[] }
+  | { type: 'complete'; task_id: string }
+  | { type: 'replace'; items: Array<{ subject?: string; status: TaskStatus }> }
+  | { type: 'advance' }
+  | { type: 'mark'; done?: number[]; start?: number }
+type AgentWire = { id: string; type: string; status: string; parent_id?: string }
 type Pending = WireEvent extends infer E ? (E extends WireEvent ? Omit<E, 'seq'> : never) : never
 type RunningTool = {
   tool_use_id: string
@@ -145,6 +162,10 @@ const st = {
   sent: 0,
   hookCalls: 0,
   hookOwnMsMax: 0,
+  /** Último `agents` enviado, para no repetirlo si no cambia. */
+  lastAgents: '',
+  /** Subagentes vistos por los hooks clásicos y que `$.agent.list()` ya no lista. */
+  hookAgents: new Map<string, AgentWire>(),
 }
 
 export const register: Register = on => {
@@ -176,6 +197,7 @@ export const register: Register = on => {
     try {
       const ran = await next(e)
       status = ran.deny === undefined && ran.isError !== true ? 'ok' : 'error'
+      if (status === 'ok') noteTaskOp($, entry, call, (ran as { result?: unknown }).result)
       return ran
     } catch (err) {
       status = next.signal.aborted ? 'interrupted' : 'error'
@@ -236,8 +258,51 @@ export const register: Register = on => {
     // Si este hook falla, la petición de permiso sigue su curso sin el mod.
   }).catch((_$, e, next) => next(e))
 
+  // Task Monitor (SPEC §8): tareas creadas y terminadas fuera de una llamada del
+  // modelo (compañeros de equipo) y el estado de los subagentes, por evento.
+  on('classic.TaskCreated', async ($, e, next) => {
+    const done = await next(e)
+    const id = taskId(e.task_id)
+    if (id !== undefined) {
+      enqueue({ kind: 'task_op', t: Date.now(), source: 'task_tools', op: { type: 'create', task_id: id, subject: title(e.task_subject, st.policy) } })
+      scheduleFlush($)
+    }
+    return done
+  }).catch((_$, e, next) => next(e))
+
+  on('classic.TaskCompleted', async ($, e, next) => {
+    const done = await next(e)
+    const id = taskId(e.task_id)
+    if (id !== undefined) {
+      enqueue({ kind: 'task_op', t: Date.now(), source: 'task_tools', op: { type: 'complete', task_id: id } })
+      scheduleFlush($)
+    }
+    return done
+  }).catch((_$, e, next) => next(e))
+
+  on('classic.SubagentStart', async ($, e, next) => {
+    const done = await next(e)
+    noteHookAgent(e.agent_id, e.agent_type, 'running')
+    void sendAgents($)
+    return done
+  }).catch((_$, e, next) => next(e))
+
+  on('classic.SubagentStop', async ($, e, next) => {
+    const done = await next(e)
+    noteHookAgent(e.agent_id, e.agent_type, 'completed')
+    void sendAgents($)
+    return done
+  }).catch((_$, e, next) => next(e))
+
+  on('turn.start', async ($, e, next) => {
+    const started = await next(e)
+    void sendAgents($)
+    return started
+  })
+
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
+    void sendAgents($)
     const u = e.usage
     enqueue({
       kind: 'turn_completed',
@@ -518,6 +583,158 @@ function diagnostics(): string {
 function noteHook(startedAt: number): void {
   st.hookCalls += 1
   st.hookOwnMsMax = Math.max(st.hookOwnMsMax, Date.now() - startedAt)
+}
+
+// ---------------------------------------------------------------------------
+// Task Monitor (SPEC §8)
+// ---------------------------------------------------------------------------
+
+/** Encola la operación que declara una llamada terminada sin error. */
+function noteTaskOp($: Api, entry: RunningTool, input: Record<string, unknown>, result: unknown): void {
+  try {
+    const declared = taskOp(entry.tool, input, result, st.policy, entry.agent_id !== undefined)
+    if (!declared) return
+    enqueue({ kind: 'task_op', t: Date.now(), tool_use_id: entry.tool_use_id, agent_id: entry.agent_id, ...declared })
+    scheduleFlush($)
+  } catch {
+    // Observar una lista de tareas nunca puede romper la herramienta.
+  }
+}
+
+/** Claves de `tool.call` que no son argumentos de la herramienta. */
+const RESERVED_KEYS = new Set(['tool', 'tool_use_id', 'consent', 'agentId', 'requestMeta'])
+/** Claves conocidas de `update_plan` (fixtures de G6). */
+const PLAN_KEYS = new Set(['items', 'advance', 'done', 'start', 'scope'])
+
+function taskOp(
+  tool: string,
+  input: Record<string, unknown>,
+  result: unknown,
+  policy: Policy,
+  isSubagent: boolean,
+): { source: TaskSource; op: TaskOp } | undefined {
+  switch (tool) {
+    case 'TaskCreate': {
+      // El id lo asigna el motor: sale del resultado.
+      const task = (result as { task?: { id?: unknown; subject?: unknown } } | undefined)?.task
+      const id = taskId(task?.id)
+      if (id === undefined) return undefined
+      return { source: 'task_tools', op: { type: 'create', task_id: id, subject: title(text(input.subject) ?? text(task?.subject), policy) } }
+    }
+    case 'TaskUpdate': {
+      const id = taskId(input.taskId)
+      if (id === undefined) return undefined
+      const status = input.status === undefined ? undefined : taskStatus(input.status)
+      if (status === null) return undefined
+      const owner = input.owner === undefined ? undefined : ownerName(input.owner)
+      if (owner === null) return undefined
+      const blockers = Array.isArray(input.addBlockedBy) ? input.addBlockedBy.map(taskId).filter(isDefined) : []
+      return {
+        source: 'task_tools',
+        op: {
+          type: 'update',
+          task_id: id,
+          status,
+          subject: title(text(input.subject), policy),
+          owner,
+          blocked_by: blockers.length > 0 ? [...new Set(blockers)].slice(0, 32) : undefined,
+        },
+      }
+    }
+    case 'TodoWrite': {
+      // La lista de un subagente es suya, no la de la sesión.
+      if (isSubagent) return undefined
+      const items = listItems(input.todos, policy)
+      return items && { source: 'todo_write', op: { type: 'replace', items } }
+    }
+    case PLAN_TOOL: {
+      // El Desktop rechaza `update_plan` en los subagentes.
+      if (isSubagent) return undefined
+      const keys = Object.keys(input).filter(k => !RESERVED_KEYS.has(k))
+      if (keys.some(k => !PLAN_KEYS.has(k))) return undefined // esquema nuevo: que decida el transcript
+      const forms = [input.items !== undefined, input.advance !== undefined, input.done !== undefined || input.start !== undefined]
+      if (forms.filter(Boolean).length !== 1) return undefined
+      if (input.items !== undefined) {
+        const items = listItems(input.items, policy)
+        return items && items.length > 0 ? { source: 'desktop_plan', op: { type: 'replace', items } } : undefined
+      }
+      if (input.advance !== undefined) return input.advance === true ? { source: 'desktop_plan', op: { type: 'advance' } } : undefined
+      const done = input.done === undefined ? [] : Array.isArray(input.done) ? input.done.map(step) : [undefined]
+      const start = input.start === undefined ? undefined : step(input.start)
+      if (done.some(n => n === undefined) || (input.start !== undefined && start === undefined)) return undefined
+      return { source: 'desktop_plan', op: { type: 'mark', done: [...new Set(done as number[])], start } }
+    }
+    default:
+      return undefined
+  }
+}
+
+function listItems(value: unknown, policy: Policy): Array<{ subject?: string; status: TaskStatus }> | undefined {
+  if (!Array.isArray(value) || value.length > LIST_MAX) return undefined
+  const items: Array<{ subject?: string; status: TaskStatus }> = []
+  for (const raw of value) {
+    const item = (raw ?? {}) as { content?: unknown; status?: unknown }
+    const status = taskStatus(item.status)
+    if (status === null || status === 'deleted') return undefined
+    // `activeForm` y cualquier otro campo no se leen nunca.
+    items.push({ subject: title(text(item.content), policy), status })
+  }
+  return items
+}
+
+function taskStatus(value: unknown): TaskStatus | null {
+  return value === 'pending' || value === 'in_progress' || value === 'completed' || value === 'deleted' ? value : null
+}
+
+function step(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 ? value : undefined
+}
+
+/** Id de tarea: un identificador corto, nunca texto libre. */
+function taskId(value: unknown): string | undefined {
+  const id = typeof value === 'string' ? value.trim() : typeof value === 'number' && Number.isInteger(value) ? String(value) : undefined
+  return id !== undefined && /^[A-Za-z0-9_.:-]{1,64}$/.test(id) ? id : undefined
+}
+
+function ownerName(value: unknown): string | null {
+  const name = typeof value === 'string' ? value.trim() : ''
+  return /^[A-Za-z0-9_.:@-]{1,64}$/.test(name) ? name : null
+}
+
+/** Título de tarea (D1): una línea de 120 caracteres, solo si la política lo permite. */
+function title(value: string | undefined, policy: Policy): string | undefined {
+  if (!policy.capture_task_titles || value === undefined) return undefined
+  const line = value.replace(/[\s\p{Cc}]+/gu, ' ').trim()
+  const short = Array.from(line).slice(0, SUBJECT_MAX).join('')
+  return short === '' ? undefined : short
+}
+
+function isDefined<T>(value: T | undefined): value is T {
+  return value !== undefined
+}
+
+function noteHookAgent(id: unknown, type: unknown, status: string): void {
+  const clean = taskId(id)
+  if (clean === undefined) return
+  st.hookAgents.set(clean, { id: clean, type: typeof type === 'string' ? ident(type, 64) : 'agent', status })
+}
+
+/** `$.agent.list()`, solo si ha cambiado desde el último envío (A4). */
+async function sendAgents($: Api): Promise<void> {
+  let listed: AgentWire[]
+  try {
+    listed = (await $.agent.list()).map(a => ({ id: a.id, type: a.type, status: a.status, parent_id: a.parentId }))
+  } catch {
+    return
+  }
+  // Lo que vieron los hooks y la lista ya no tiene (el motor suelta sus agentes).
+  const ids = new Set(listed.map(a => a.id))
+  const agents = [...listed, ...[...st.hookAgents.values()].filter(a => !ids.has(a.id))].slice(0, AGENTS_MAX)
+  const key = JSON.stringify(agents)
+  if (key === st.lastAgents) return
+  st.lastAgents = key
+  enqueue({ kind: 'agents', t: Date.now(), agents })
+  scheduleFlush($)
 }
 
 // ---------------------------------------------------------------------------

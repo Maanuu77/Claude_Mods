@@ -7,6 +7,7 @@ import {
   projectName,
   toolLabel,
 } from "./format";
+import { SOURCE_LABEL } from "../tasks/labels";
 import type { SessionView, ToolView } from "./types";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -121,6 +122,14 @@ export function SessionCard({ session, now }: { session: SessionView; now: numbe
           )}
         </div>
       </dl>
+
+      {session.tasks.length > 0 && (
+        <p className="limits">
+          {session.tasks
+            .map((l) => `${SOURCE_LABEL[l.source]}: ${l.progress.completed}/${l.progress.total}`)
+            .join(" · ")}
+        </p>
+      )}
 
       {limits.length > 0 && (
         <p className="limits">
