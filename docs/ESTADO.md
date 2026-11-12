@@ -34,12 +34,12 @@ Están en [`DEVELOPMENT_WORKFLOW.md`](DEVELOPMENT_WORKFLOW.md) (W1–W11). Las q
 | F1 ingesta de transcripts | Hecha y fusionada | `crates/cockpit-core`, `cockpit-store`, `cockpit-ingest` |
 | F2 shell Tauri y vista En vivo | Hecha y fusionada | `src-tauri/`, `src/` |
 | F3 mod puente | Hecha y fusionada | `mods/dev-cockpit-bridge`, `crates/cockpit-ingest/src/http.rs`, `wire.rs` |
-| **F4a Workspace Watcher** | **Siguiente, sin empezar** | — |
-| F4b Task Monitor | Sin empezar | — |
+| F4a Workspace Watcher | Hecha y fusionada | `crates/cockpit-ingest/src/{git,watcher,workspace}.rs`, `cockpit-core/src/attribution.rs`, `cockpit-store/src/{compact,workspace}.rs`, `src/changes/` |
+| **F4b Task Monitor** | **Siguiente, sin empezar** | — |
 | F4c Project Map | Sin empezar | — |
 | F5 endurecimiento | Sin empezar | — |
 
-`main` contiene la fusión de F3 (`git log --merges -1 main`).
+`main` contiene la fusión de F4a (`git log --merges -1 main`). La calibración de G5 (SPEC §7.3) la aceptó el usuario el 2026-11-12.
 
 ## F3: lo que está hecho
 
@@ -72,9 +72,32 @@ Resultados, detallados en [`perf/2026-11-11-f3.md`](perf/2026-11-11-f3.md) (con 
 - **Marca de latencia separada para B3** en `src/live/store.ts` y `perf_mark`.
 - **Desviaciones aceptadas por el usuario:** B11 con una muestra por motor y S2 sin medir en sesión real; B2 sin medir aislado; Desktop 2.1.317 sin validar con su binario; hooks `classic.Task*` y `classic.Subagent*` aplazados a F4b. Están en `CHANGELOG-spec.md`.
 
+## F4a: lo que está hecho (2026-11-12)
+
+- **`GitReader`** (`crates/cockpit-ingest/src/git.rs`): binario `git` con el endurecimiento de §7.2 **más `-c diff.autoRefreshIndex=false`**, lista blanca de subcomandos aplicada en código (y opciones prohibidas como `--output`), `CREATE_NO_WINDOW`, tope de salida y tiempo máximo. `resolve` (raíz, prefijo del `cwd`, worktrees), `status` porcelain v2, `numstat`, diff de un fichero (2 MB) y `count_tracked`.
+- **Watcher** (`watcher.rs`): `notify-debouncer-full` 0.7 con la caché `PairCache`, exclusiones fijas, `.gitignore` por directorio + `info/exclude` + global (crate `ignore`, sin distinguir mayúsculas), modo masivo (> 500 eventos/s, pausa de 2 s), guardado atómico de Claude Code y unión de movimientos entre carpetas.
+- **Gestor de raíces** (`workspace.rs`): resolución `cwd` → raíz en un hilo aparte (también del histórico al arrancar), activación por sesión viva y desactivación tras 10 min, un hilo de Git por raíz (coalescencia de 500 ms, como máximo 1 s desde el primer cambio pendiente), atribución provisional 2 s y reevaluación con cada herramienta de la raíz.
+- **Atribución** (`cockpit-core/src/attribution.rs`): R1–R5 de §7.3 con la calibración de G5.
+- **Store:** migración 3 (`file_events`, `file_change_daily`, `tool_usage_daily`, `aggregation_ledger`, triggers de §6.4.2) y compactación transaccional con purga (`compact.rs`), al arrancar y cada 24 h.
+- **Interfaz:** pestaña «Cambios en directo» con la lista virtualizada (`@tanstack/react-virtual`), agrupada por herramienta, `+/−` de `numstat`, ficheros con cambios según `git status` y visor de diff o vista previa. Comandos Tauri `query_file_events`, `git_diff` y `read_file_preview` (solo sobre raíces activas).
+- **Fallo previo corregido:** `PidProbe` no devolvía ningún proceso si un PID se repetía.
+
+Resultados en [`perf/2026-11-12-f4a.md`](perf/2026-11-12-f4a.md):
+
+| Criterio | Resultado |
+|---|---|
+| Tests de §6.4.2 (idempotencia, fallo inyectado, día tardío, purga solo en `done`, R-2 ×3, R-4 ×2) | pasan |
+| Purga: ninguna ruta de más de 30 días | pasa |
+| **M5** automatizado | pasa, **tras añadir `diff.autoRefreshIndex=false`**: `git diff … HEAD` reescribía el índice |
+| **G5** (256 cambios) | `high` 1,00 · `medium` 0,86 · 0 externos a `claude`, **con la calibración de §7.3** (sin ella: 0,73 y 8) |
+| **G7** | mismo directorio 40/40; entre carpetas con el mismo nombre 20/20; con otro nombre, borrado + creado (respaldo) |
+| **B6** cambio → pintado | p95 de 317 ms con 350 cambios (objetivo < 700 ms) |
+| **B7** `numstat` → pintado | p95 de 1,19 s por cambio con un cambio cada 150 ms (objetivo < 1,5 s), tras limitar la coalescencia a 1 s desde el primer cambio (con 2 s: 2,4 s) |
+| Prueba en la app real (copia de la base) | raíz activada sola; un `Edit` de esta sesión, `Claude · alta` solo con el transcript |
+
 ## Siguiente paso
 
-**F4a, Workspace Watcher** (SPEC §7, §6.4.1, §6.4.2): rama nueva `feature/f4a-workspace-watcher` desde `main`. Puertas G5 y G7; mediciones B6 y B7.
+**F4b, Task Monitor** (SPEC §8): rama nueva `feature/f4b-task-monitor` desde `main`. Adaptadores A1–A4, puerta G6 y E2E con `TodoWrite` y `update_plan`; incluye los hooks `classic.Task*` y `classic.Subagent*` aplazados de F3.
 
 ## Hallazgos que afectan a fases futuras
 
@@ -83,6 +106,10 @@ Resultados, detallados en [`perf/2026-11-11-f3.md`](perf/2026-11-11-f3.md) (con 
 - **`cost-state`:** los tokens deduplicados del transcript solo coinciden exactamente con `cost-state` en 19 de 33 sesiones.
 - **Aviso del enlazador** `.rsrc merge failure: multiple non-default manifests`: sigue sin resolver; hay que mirarlo antes del instalador de F5.
 - **Tabla `pricing` vacía:** no hay precios de modelos cargados.
+- **Primera ejecución de F4a sobre la base real:** la compactación agregará todos los días cerrados y **purgará las rutas de más de 30 días** (D3). Es lo previsto, pero no se puede deshacer; las pruebas de F4a usaron una copia.
+- **F4c (Diagnóstico):** faltan los avisos de §6.4.2 (días sin agregar, reconciliación con diferencias) y «borrar rutas ahora». `Store::reconcile` ya existe.
+- **Atribución, límites conocidos:** un cambio externo durante un `Bash` de la misma raíz se atribuye a ese `Bash` (R3), y un `Bash` en segundo plano que sigue escribiendo cuando la herramienta ya ha terminado queda como `unknown`.
+- **Unidades de red con letra:** no se detectan (solo rutas UNC); se vigilarían con `ReadDirectoryChangesW`, que Microsoft no garantiza en red.
 
 ## Comandos de comprobación
 
@@ -96,9 +123,10 @@ npx tsc -p compat/tsconfig.2.1.289.json        (y .317, .321)
 claude plugin validate mods/dev-cockpit-bridge
 claude plugin test mods/dev-cockpit-bridge
 npm run tauri build -- --no-bundle             (deja target\release\dev-cockpit.exe)
+cargo run -p cockpit-ingest --release --example workspace_gates -- g5 g5.json   (y g7)
 ```
 
-Scripts de medición en `scripts/measure/`: `gen-transcript.mjs` (B4), `sample-procs.ps1` (B8) y `app-cycle.ps1` (B11).
+Scripts de medición en `scripts/measure/`: `gen-transcript.mjs` (B4), `sample-procs.ps1` (B8), `app-cycle.ps1` (B11) y `workspace-cycle.ps1` + `fs-ops.mjs` (B6, B7).
 
 ## Restos en el equipo
 
@@ -107,3 +135,4 @@ Scripts de medición en `scripts/measure/`: `gen-transcript.mjs` (B4), `sample-p
 - `target\e2e\`: ficheros de las pruebas E2E (ignorado por Git).
 - Registros obsoletos en `~/.claude/sessions` de las sesiones de prueba cerradas de golpe; Claude los limpia solo al arrancar.
 - Las pruebas con prompts reales consumieron tokens de la cuenta (alrededor de 0,50 USD estimados por sesión, unas cinco sesiones).
+- `%APPDATA%\dev-cockpit\endpoint.json`: quedó de una ejecución anterior que no se cerró limpiamente (estaba antes de F4a). La app lo reescribe al arrancar.

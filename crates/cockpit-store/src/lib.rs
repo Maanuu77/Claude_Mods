@@ -3,11 +3,13 @@
 //! `Store` es el único escritor. Todas las escrituras son upserts idempotentes:
 //! volver a aplicar los mismos eventos no cambia nada.
 //!
-//! Pendiente de F2: el hilo `DbWriter` con lotes de 250 ms y el pool de lectores,
-//! que solo hacen falta cuando hay varias fuentes en vivo.
+//! El hilo único que escribe es el de la canalización en vivo (`cockpit-ingest`);
+//! las consultas de la interfaz abren conexiones de solo lectura.
 
+mod compact;
 mod schema;
 mod summary;
+mod workspace;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -16,8 +18,10 @@ use cockpit_core::model::{CockpitEvent, EventKind, TokenUsage};
 use cockpit_core::time::local_day;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
+pub use compact::{CompactOptions, CompactReport, Target};
 pub use schema::SCHEMA_VERSION;
 pub use summary::{SessionSummary, ToolView, UsageView};
+pub use workspace::{FileEventView, NewProject, StoredChange, ToolInterval};
 
 /// Nombre del fichero de la base de datos dentro de `%APPDATA%\dev-cockpit\`.
 pub const DB_FILE_NAME: &str = "cockpit.db";
@@ -28,6 +32,9 @@ pub type Result<T> = std::result::Result<T, StoreError>;
 pub enum StoreError {
     #[error("error de SQLite: {0}")]
     Sqlite(#[from] rusqlite::Error),
+    /// Una unidad de la compactación se abandonó antes de su `COMMIT`.
+    #[error("compactación interrumpida")]
+    Interrupted,
 }
 
 /// Estado guardado de una instancia del mod (SPEC §6.2.1).
@@ -471,9 +478,11 @@ fn apply_event(tx: &Transaction<'_>, e: &CockpitEvent, stats: &mut BatchStats) -
         } => {
             tx.prepare_cached(
                 "INSERT INTO tool_calls(session_id, tool_use_id, agent_id, tool, status, started_at,
-                                        day, rel_path, host, meta_json, source_mask)
-                 VALUES (?1, ?2, ?3, ?4, 'running', ?5, ?6, ?7, ?8, ?9, ?10)
+                                        day, rel_path, host, meta_json, source_mask, root_id)
+                 VALUES (?1, ?2, ?3, ?4, 'running', ?5, ?6, ?7, ?8, ?9, ?10,
+                         (SELECT root_id FROM sessions WHERE id = ?1))
                  ON CONFLICT(session_id, tool_use_id) DO UPDATE SET
+                     root_id = COALESCE(root_id, excluded.root_id),
                      -- El mod mide el inicio real; el transcript solo lo aproxima.
                      started_at = CASE WHEN excluded.source_mask = 1 THEN excluded.started_at ELSE started_at END,
                      day = CASE WHEN excluded.source_mask = 1 THEN excluded.day ELSE day END,

@@ -71,7 +71,9 @@ impl PidProbe {
     }
 
     pub fn alive(&mut self, pids: &[u32]) -> Vec<u32> {
-        let wanted: Vec<Pid> = pids.iter().map(|p| Pid::from_u32(*p)).collect();
+        // Con un PID repetido, `sysinfo` no devuelve ninguno de los dos.
+        let unique: std::collections::BTreeSet<u32> = pids.iter().copied().collect();
+        let wanted: Vec<Pid> = unique.iter().map(|p| Pid::from_u32(*p)).collect();
         self.system
             .refresh_processes(ProcessesToUpdate::Some(&wanted), true);
         pids.iter()
@@ -152,5 +154,22 @@ mod tests {
         let live = read_registry(dir.path(), &mut PidProbe::new());
         assert_eq!(live.keys().collect::<Vec<_>>(), ["viva"]);
         assert!(read_registry(&dir.path().join("no-existe"), &mut PidProbe::new()).is_empty());
+    }
+
+    /// Dos sesiones en el mismo proceso (las pruebas lo hacen; el Desktop también
+    /// aloja varias sesiones en un proceso).
+    #[test]
+    fn two_sessions_can_share_a_process() {
+        let dir = tempfile::tempdir().unwrap();
+        let me = std::process::id();
+        for s in ["s1", "s2"] {
+            fs::write(
+                dir.path().join(format!("{s}.json")),
+                format!(r#"{{"pid":{me},"sessionId":"{s}"}}"#),
+            )
+            .unwrap();
+        }
+        let live = read_registry(dir.path(), &mut PidProbe::new());
+        assert_eq!(live.keys().collect::<Vec<_>>(), ["s1", "s2"]);
     }
 }

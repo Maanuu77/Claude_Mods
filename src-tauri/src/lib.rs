@@ -15,8 +15,10 @@ use std::thread;
 use std::time::Duration;
 
 use cockpit_core::privacy::PrivacyPolicy;
+use cockpit_ingest::git::{FileDiff, GitReader};
 use cockpit_ingest::live::{LiveConfig, LiveDelta, LivePipeline, LiveState};
-use cockpit_store::DB_FILE_NAME;
+use cockpit_ingest::workspace::{FilePreview, read_preview};
+use cockpit_store::{DB_FILE_NAME, FileEventView, Store};
 use tauri::ipc::Channel;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -25,6 +27,8 @@ use tauri::{AppHandle, Manager, State, WebviewWindow, WindowEvent};
 /// Los cambios se agrupan en ventanas de este tamaño antes de publicarse.
 const COALESCE: Duration = Duration::from_millis(100);
 const MAIN_WINDOW: &str = "main";
+/// Tope de una página del histórico de cambios.
+const MAX_PAGE: u32 = 500;
 
 type Subscriber = Arc<Mutex<Option<Channel<LiveDelta>>>>;
 
@@ -34,7 +38,74 @@ struct AppState {
     wake: Sender<()>,
     /// Fichero CSV de latencias, solo si `DEV_COCKPIT_PERF_LOG` está definida (B4).
     perf_log: Option<PathBuf>,
+    db_path: PathBuf,
+    /// Conexión de solo lectura para las consultas, abierta la primera vez.
+    reader: Mutex<Option<Store>>,
     _pipeline: LivePipeline,
+}
+
+impl AppState {
+    /// Raíz de un proyecto **activo**. Las consultas de Git y las vistas previas
+    /// solo se admiten sobre las raíces que la app está vigilando.
+    fn active_root(&self, root_id: i64) -> Result<PathBuf, String> {
+        self.live
+            .workspaces()
+            .into_iter()
+            .find(|w| w.root_id == root_id)
+            .map(|w| PathBuf::from(w.root))
+            .ok_or_else(|| "la raíz no está activa".to_owned())
+    }
+}
+
+/// Histórico de cambios de fichero de una raíz (últimos 30 días, §7.4).
+#[tauri::command]
+fn query_file_events(
+    state: State<'_, AppState>,
+    root_id: i64,
+    before_id: Option<i64>,
+    limit: Option<u32>,
+) -> Result<Vec<FileEventView>, String> {
+    let mut reader = state.reader.lock().unwrap_or_else(|e| e.into_inner());
+    if reader.is_none() {
+        *reader = Some(Store::open_read_only(&state.db_path).map_err(|e| e.to_string())?);
+    }
+    let store = reader.as_ref().ok_or("sin base de datos")?;
+    store
+        .file_events_page(root_id, before_id, limit.unwrap_or(200).min(MAX_PAGE))
+        .map_err(|e| e.to_string())
+}
+
+/// Diff de un fichero respecto a `HEAD`, bajo demanda. Solo viaja en la respuesta:
+/// no se guarda en disco ni en caché (§6.5).
+#[tauri::command]
+async fn git_diff(
+    state: State<'_, AppState>,
+    root_id: i64,
+    rel_path: String,
+) -> Result<FileDiff, String> {
+    let root = state.active_root(root_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        GitReader::new()
+            .diff_file(&root, &rel_path)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Primeros 256 KB de un fichero sin seguimiento, en memoria (§7.2).
+#[tauri::command]
+async fn read_file_preview(
+    state: State<'_, AppState>,
+    root_id: i64,
+    rel_path: String,
+) -> Result<FilePreview, String> {
+    let root = state.active_root(root_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        read_preview(&root, &rel_path).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Conecta el stream de la vista En vivo. Envía primero la instantánea completa.
@@ -66,7 +137,11 @@ fn perf_enabled(state: State<'_, AppState>) -> bool {
 fn perf_mark(state: State<'_, AppState>, kind: String, event_ts_ms: i64, painted_ts_ms: i64) {
     let Some(path) = &state.perf_log else { return };
     // `tool`: una herramienta nueva (B3). `other`: cualquier otro cambio (B4).
-    let kind = if kind == "tool" { "tool" } else { "other" };
+    // `file`: un cambio de fichero nuevo (B6). `numstat`: un `+/−` actualizado (B7).
+    let kind = match kind.as_str() {
+        "tool" | "file" | "numstat" => kind.as_str(),
+        _ => "other",
+    };
     if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
         let _ = writeln!(
             file,
@@ -154,7 +229,9 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let live = LiveState::new(move || {
         let _ = notifier.send(());
     });
-    let pipeline = LivePipeline::spawn(live_config()?, live.clone())?;
+    let config = live_config()?;
+    let db_path = config.db_path.clone();
+    let pipeline = LivePipeline::spawn(config, live.clone())?;
     let subscriber = Subscriber::default();
 
     let handle = app.handle().clone();
@@ -168,6 +245,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         subscriber,
         wake: wake_tx,
         perf_log: env_path("DEV_COCKPIT_PERF_LOG"),
+        db_path,
+        reader: Mutex::new(None),
         _pipeline: pipeline,
     });
 
@@ -246,7 +325,10 @@ pub fn run() {
             subscribe,
             webview_processes,
             perf_enabled,
-            perf_mark
+            perf_mark,
+            query_file_events,
+            git_diff,
+            read_file_preview
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

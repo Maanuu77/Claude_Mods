@@ -13,7 +13,7 @@ El cockpit tiene que mostrar en directo los cambios de código de los proyectos 
 - Un watcher `notify` recursivo por raíz activa (una por worktree), con `notify-debouncer-full` (200 ms, unión de renombrados).
 - Filtro con el crate `ignore` (`.gitignore`) más exclusiones fijas: `node_modules`, `target`, `dist`, `.venv`, `Library/`…
 - Modo «cambio masivo» cuando hay más de 500 eventos por segundo, y resincronización con `git status` cuando llega un `Rescan`.
-- Se usa el **binario `git` del sistema**, con estas opciones en cada invocación: `--no-optional-locks -c core.fsmonitor=false -c gc.auto=0 -c maintenance.auto=false`, `GIT_OPTIONAL_LOCKS=0` y `GIT_TERMINAL_PROMPT=0`.
+- Se usa el **binario `git` del sistema**, con estas opciones en cada invocación: `--no-optional-locks -c core.fsmonitor=false -c gc.auto=0 -c maintenance.auto=false -c diff.autoRefreshIndex=false`, `GIT_OPTIONAL_LOCKS=0` y `GIT_TERMINAL_PROMPT=0`. *(F4a: `diff.autoRefreshIndex=false` se añadió porque el test M5 demostró que `git diff … HEAD` reescribe el índice aunque lleve `--no-optional-locks`.)*
 - **Lista blanca de subcomandos:** `status`, `diff`, `rev-parse`, `ls-files`, `log -n`, `show --stat`, `worktree list`, `cat-file -s`. Los diffs llevan `--no-ext-diff --no-textconv`.
 - Una consulta en vuelo por repositorio, con coalescencia de 500 ms. **Git nunca se sondea.**
 - Los diffs y las vistas previas viajan solo en la respuesta: no se guarda contenido en ningún sitio.

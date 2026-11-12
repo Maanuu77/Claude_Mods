@@ -10,8 +10,12 @@ publish.workspace = true
 cockpit-core.workspace = true
 axum.workspace = true
 cockpit-store.workspace = true
+chrono.workspace = true
+file-id.workspace = true
 getrandom.workspace = true
+ignore.workspace = true
 notify.workspace = true
+notify-debouncer-full.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sysinfo.workspace = true
@@ -20,6 +24,10 @@ tokio.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+
+[[example]]
+# Puertas G5 y G7 (SPEC §13.2): `cargo run -p cockpit-ingest --release --example workspace_gates -- g5 salida.json`
+name = "workspace_gates"
 
 [lints]
 workspace = true
