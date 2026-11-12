@@ -34,6 +34,48 @@ export interface UsageView {
   cost_usd: number | null;
 }
 
+// --- Task Monitor (SPEC §8) -------------------------------------------------
+
+export type TaskSource = "task_tools" | "todo_write" | "desktop_plan";
+export type TaskStatus = "pending" | "in_progress" | "completed" | "deleted";
+
+export interface TaskItemView {
+  task_id: string;
+  /** `null` sin `capture_task_titles` (D1): se muestra «Tarea n.º k». */
+  subject: string | null;
+  status: TaskStatus;
+  owner: string | null;
+  blocked_by: string[];
+  completed_at: number | null;
+}
+
+/** Una lista que declara la sesión. Nunca se infiere de las herramientas. */
+export interface TaskListView {
+  source: TaskSource;
+  items: TaskItemView[];
+  progress: { total: number; completed: number; in_progress: number };
+  updated_at: number;
+}
+
+export type AgentState = "pending" | "running" | "waiting" | "idle" | "completed" | "failed" | "killed";
+
+export interface AgentView {
+  agent_id: string;
+  agent_type: string | null;
+  status: AgentState | null;
+  /** `null`: lo lanzó el bucle principal. */
+  parent_id: string | null;
+  first_seen: number;
+  last_seen: number;
+  duration_ms: number | null;
+}
+
+/** Herramientas por minuto desde `since`: actividad, no progreso. */
+export interface ActivityView {
+  since: number;
+  per_minute: number[];
+}
+
 export interface Liveness {
   pid: number;
   status: string | null;
@@ -58,6 +100,10 @@ export interface SessionView {
   usage_snapshot: UsageView | null;
   running_tools: ToolView[];
   recent_tools: ToolView[];
+  /** Vacío: «sin lista de tareas declarada». */
+  tasks: TaskListView[];
+  agents: AgentView[];
+  activity: ActivityView;
   /** Presente si el proceso de la sesión está vivo. */
   live: Liveness | null;
   /** El mod de la sesión está conectado a la app. */

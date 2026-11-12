@@ -651,3 +651,154 @@ body {
   color: var(--muted);
   font-size: 0.85rem;
 }
+
+/* --- Task Monitor (SPEC §8) ------------------------------------------------ */
+
+.tm-card section {
+  margin-top: 0.75rem;
+}
+
+.tm-none {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.tm-list-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.tm-list-head h3 {
+  margin: 0;
+}
+
+.tm-count {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tm-bar {
+  width: 100%;
+  height: 0.4rem;
+  margin: 0.35rem 0 0.4rem;
+  accent-color: var(--busy);
+}
+
+.tm-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.tm-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.tm-mark {
+  width: 1rem;
+  flex: none;
+  text-align: center;
+  color: var(--muted);
+}
+
+.tm-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.tm-completed .tm-title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.tm-completed .tm-mark {
+  color: var(--busy);
+}
+
+.tm-in_progress {
+  background: var(--busy-bg);
+}
+
+.tm-in_progress .tm-mark,
+.tm-in_progress .tm-title {
+  color: var(--busy);
+  font-weight: 600;
+}
+
+.tm-tree {
+  list-style: none;
+  margin: 0;
+  padding-left: 1rem;
+  border-left: 1px solid var(--border);
+}
+
+.tm-tree-root {
+  padding-left: 0;
+  border-left: none;
+}
+
+.tm-agent {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  padding: 0.1rem 0;
+}
+
+.tm-agent-type {
+  font-weight: 600;
+}
+
+.tm-agent-id {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.tm-agent-running .tool-dot,
+.tm-agent-waiting .tool-dot,
+.tm-agent-pending .tool-dot {
+  background: var(--running);
+}
+
+.tm-agent-completed .tool-dot {
+  background: var(--busy);
+}
+
+.tm-agent-failed .tool-dot,
+.tm-agent-killed .tool-dot {
+  background: var(--error);
+}
+
+.tm-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.tm-spark {
+  width: 180px;
+  height: 24px;
+  flex: none;
+  fill: var(--idle);
+}
+
+.tm-spark .tm-spark-zero {
+  fill: var(--border);
+}

@@ -6,6 +6,7 @@
 
 use cockpit_core::model::{CockpitEvent, EventKind, RateLimit, Source, TokenUsage, ToolStatus};
 use cockpit_core::privacy::{EXTERNAL_PATH, MetaValue, PrivacyPolicy, ToolMeta};
+use cockpit_core::tasks::{self, AgentState, ListItem, TaskOp, TaskSource, TaskStatus};
 use serde::{Deserialize, Serialize};
 
 pub const SCHEMA: u32 = 1;
@@ -228,6 +229,69 @@ pub enum WireEvent {
         #[serde(default)]
         reason: Option<String>,
     },
+    /// Operación sobre una lista de tareas (SPEC §8, A1–A3), solo de llamadas que
+    /// terminaron sin error y de los hooks `TaskCreated`/`TaskCompleted`.
+    TaskOp {
+        seq: i64,
+        t: i64,
+        #[serde(default)]
+        tool_use_id: Option<String>,
+        #[serde(default)]
+        agent_id: Option<String>,
+        source: TaskSource,
+        op: WireTaskOp,
+    },
+    /// `$.agent.list()` en `turn.start`, `turn.complete`, `SubagentStart` y
+    /// `SubagentStop` (A4), solo cuando ha cambiado.
+    Agents {
+        seq: i64,
+        t: i64,
+        agents: Vec<AgentWire>,
+    },
+}
+
+/// Operación de tareas: exactamente los campos de §10 (ids, estados, responsable,
+/// bloqueos y el título de 120 caracteres si la política lo permite).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum WireTaskOp {
+    Create {
+        task_id: String,
+        #[serde(default)]
+        subject: Option<String>,
+    },
+    Update {
+        task_id: String,
+        #[serde(default)]
+        status: Option<String>,
+        #[serde(default)]
+        subject: Option<String>,
+        #[serde(default)]
+        owner: Option<String>,
+        #[serde(default)]
+        blocked_by: Vec<String>,
+    },
+    Complete {
+        task_id: String,
+    },
+    Replace {
+        items: Vec<WireTaskItem>,
+    },
+    Advance,
+    Mark {
+        #[serde(default)]
+        done: Vec<i64>,
+        #[serde(default)]
+        start: Option<i64>,
+    },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WireTaskItem {
+    #[serde(default)]
+    pub subject: Option<String>,
+    pub status: String,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -247,7 +311,9 @@ impl WireEvent {
             | WireEvent::UsageSnapshot { seq, .. }
             | WireEvent::PermissionRequested { seq, .. }
             | WireEvent::PermissionResolved { seq, .. }
-            | WireEvent::SessionEnded { seq, .. } => *seq,
+            | WireEvent::SessionEnded { seq, .. }
+            | WireEvent::TaskOp { seq, .. }
+            | WireEvent::Agents { seq, .. } => *seq,
         }
     }
 }
@@ -382,9 +448,140 @@ pub fn mod_event(
     }
 }
 
-/// Evento del mod → evento canónico, con la política de la app aplicada.
-pub fn to_event(session_id: &str, event: &WireEvent, policy: &PrivacyPolicy) -> CockpitEvent {
+/// La app vuelve a aplicar su política a una operación de tareas. Una operación
+/// con ids o estados fuera de lo permitido se descarta entera.
+pub fn task_op(source: TaskSource, wire: &WireTaskOp, policy: &PrivacyPolicy) -> Option<TaskOp> {
+    let subject = |s: &Option<String>| s.as_deref().and_then(|s| tasks::subject(s, policy));
+    let step = |n: i64| u32::try_from(n).ok().filter(|n| *n >= 1);
+    let op = match wire {
+        WireTaskOp::Create {
+            task_id,
+            subject: s,
+        } => tasks::create_op(task_id, s.as_deref(), policy)?,
+        WireTaskOp::Complete { task_id } => tasks::complete_op(task_id)?,
+        WireTaskOp::Update {
+            task_id,
+            status,
+            subject: s,
+            owner,
+            blocked_by,
+        } => TaskOp::Update {
+            task_id: tasks::clean_id(task_id)?,
+            status: match status {
+                Some(s) => Some(TaskStatus::parse(s)?),
+                None => None,
+            },
+            subject: subject(s),
+            owner: match owner {
+                Some(o) => Some(tasks::clean_owner(o)?),
+                None => None,
+            },
+            add_blocked_by: blocked_by
+                .iter()
+                .take(tasks::MAX_BLOCKERS)
+                .map(|id| tasks::clean_id(id))
+                .collect::<Option<_>>()?,
+        },
+        WireTaskOp::Replace { items } => {
+            if items.len() > tasks::MAX_ITEMS {
+                return None;
+            }
+            let items = items
+                .iter()
+                .map(|i| {
+                    let status = TaskStatus::parse(&i.status)?;
+                    (status != TaskStatus::Deleted).then(|| ListItem {
+                        subject: subject(&i.subject),
+                        status,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?;
+            TaskOp::Replace { items }
+        }
+        WireTaskOp::Advance => TaskOp::Advance,
+        WireTaskOp::Mark { done, start } => TaskOp::Mark {
+            done: done.iter().map(|n| step(*n)).collect::<Option<_>>()?,
+            start: match start {
+                Some(n) => Some(step(*n)?),
+                None => None,
+            },
+        },
+    };
+    // Las listas completas y las marcas relativas solo existen en A2/A3; las
+    // tareas con id, en A1.
+    let fits = match (&op, source) {
+        (TaskOp::Create { .. } | TaskOp::Update { .. } | TaskOp::Complete { .. }, s) => {
+            s == TaskSource::TaskTools
+        }
+        (TaskOp::Replace { .. }, s) => s != TaskSource::TaskTools,
+        (TaskOp::Advance | TaskOp::Mark { .. }, s) => s == TaskSource::DesktopPlan,
+    };
+    fits.then_some(op)
+}
+
+/// Un subagente de `$.agent.list()` (hello o evento `agents`).
+pub fn agent_event(session_id: &str, ts_ms: i64, agent: &AgentWire) -> Option<CockpitEvent> {
+    let id = tasks::clean_id(&agent.id)?;
+    Some(mod_event(
+        session_id,
+        agent
+            .parent_id
+            .as_deref()
+            .and_then(tasks::clean_id)
+            .as_deref(),
+        ts_ms,
+        None,
+        EventKind::AgentStatus {
+            agent: id,
+            agent_type: tasks::clean_agent_type(&agent.kind),
+            status: AgentState::parse(&agent.status),
+            duration_ms: None,
+        },
+    ))
+}
+
+/// Eventos del mod → eventos canónicos, con la política de la app aplicada.
+/// Lo que no supera la política se descarta sin rechazar el lote.
+pub fn to_events(session_id: &str, event: &WireEvent, policy: &PrivacyPolicy) -> Vec<CockpitEvent> {
     match event {
+        WireEvent::TaskOp {
+            t,
+            tool_use_id,
+            agent_id,
+            source,
+            op,
+            ..
+        } => {
+            let tool_use_id = tool_use_id.as_deref().map(|id| ident(id, 128));
+            task_op(*source, op, policy)
+                .and_then(|op| {
+                    let op_key = op.key(tool_use_id.as_deref())?;
+                    Some(mod_event(
+                        session_id,
+                        agent_id.as_deref(),
+                        *t,
+                        None,
+                        EventKind::TaskOp {
+                            source: *source,
+                            op_key,
+                            op,
+                        },
+                    ))
+                })
+                .into_iter()
+                .collect()
+        }
+        WireEvent::Agents { t, agents, .. } => agents
+            .iter()
+            .filter_map(|a| agent_event(session_id, *t, a))
+            .collect(),
+        other => to_event(session_id, other, policy).into_iter().collect(),
+    }
+}
+
+/// Evento del mod → evento canónico, con la política de la app aplicada.
+fn to_event(session_id: &str, event: &WireEvent, policy: &PrivacyPolicy) -> Option<CockpitEvent> {
+    Some(match event {
         WireEvent::ToolStarted {
             t,
             tool_use_id,
@@ -472,7 +669,9 @@ pub fn to_event(session_id: &str, event: &WireEvent, policy: &PrivacyPolicy) -> 
                 reason: reason.as_deref().map(|r| ident(r, 48)),
             },
         ),
-    }
+        // Se convierten en `to_events`.
+        WireEvent::TaskOp { .. } | WireEvent::Agents { .. } => return None,
+    })
 }
 
 /// `a >= b` para versiones `x.y.z`. Una versión ilegible no se da por soportada.
@@ -543,6 +742,90 @@ mod tests {
             let meta = tool_meta(&wire, &PrivacyPolicy::APP_DEFAULT);
             assert_eq!(meta.rel_path.as_deref(), Some(EXTERNAL_PATH), "{bad}");
         }
+    }
+
+    fn op(json: &str) -> WireTaskOp {
+        serde_json::from_str(json).unwrap()
+    }
+
+    #[test]
+    fn task_ops_are_filtered_again_by_the_app() {
+        let app = PrivacyPolicy::APP_DEFAULT;
+        let replace = op(&format!(
+            r#"{{"type":"replace","items":[{{"subject":"{}","status":"in_progress"}}]}}"#,
+            "x".repeat(300)
+        ));
+        let Some(TaskOp::Replace { items }) = task_op(TaskSource::TodoWrite, &replace, &app) else {
+            panic!();
+        };
+        assert_eq!(
+            items[0].subject.as_ref().map(|s| s.chars().count()),
+            Some(120)
+        );
+        // Sin títulos en la política de la app, el título se cae aunque el mod lo mande.
+        let strict = PrivacyPolicy {
+            capture_task_titles: false,
+            ..app
+        };
+        let Some(TaskOp::Replace { items }) = task_op(TaskSource::TodoWrite, &replace, &strict)
+        else {
+            panic!();
+        };
+        assert_eq!(items[0].subject, None);
+    }
+
+    #[test]
+    fn task_ops_with_bad_values_or_the_wrong_adapter_are_dropped() {
+        let app = PrivacyPolicy::APP_DEFAULT;
+        for (source, json) in [
+            (
+                TaskSource::TaskTools,
+                r#"{"type":"update","task_id":"1","status":"archivada"}"#,
+            ),
+            (
+                TaskSource::TaskTools,
+                r#"{"type":"update","task_id":"no válido"}"#,
+            ),
+            (
+                TaskSource::TaskTools,
+                r#"{"type":"update","task_id":"1","owner":"rm -rf"}"#,
+            ),
+            (TaskSource::DesktopPlan, r#"{"type":"mark","done":[0]}"#),
+            (TaskSource::TodoWrite, r#"{"type":"advance"}"#),
+            (
+                TaskSource::DesktopPlan,
+                r#"{"type":"create","task_id":"1"}"#,
+            ),
+            (TaskSource::TaskTools, r#"{"type":"replace","items":[]}"#),
+            (
+                TaskSource::TodoWrite,
+                r#"{"type":"replace","items":[{"status":"deleted"}]}"#,
+            ),
+        ] {
+            assert_eq!(task_op(source, &op(json), &app), None, "{json}");
+        }
+        for bad in [
+            r#"{"type":"update","task_id":"1","description":"SECRETO"}"#,
+            r#"{"type":"replace","items":[{"status":"pending","activeForm":"SECRETO"}]}"#,
+            r#"{"type":"borrar_todo"}"#,
+        ] {
+            assert!(serde_json::from_str::<WireTaskOp>(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn agents_event_becomes_one_status_per_agent() {
+        let event: WireEvent = serde_json::from_str(
+            r#"{"kind":"agents","seq":1,"t":5,"agents":[{"id":"a1","type":"Explore","status":"running"},{"id":"a2","type":"x","status":"inventado","parent_id":"a1"}]}"#,
+        )
+        .unwrap();
+        let events = to_events("s", &event, &PrivacyPolicy::APP_DEFAULT);
+        assert_eq!(events.len(), 2);
+        assert!(matches!(
+            &events[1].kind,
+            EventKind::AgentStatus { agent, status: None, .. } if agent == "a2"
+        ));
+        assert_eq!(events[1].agent_id.as_deref(), Some("a1"));
     }
 
     #[test]

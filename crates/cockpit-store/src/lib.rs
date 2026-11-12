@@ -9,18 +9,21 @@
 mod compact;
 mod schema;
 mod summary;
+mod tasks;
 mod workspace;
 
 use std::collections::HashMap;
 use std::path::Path;
 
-use cockpit_core::model::{CockpitEvent, EventKind, TokenUsage};
+use cockpit_core::model::{CockpitEvent, EventKind, TokenUsage, ToolStatus};
+use cockpit_core::tasks::TaskSource;
 use cockpit_core::time::local_day;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 pub use compact::{CompactOptions, CompactReport, Target};
 pub use schema::SCHEMA_VERSION;
 pub use summary::{SessionSummary, ToolView, UsageView};
+pub use tasks::{ACTIVITY_MINUTES, ActivityView, AgentView, TaskItemView, TaskListView};
 pub use workspace::{FileEventView, NewProject, StoredChange, ToolInterval};
 
 /// Nombre del fichero de la base de datos dentro de `%APPDATA%\dev-cockpit\`.
@@ -52,6 +55,9 @@ pub struct FileOffset {
     pub size: u64,
     pub offset: u64,
     pub mtime_ms: i64,
+    /// Versión del parser con la que se leyó hasta `offset`
+    /// (`cockpit_core::transcript::PARSER_VERSION`).
+    pub parser_version: u32,
 }
 
 /// Incidencia de la ingesta. `detail` es un nombre de tipo, nunca contenido.
@@ -108,6 +114,8 @@ impl CostStateCheck {
 
 pub struct Store {
     conn: Connection,
+    /// Adaptadores de tareas desactivados (A3 es desactivable, SPEC §8).
+    disabled_sources: Vec<TaskSource>,
 }
 
 impl Store {
@@ -118,7 +126,10 @@ impl Store {
     /// Conexión de solo lectura para las consultas de la interfaz. No migra ni escribe.
     pub fn open_read_only(path: &Path) -> Result<Self> {
         let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-        Ok(Self { conn })
+        Ok(Self {
+            conn,
+            disabled_sources: Vec::new(),
+        })
     }
 
     pub fn open_in_memory() -> Result<Self> {
@@ -130,30 +141,41 @@ impl Store {
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
         schema::migrate(&mut conn)?;
-        Ok(Self { conn })
+        Ok(Self {
+            conn,
+            disabled_sources: Vec::new(),
+        })
     }
 
     /// Aplica un lote en una transacción: o entra entero, o no entra nada.
     pub fn apply(&mut self, batch: &Batch<'_>) -> Result<BatchStats> {
         let tx = self.conn.transaction()?;
         let mut stats = BatchStats::default();
+        let mut touched = tasks::Touched::new();
         upsert_sessions(&tx, batch.events)?;
+        tasks::touch_agents(&tx, batch.events)?;
         for event in batch.events {
-            apply_event(&tx, event, &mut stats)?;
+            apply_event(&tx, event, &mut stats, &mut touched)?;
+        }
+        // Cada lista con operaciones nuevas se reproduce una sola vez por lote.
+        for (session_id, source) in &touched {
+            tasks::rebuild(&tx, session_id, *source)?;
         }
         for o in batch.offsets {
             tx.prepare_cached(
-                "INSERT INTO file_offsets(path, size, offset, mtime_ms, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5)
+                "INSERT INTO file_offsets(path, size, offset, mtime_ms, updated_at, parser_version)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
                  ON CONFLICT(path) DO UPDATE SET size = excluded.size, offset = excluded.offset,
-                     mtime_ms = excluded.mtime_ms, updated_at = excluded.updated_at",
+                     mtime_ms = excluded.mtime_ms, updated_at = excluded.updated_at,
+                     parser_version = excluded.parser_version",
             )?
             .execute(params![
                 o.path,
                 o.size as i64,
                 o.offset as i64,
                 o.mtime_ms,
-                batch.now_ms
+                batch.now_ms,
+                o.parser_version
             ])?;
         }
         for e in batch.errors {
@@ -177,13 +199,16 @@ impl Store {
     pub fn file_offset(&self, path: &str) -> Result<Option<FileOffset>> {
         Ok(self
             .conn
-            .prepare_cached("SELECT size, offset, mtime_ms FROM file_offsets WHERE path = ?1")?
+            .prepare_cached(
+                "SELECT size, offset, mtime_ms, parser_version FROM file_offsets WHERE path = ?1",
+            )?
             .query_row([path], |r| {
                 Ok(FileOffset {
                     path: path.to_owned(),
                     size: r.get::<_, i64>(0)? as u64,
                     offset: r.get::<_, i64>(1)? as u64,
                     mtime_ms: r.get(2)?,
+                    parser_version: r.get(3)?,
                 })
             })
             .optional()?)
@@ -403,8 +428,35 @@ fn session_rank(tx: &Transaction<'_>, id: &str) -> Result<(i64, i64)> {
         .query_row([id], |r| Ok((r.get(0)?, r.get(1)?)))?)
 }
 
-fn apply_event(tx: &Transaction<'_>, e: &CockpitEvent, stats: &mut BatchStats) -> Result<()> {
+fn apply_event(
+    tx: &Transaction<'_>,
+    e: &CockpitEvent,
+    stats: &mut BatchStats,
+    touched: &mut tasks::Touched,
+) -> Result<()> {
     match &e.kind {
+        EventKind::TaskOp { source, op_key, op } => {
+            tasks::record_op(tx, e, *source, op_key, op, touched)?;
+        }
+        EventKind::ToolResultMeta { .. } => tasks::apply_result_meta(tx, e, touched)?,
+        EventKind::AgentStatus {
+            agent,
+            agent_type,
+            status,
+            duration_ms,
+        } => tasks::upsert_agent(
+            tx,
+            &tasks::AgentUpdate {
+                session_id: &e.session_id,
+                agent,
+                agent_type: agent_type.as_deref(),
+                status: *status,
+                parent_id: e.agent_id.as_deref(),
+                ts: e.ts_ms,
+                duration_ms: *duration_ms,
+                mask: e.source.mask(),
+            },
+        )?,
         EventKind::SessionSeen { .. } | EventKind::TranscriptFile { .. } => {}
         EventKind::ApiMessage {
             message_id,
@@ -536,6 +588,9 @@ fn apply_event(tx: &Transaction<'_>, e: &CockpitEvent, stats: &mut BatchStats) -
                 if !exists {
                     stats.orphan_results += 1;
                 }
+            }
+            if matches!(status, ToolStatus::Error | ToolStatus::Interrupted) {
+                tasks::drop_failed_op(tx, &e.session_id, tool_use_id, touched)?;
             }
         }
         EventKind::ToolPermission {
@@ -992,6 +1047,7 @@ mod tests {
             size: 100,
             offset: 80,
             mtime_ms: T0,
+            parser_version: 2,
         };
         let error = IngestError {
             path: String::new(),

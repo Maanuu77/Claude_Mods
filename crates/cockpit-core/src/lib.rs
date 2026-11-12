@@ -1,5 +1,5 @@
-//! Dominio de DEV COCKPIT: modelo canónico, parser de transcripts y
-//! `PrivacyFilter` (SPEC §6, §10).
+//! Dominio de DEV COCKPIT: modelo canónico, parser de transcripts,
+//! `PrivacyFilter`, atribución de cambios y adaptadores de tareas (SPEC §6–§8, §10).
 //!
 //! Pendiente de otras fases: precios y coste estimado y detectores de manifiestos
 //! (F4c). La agregación diaria vive en `cockpit-store`, junto a su SQL (F4a).
@@ -7,6 +7,7 @@
 pub mod attribution;
 pub mod model;
 pub mod privacy;
+pub mod tasks;
 pub mod time;
 pub mod transcript;
 pub mod workspace;

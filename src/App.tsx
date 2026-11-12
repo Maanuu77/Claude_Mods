@@ -4,6 +4,7 @@ import { ChangesView } from "./changes/ChangesView";
 import { SessionCard } from "./live/SessionCard";
 import { formatInt } from "./live/format";
 import { connectLive, sortSessions, useLive } from "./live/store";
+import { TaskMonitor } from "./tasks/TaskMonitor";
 
 /** Reloj local para los tiempos transcurridos. Se para con la ventana oculta. */
 function useNow(active: boolean): number {
@@ -24,7 +25,7 @@ function useNow(active: boolean): number {
   return now;
 }
 
-type Tab = "live" | "changes";
+type Tab = "live" | "tasks" | "changes";
 
 function App() {
   const { connected, error, sessions, backfill, workspaces } = useLive();
@@ -47,6 +48,9 @@ function App() {
         <nav className="tabs" aria-label="Vistas">
           <button type="button" className={tab === "live" ? "tab tab-on" : "tab"} onClick={() => setTab("live")}>
             En vivo
+          </button>
+          <button type="button" className={tab === "tasks" ? "tab tab-on" : "tab"} onClick={() => setTab("tasks")}>
+            Tareas
           </button>
           <button
             type="button"
@@ -79,6 +83,8 @@ function App() {
 
       {tab === "changes" ? (
         <ChangesView now={now} />
+      ) : tab === "tasks" ? (
+        <TaskMonitor now={now} />
       ) : connected && ordered.length === 0 && !backfill?.running ? (
         <p className="empty">
           No hay sesiones de Claude Code activas. Aparecerán aquí en cuanto se abra una.
