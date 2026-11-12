@@ -19,7 +19,7 @@ use cockpit_ingest::git::{FileDiff, GitReader};
 use cockpit_ingest::live::{LiveConfig, LiveDelta, LivePipeline, LiveState};
 use cockpit_ingest::project_scan::{self, ProjectScan};
 use cockpit_ingest::workspace::{FilePreview, read_preview};
-use cockpit_store::{DB_FILE_NAME, Diagnostics, FileEventView, Store};
+use cockpit_store::{DB_FILE_NAME, Diagnostics, FileEventView, History, Store};
 use tauri::ipc::Channel;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -119,6 +119,23 @@ fn diagnostics(state: State<'_, AppState>) -> Result<DiagnosticsView, String> {
         db_bytes: size(""),
         wal_bytes: size("-wal"),
     })
+}
+
+/// Histórico y límites de los últimos `days` días (SPEC §7, vistas 3 y 4). Solo lectura.
+#[tauri::command]
+fn history(state: State<'_, AppState>, days: u32) -> Result<History, String> {
+    let days = days.clamp(1, 365);
+    let mut reader = state.reader.lock().unwrap_or_else(|e| e.into_inner());
+    if reader.is_none() {
+        *reader = Some(Store::open_read_only(&state.db_path).map_err(|e| e.to_string())?);
+    }
+    let store = reader.as_ref().ok_or("sin base de datos")?;
+    let now = cockpit_ingest::live::now_ms();
+    let since_day = cockpit_core::time::local_day_minus(now, days - 1);
+    let since_ms = now - i64::from(days) * 86_400_000;
+    store
+        .history(&since_day, since_ms)
+        .map_err(|e| e.to_string())
 }
 
 /// Diff de un fichero respecto a `HEAD`, bajo demanda. Solo viaja en la respuesta:
@@ -376,7 +393,8 @@ pub fn run() {
             git_diff,
             read_file_preview,
             project_map,
-            diagnostics
+            diagnostics,
+            history
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

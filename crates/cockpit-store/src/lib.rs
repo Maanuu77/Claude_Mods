@@ -8,6 +8,7 @@
 
 mod compact;
 mod diagnostics;
+mod history;
 mod schema;
 mod summary;
 mod workspace;
@@ -21,6 +22,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 pub use compact::{CompactOptions, CompactReport, Target};
 pub use diagnostics::{AggregationHealth, Diagnostics, EngineSeen, ErrorGroup, PathDetail};
+pub use history::{DayTokens, GroupTokens, History, LimitPoint, Tokens, ToolStats};
 pub use schema::SCHEMA_VERSION;
 pub use summary::{SessionSummary, ToolView, UsageView};
 pub use workspace::{FileEventView, NewProject, StoredChange, ToolInterval};
