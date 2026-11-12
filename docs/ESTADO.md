@@ -113,12 +113,13 @@ Resultados en [`perf/2026-11-12-f4b.md`](perf/2026-11-12-f4b.md):
 | **G6** | **resuelta: sí.** 521 de 521 estados comprobables coinciden con lo que respondió el Desktop (2.1.299–2.1.321, fixtures anonimizados) |
 | Tests | 147 en verde; fmt, clippy, typecheck, lint y `tsc` del mod contra 2.1.289/2.1.317/2.1.321 sin avisos |
 | Prueba en la app (copia de la base) | 162 ficheros releídos; 567 operaciones (526 `update_plan`, 35 `TodoWrite`, 6 `TaskCreate`), 155 tareas, 99 subagentes; actualización en directo solo con el transcript |
-| `claude plugin validate/test` con los tests nuevos | **pendiente** (W11) |
-| E2E con el mod en los motores | **pendiente** (W11) |
+| `claude plugin validate/test` con los tests nuevos | **pasan:** 10/10 en CLI 2.1.289 y Desktop 2.1.321 (autorizado) |
+| E2E con el mod en los motores | **a medias:** el mod carga y hace `hello` en los dos motores, pero el modelo no respondió por el **límite de uso de la cuenta** (se restablece a las 22:30 del 2026-11-12). `update_plan` con el mod: desviación pendiente de aprobar |
+| Base real | migrada a la versión 4 y releída; **copia previa** en `%APPDATA%\dev-cockpit\backups\pre-f4b-2026-11-12\` |
 
 ## Siguiente paso
 
-Cerrar **F4b**: con autorización (W11), ejecutar `claude plugin validate` y `claude plugin test` del mod en CLI 2.1.289 y Desktop 2.1.321, y el E2E con sesiones reales que usen `TaskCreate`/`TodoWrite` y `update_plan` con el mod cargado por `--plugin-dir`. Después, fusionar F4b y empezar **F4c, Project Map** (SPEC §9).
+Cerrar **F4b** (P2 ya está autorizado): cuando se restablezca el límite de uso, repetir la sesión `-p` con `TaskCreate`/`TaskUpdate`/`TodoWrite` en CLI 2.1.289 y Desktop 2.1.321, con la app abierta sobre la base real (`scripts\measure\app-cycle.ps1 -Action start`) y comprobar que las operaciones del mod y del transcript se reconcilian sin duplicar. Pedir la aprobación de la desviación de `update_plan` con el mod y fusionar. Después, **F4c, Project Map** (SPEC §9).
 
 ## Hallazgos que afectan a fases futuras
 
