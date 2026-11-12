@@ -45,6 +45,9 @@ const KNOWN_IGNORED: &[&str] = &[
     "failed",
     "launched",
     "summary",
+    // Visto el 2026-11-12 en 2.1.289 y 2.1.321: el id de sesión y dos identificadores
+    // de cuenta (`accountUuid`, `organizationUuid`). No se lee nada más que el tipo.
+    "session-owner",
 ];
 
 const KNOWN_SYSTEM_SUBTYPES: &[&str] = &[
@@ -1232,6 +1235,16 @@ mod tests {
         // `message` es una cadena aquí: no debe contar como corrupta.
         let (class, _) = feed(r#"{"type":"queue-operation","message":"x","timestamp":5}"#);
         assert_eq!(class, Ok(LineClass::Ignored));
+    }
+
+    #[test]
+    fn session_owner_lines_are_ignored_and_their_account_ids_never_read() {
+        let (class, out) = feed(
+            r#"{"type":"session-owner","accountUuid":"CUENTA-TRAMPA","organizationUuid":"ORG-TRAMPA","sessionId":"s"}"#,
+        );
+        assert_eq!(class, Ok(LineClass::Ignored));
+        assert!(out.is_empty());
+        assert!(!format!("{out:?}").contains("TRAMPA"));
     }
 
     #[test]
