@@ -4,6 +4,7 @@ import { ChangesView } from "./changes/ChangesView";
 import { SessionCard } from "./live/SessionCard";
 import { formatInt } from "./live/format";
 import { connectLive, sortSessions, useLive } from "./live/store";
+import { ProjectMapView } from "./map/ProjectMapView";
 
 /** Reloj local para los tiempos transcurridos. Se para con la ventana oculta. */
 function useNow(active: boolean): number {
@@ -24,7 +25,7 @@ function useNow(active: boolean): number {
   return now;
 }
 
-type Tab = "live" | "changes";
+type Tab = "live" | "changes" | "map";
 
 function App() {
   const { connected, error, sessions, backfill, workspaces } = useLive();
@@ -55,6 +56,9 @@ function App() {
           >
             Cambios en directo{roots > 0 && ` (${formatInt(roots)})`}
           </button>
+          <button type="button" className={tab === "map" ? "tab tab-on" : "tab"} onClick={() => setTab("map")}>
+            Mapa
+          </button>
         </nav>
         <p className="summary">
           {connected
@@ -79,6 +83,8 @@ function App() {
 
       {tab === "changes" ? (
         <ChangesView now={now} />
+      ) : tab === "map" ? (
+        <ProjectMapView now={now} />
       ) : connected && ordered.length === 0 && !backfill?.running ? (
         <p className="empty">
           No hay sesiones de Claude Code activas. Aparecerán aquí en cuanto se abra una.

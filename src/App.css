@@ -651,3 +651,143 @@ body {
   color: var(--muted);
   font-size: 0.85rem;
 }
+
+/* --- Mapa del proyecto (SPEC §9) ------------------------------------------ */
+
+.pm-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pm-head .tab {
+  margin-left: auto;
+}
+
+.pm-tree {
+  height: calc(100vh - 290px);
+  min-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.pm-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 10px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border);
+}
+
+.pm-toggle {
+  flex: none;
+  width: 18px;
+  font: inherit;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.pm-toggle:disabled {
+  cursor: default;
+}
+
+.pm-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-num {
+  flex: none;
+  min-width: 48px;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pm-bytes {
+  min-width: 72px;
+}
+
+.pm-eco + .pm-eco {
+  margin-top: 14px;
+}
+
+.pm-comps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.pm-comp {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.pm-comp-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pm-version {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+
+.pm-dir {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+
+.pm-line {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.pm-ext {
+  margin-top: 6px;
+  font-size: 0.85rem;
+}
+
+.pm-ext summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.pm-ext ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.pm-ext li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}

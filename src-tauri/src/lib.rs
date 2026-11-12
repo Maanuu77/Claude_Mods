@@ -17,6 +17,7 @@ use std::time::Duration;
 use cockpit_core::privacy::PrivacyPolicy;
 use cockpit_ingest::git::{FileDiff, GitReader};
 use cockpit_ingest::live::{LiveConfig, LiveDelta, LivePipeline, LiveState};
+use cockpit_ingest::project_scan::{self, ProjectScan};
 use cockpit_ingest::workspace::{FilePreview, read_preview};
 use cockpit_store::{DB_FILE_NAME, FileEventView, Store};
 use tauri::ipc::Channel;
@@ -72,6 +73,17 @@ fn query_file_events(
     let store = reader.as_ref().ok_or("sin base de datos")?;
     store
         .file_events_page(root_id, before_id, limit.unwrap_or(200).min(MAX_PAGE))
+        .map_err(|e| e.to_string())
+}
+
+/// Project Map de una raíz activa (SPEC §9): estructura (ficheros, bytes y lenguajes
+/// por directorio) y componentes de sus manifiestos. Solo lectura y sin contenido:
+/// de los ficheros solo se mira el tamaño y solo se leen los manifiestos.
+#[tauri::command]
+async fn project_map(state: State<'_, AppState>, root_id: i64) -> Result<ProjectScan, String> {
+    let root = state.active_root(root_id)?;
+    tauri::async_runtime::spawn_blocking(move || project_scan::scan(&root, &GitReader::new()))
+        .await
         .map_err(|e| e.to_string())
 }
 
@@ -328,7 +340,8 @@ pub fn run() {
             perf_mark,
             query_file_events,
             git_diff,
-            read_file_preview
+            read_file_preview,
+            project_map
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
