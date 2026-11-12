@@ -12,10 +12,26 @@ export interface ToolView {
   tool_use_id: string;
   tool: string;
   agent_id: string | null;
-  status: "running" | "ok" | "error" | "interrupted" | "unknown";
+  status: "running" | "awaiting_permission" | "ok" | "error" | "interrupted" | "unknown";
   started_at: number;
   duration_ms: number | null;
   rel_path: string | null;
+}
+
+export interface RateLimit {
+  kind: string;
+  percent_used: number;
+  resets_at: string | null;
+}
+
+/** Contexto, límites y coste que publica el motor. Solo llega con el mod. */
+export interface UsageView {
+  ts: number;
+  context_tokens: number | null;
+  context_window: number | null;
+  context_percent: number | null;
+  rate_limits: RateLimit[];
+  cost_usd: number | null;
 }
 
 export interface Liveness {
@@ -39,10 +55,13 @@ export interface SessionView {
   tool_errors: number;
   api_errors: number;
   cost_state_usd: number | null;
+  usage_snapshot: UsageView | null;
   running_tools: ToolView[];
   recent_tools: ToolView[];
   /** Presente si el proceso de la sesión está vivo. */
   live: Liveness | null;
+  /** El mod de la sesión está conectado a la app. */
+  mod_connected: boolean;
 }
 
 export interface BackfillState {

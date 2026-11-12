@@ -53,6 +53,8 @@ impl TokenUsage {
 pub enum ToolStatus {
     Ok,
     Error,
+    /// La herramienta se canceló antes de terminar. Solo lo sabe el mod.
+    Interrupted,
 }
 
 impl ToolStatus {
@@ -60,8 +62,17 @@ impl ToolStatus {
         match self {
             ToolStatus::Ok => "ok",
             ToolStatus::Error => "error",
+            ToolStatus::Interrupted => "interrupted",
         }
     }
+}
+
+/// Un límite de uso de la cuenta, tal como lo publica `session.measure`.
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
+pub struct RateLimit {
+    pub kind: String,
+    pub percent_used: f64,
+    pub resets_at: Option<String>,
 }
 
 /// Evento normalizado y ya filtrado por la política de privacidad (SPEC §10).
@@ -108,6 +119,30 @@ pub enum EventKind {
         status: Option<u16>,
         error_type: Option<String>,
     },
+    /// La herramienta espera (o deja de esperar) la respuesta del diálogo de
+    /// permisos. El motor llama al hook de `tool.call` antes de pedir permiso (G3).
+    ToolPermission {
+        tool_use_id: String,
+        is_waiting: bool,
+    },
+    /// Fin de un turno, visto por el mod (`turn.complete`).
+    TurnCompleted {
+        turn_id: String,
+        duration_ms: u64,
+        is_aborted: bool,
+        model: Option<String>,
+        usage: Option<TokenUsage>,
+    },
+    /// Contexto, límites y coste que solo conoce el motor (`session.measure`).
+    UsageSnapshot {
+        context_tokens: Option<u64>,
+        context_window: Option<u64>,
+        context_percent: Option<f64>,
+        rate_limits: Vec<RateLimit>,
+        cost_usd: Option<f64>,
+    },
+    /// La sesión ha terminado (`session.end`).
+    SessionEnded { reason: Option<String> },
     /// Línea `cost-state` del transcript: totales que calcula el propio cliente.
     CostState {
         total_cost_usd: f64,

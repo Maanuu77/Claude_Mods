@@ -63,12 +63,14 @@ fn perf_enabled(state: State<'_, AppState>) -> bool {
 
 /// Registra una latencia transcript → pintado, solo durante las mediciones de B4.
 #[tauri::command]
-fn perf_mark(state: State<'_, AppState>, event_ts_ms: i64, painted_ts_ms: i64) {
+fn perf_mark(state: State<'_, AppState>, kind: String, event_ts_ms: i64, painted_ts_ms: i64) {
     let Some(path) = &state.perf_log else { return };
+    // `tool`: una herramienta nueva (B3). `other`: cualquier otro cambio (B4).
+    let kind = if kind == "tool" { "tool" } else { "other" };
     if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
         let _ = writeln!(
             file,
-            "{event_ts_ms},{painted_ts_ms},{}",
+            "{event_ts_ms},{painted_ts_ms},{},{kind}",
             painted_ts_ms - event_ts_ms
         );
     }
@@ -101,10 +103,14 @@ fn live_config() -> Result<LiveConfig, String> {
             .join("dev-cockpit")
             .join(DB_FILE_NAME),
     };
+    // El mod busca `endpoint.json` junto a la base de datos real. Con una base de
+    // pruebas, el fichero queda en la carpeta de pruebas y el mod real no lo ve.
+    let endpoint_path = db_path.parent().map(|dir| dir.join("endpoint.json"));
     Ok(LiveConfig {
         projects_root,
         sessions_dir,
         db_path,
+        endpoint_path,
         policy: PrivacyPolicy::APP_DEFAULT,
     })
 }

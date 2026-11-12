@@ -20,6 +20,9 @@ thiserror = "2"
 tempfile = "3"
 notify = "8.2"
 sysinfo = { version = "0.37", default-features = false, features = ["system"] }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
+getrandom = "0.3"
+tokio = { version = "1", features = ["rt", "net", "sync", "time"] }
 criterion = { version = "0.8", default-features = false }
 
 [workspace.lints.rust]

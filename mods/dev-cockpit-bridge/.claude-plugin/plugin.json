@@ -1,0 +1,5 @@
+{
+  "name": "dev-cockpit-bridge",
+  "version": "0.1.0",
+  "description": "DEV COCKPIT bridge: sends tool, turn and usage metadata from this session to the local DEV COCKPIT app. Observation only: it never blocks or rewrites anything, and it never sends tool arguments or results."
+}

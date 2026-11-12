@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": [
+      "es2023"
+    ],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "files": [
+    "engines/2.1.317/claude-code.d.ts"
+  ],
+  "include": [
+    "../mods/dev-cockpit-bridge/hooks"
+  ]
+}

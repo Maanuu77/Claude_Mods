@@ -13,15 +13,21 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use cockpit_core::model::TokenUsage;
+use cockpit_core::MIN_ENGINE;
+use cockpit_core::model::{EventKind, TokenUsage};
 use cockpit_core::privacy::PrivacyPolicy;
-use cockpit_store::{SessionSummary, Store};
+use cockpit_store::{Batch, SessionSummary, Store};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 
+use crate::http::{APP_VERSION, EventsOutcome, HttpIngest, ModRequest, Submit};
 use crate::registry::{Liveness, PidProbe, RegistryEntry, read_registry};
 use crate::tailer::{
     IngestFailure, IngestStats, TranscriptFile, ingest_file, ingest_tree, scan_transcripts,
+};
+use crate::wire::{
+    Ack, EventsRequest, HelloRequest, HelloResponse, PrivacyWire, SCHEMA, ServerInfo, SessionKnown,
+    mod_event, to_event, tool_meta, usage_event, version_at_least,
 };
 
 /// Agrupa las ráfagas de eventos del sistema de ficheros.
@@ -52,6 +58,8 @@ pub struct SessionView {
     pub summary: SessionSummary,
     /// `Some` si el registro dice que su proceso está vivo.
     pub live: Option<Liveness>,
+    /// El mod de esta sesión ha hecho `hello` desde que arrancó la app.
+    pub mod_connected: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -195,10 +203,13 @@ pub struct LiveConfig {
     pub sessions_dir: Option<PathBuf>,
     /// `%APPDATA%\dev-cockpit\cockpit.db`.
     pub db_path: PathBuf,
+    /// `%APPDATA%\dev-cockpit\endpoint.json`. `None` desactiva `HttpIngest`.
+    pub endpoint_path: Option<PathBuf>,
     pub policy: PrivacyPolicy,
 }
 
 enum Msg {
+    Mod(ModRequest),
     Fs(PathBuf),
     Rescan,
     Stop,
@@ -206,6 +217,7 @@ enum Msg {
 
 /// Canalización en marcha. Al soltarla se detiene el hilo.
 pub struct LivePipeline {
+    http: Option<HttpIngest>,
     tx: Sender<Msg>,
     thread: Option<JoinHandle<()>>,
 }
@@ -218,6 +230,7 @@ impl LivePipeline {
         let store = Store::open(&config.db_path).map_err(io::Error::other)?;
         let (tx, rx) = mpsc::channel();
         let watcher = start_watcher(&config, tx.clone());
+        let endpoint_path = config.endpoint_path.clone();
         let thread = thread::Builder::new()
             .name("cockpit-live".to_owned())
             .spawn(move || {
@@ -228,12 +241,25 @@ impl LivePipeline {
                     probe: PidProbe::new(),
                     registry: BTreeMap::new(),
                     active_files: HashMap::new(),
+                    mod_sessions: BTreeSet::new(),
                     // El watcher vive lo mismo que el hilo.
                     _watcher: watcher,
                 };
                 worker.run(&rx);
             })?;
+        // El servidor arranca al final: cuando `endpoint.json` aparece, la
+        // canalización ya está atendiendo.
+        let http = match endpoint_path {
+            Some(path) => {
+                let mod_tx = tx.clone();
+                let submit: Submit =
+                    Arc::new(move |request| mod_tx.send(Msg::Mod(request)).is_ok());
+                Some(HttpIngest::spawn(path, submit)?)
+            }
+            None => None,
+        };
         Ok(Self {
+            http,
             tx,
             thread: Some(thread),
         })
@@ -242,6 +268,8 @@ impl LivePipeline {
 
 impl Drop for LivePipeline {
     fn drop(&mut self) {
+        // Primero se deja de aceptar peticiones del mod y se borra `endpoint.json`.
+        self.http.take();
         let _ = self.tx.send(Msg::Stop);
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
@@ -280,6 +308,8 @@ struct Worker {
     registry: BTreeMap<String, RegistryEntry>,
     /// JSONL con cambios recientes y cuándo se vio el último.
     active_files: HashMap<PathBuf, Instant>,
+    /// Sesiones cuyo mod ha hecho `hello` desde que arrancó la app.
+    mod_sessions: BTreeSet<String>,
     _watcher: Option<RecommendedWatcher>,
 }
 
@@ -304,12 +334,18 @@ impl Worker {
             let mut rescan = false;
             match rx.recv_timeout(wait) {
                 Ok(Msg::Stop) | Err(RecvTimeoutError::Disconnected) => return,
+                Ok(Msg::Mod(request)) => {
+                    self.handle_mod(request);
+                    continue;
+                }
                 Ok(msg) => {
                     let mut pending = Some(msg);
                     let deadline = Instant::now() + DEBOUNCE;
                     while let Some(msg) = pending.take() {
                         match msg {
                             Msg::Stop => return,
+                            // El mod se atiende al momento, sin esperar a la agrupación.
+                            Msg::Mod(request) => self.handle_mod(request),
                             Msg::Rescan => rescan = true,
                             Msg::Fs(path) => {
                                 if self.is_registry_path(&path) {
@@ -467,6 +503,7 @@ impl Worker {
         let now = now_ms();
         for id in ids {
             let entry = self.registry.get(id);
+            let mod_connected = self.mod_sessions.contains(id);
             let summary = match self.store.session_summary(id, now - RUNNING_TOOL_MS) {
                 Ok(Some(summary)) => summary,
                 // Sesión recién abierta: existe en el registro y aún no tiene transcript.
@@ -479,20 +516,171 @@ impl Worker {
                 },
                 Err(_) => continue,
             };
-            if entry.is_none() && summary.last_seen_at < now - RECENT_SESSION_MS {
+            let alive = entry.is_some() || mod_connected;
+            if !alive && summary.last_seen_at < now - RECENT_SESSION_MS {
                 self.state.remove(id);
                 continue;
             }
             let mut summary = summary;
-            if entry.is_none() {
+            if !alive {
                 // Sin proceso vivo no puede haber nada en curso.
                 summary.running_tools.clear();
             }
             self.state.upsert(SessionView {
                 summary,
                 live: entry.map(Liveness::from),
+                mod_connected,
             });
         }
+    }
+
+    fn handle_mod(&mut self, request: ModRequest) {
+        match request {
+            ModRequest::Hello(hello, reply) => {
+                let response = self.hello(&hello);
+                let _ = reply.send(response);
+            }
+            ModRequest::Events(events, reply) => {
+                let outcome = self.events(&events);
+                let _ = reply.send(outcome);
+            }
+        }
+    }
+
+    /// `POST /v1/hello`: handshake y resync, idempotente (SPEC §6.2.1).
+    fn hello(&mut self, hello: &HelloRequest) -> HelloResponse {
+        let now = now_ms();
+        let session_id = hello.session.id.as_str();
+        let engine_supported = version_at_least(&hello.engine.version, MIN_ENGINE);
+        let previous = self
+            .store
+            .mod_instance(&hello.module.instance_id)
+            .ok()
+            .flatten();
+        let known = self
+            .store
+            .session_summary(session_id, now)
+            .ok()
+            .flatten()
+            .is_some();
+        // Un `hello` repetido o antiguo se responde igual y no vuelve a aplicar nada.
+        let is_new = previous
+            .as_ref()
+            .is_none_or(|p| hello.hello_seq > p.hello_seq);
+        if engine_supported && is_new {
+            let version = Some(hello.engine.version.as_str());
+            let seen = |ts| {
+                mod_event(
+                    session_id,
+                    None,
+                    ts,
+                    version,
+                    EventKind::SessionSeen {
+                        cwd: None,
+                        entrypoint: None,
+                    },
+                )
+            };
+            let mut events = vec![seen(hello.session.started_at.min(now)), seen(now)];
+            if let Some(usage) = &hello.snapshot.usage {
+                events.push(mod_event(session_id, None, now, None, usage_event(usage)));
+            }
+            for tool in &hello.snapshot.running_tools {
+                events.push(mod_event(
+                    session_id,
+                    tool.agent_id.as_deref(),
+                    tool.started_at,
+                    None,
+                    EventKind::ToolStarted {
+                        tool_use_id: tool.tool_use_id.clone(),
+                        tool: tool.tool.clone(),
+                        meta: tool_meta(&tool.meta, &self.config.policy),
+                    },
+                ));
+            }
+            let _ = self.store.apply(&Batch {
+                events: &events,
+                now_ms: now,
+                ..Default::default()
+            });
+            let _ = self.store.record_hello(
+                &hello.module.instance_id,
+                session_id,
+                hello.hello_seq,
+                version,
+                Some(hello.module.version.as_str()),
+                now,
+            );
+        }
+        if engine_supported {
+            self.mod_sessions.insert(session_id.to_owned());
+            self.refresh(&BTreeSet::from([session_id.to_owned()]));
+        }
+        let policy = self.config.policy;
+        HelloResponse {
+            schema: SCHEMA,
+            server: ServerInfo {
+                app_version: APP_VERSION,
+                accepted_schemas: [SCHEMA],
+            },
+            privacy: PrivacyWire {
+                policy_id: "app-default-1",
+                capture_task_titles: policy.capture_task_titles,
+                record_paths: policy.record_paths,
+                capture_shell_program: policy.capture_shell_program,
+            },
+            session: SessionKnown { known },
+            events: Ack {
+                ack_seq: previous.map_or(0, |p| p.ack_seq),
+            },
+            min_engine: MIN_ENGINE,
+            engine_supported,
+        }
+    }
+
+    /// `POST /v1/events`: idempotente por `(instance_id, seq)`.
+    fn events(&mut self, request: &EventsRequest) -> EventsOutcome {
+        let instance = match self.store.mod_instance(&request.instance_id) {
+            Ok(Some(instance)) if instance.session_id == request.session_id => instance,
+            _ => return EventsOutcome::UnknownInstance,
+        };
+        let fresh: Vec<_> = request
+            .events
+            .iter()
+            .filter(|e| e.seq() > instance.ack_seq)
+            .collect();
+        let ack_seq = fresh
+            .iter()
+            .map(|e| e.seq())
+            .fold(instance.ack_seq, i64::max);
+        if !fresh.is_empty() {
+            let events: Vec<_> = fresh
+                .iter()
+                .map(|e| to_event(&request.session_id, e, &self.config.policy))
+                .collect();
+            let applied = self.store.apply(&Batch {
+                events: &events,
+                now_ms: now_ms(),
+                mod_ack: Some((&request.instance_id, ack_seq)),
+                ..Default::default()
+            });
+            if applied.is_err() {
+                // Sin confirmar: el mod reintentará el lote.
+                return EventsOutcome::Ack(Ack {
+                    ack_seq: instance.ack_seq,
+                });
+            }
+            let ended = events
+                .iter()
+                .any(|e| matches!(e.kind, EventKind::SessionEnded { .. }));
+            if ended {
+                self.mod_sessions.remove(&request.session_id);
+            } else {
+                self.mod_sessions.insert(request.session_id.clone());
+            }
+            self.refresh(&BTreeSet::from([request.session_id.clone()]));
+        }
+        EventsOutcome::Ack(Ack { ack_seq })
     }
 
     /// Retira las sesiones sin proceso vivo y sin actividad reciente.
@@ -518,6 +706,7 @@ fn placeholder(entry: &RegistryEntry, policy: PrivacyPolicy, now: i64) -> Sessio
         tool_errors: 0,
         api_errors: 0,
         cost_state_usd: None,
+        usage_snapshot: None,
         running_tools: Vec::new(),
         recent_tools: Vec::new(),
     }
@@ -620,6 +809,7 @@ mod tests {
         let view = SessionView {
             summary: placeholder(&entry, PrivacyPolicy::APP_DEFAULT, 5),
             live: Some(Liveness::from(&entry)),
+            mod_connected: false,
         };
         state.upsert(view.clone());
         state.upsert(view.clone()); // idéntica: no cuenta como cambio
@@ -676,6 +866,7 @@ mod tests {
                 projects_root: projects,
                 sessions_dir: Some(registry.clone()),
                 db_path: dir.path().join("db").join("cockpit.db"),
+                endpoint_path: None,
                 policy: PrivacyPolicy::APP_DEFAULT,
             },
             state.clone(),
