@@ -216,7 +216,7 @@ fn relativize(path: &str, root: Option<&str>) -> Option<String> {
 }
 
 /// Extensión en minúsculas con el punto (`.rs`), o `""`. No es una ruta.
-fn extension(path: &str) -> String {
+pub fn extension(path: &str) -> String {
     let name = path.rsplit(['/', '\\']).next().unwrap_or("");
     match name.rsplit_once('.') {
         Some((stem, ext))

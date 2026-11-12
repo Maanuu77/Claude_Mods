@@ -1,8 +1,8 @@
 //! Esquema y migraciones (SPEC §6.4). La versión vive en `PRAGMA user_version`.
 //!
-//! La migración 1 crea las tablas que alimenta el transcript. Las tablas de las
-//! demás fuentes (`agents`, `turns`, `usage_snapshots`, `tasks`, `file_events`,
-//! agregados y `aggregation_ledger`) llegan con sus fases en migraciones nuevas.
+//! La migración 1 crea las tablas que alimenta el transcript, la 2 las del mod
+//! (F3) y la 3 las del Workspace Watcher y la agregación (F4a). `agents`, `tasks`
+//! y las del Project Map llegan con sus fases en migraciones nuevas.
 
 use rusqlite::Connection;
 
@@ -163,6 +163,95 @@ const MIGRATIONS: &[&str] = &[
     CREATE INDEX usage_snapshots_session ON usage_snapshots(session_id, ts);
 
     ALTER TABLE sessions ADD COLUMN ended_at INTEGER NULL;
+    "#,
+    // 3: F4a, Workspace Watcher, agregados diarios y su registro (§6.4, §6.4.2).
+    r#"
+    CREATE TABLE file_events(
+        id                INTEGER PRIMARY KEY,
+        root_id           INTEGER NOT NULL REFERENCES projects(id),
+        rel_path          TEXT NULL,               -- retención de 30 días; NULL con record_paths=false
+        change            TEXT NOT NULL,           -- created|modified|deleted|renamed
+        from_rel_path     TEXT NULL,               -- origen de un renombrado
+        ext               TEXT NOT NULL,           -- '.rs', '' sin extensión: no es una ruta
+        size              INTEGER NULL,
+        ts                INTEGER NOT NULL,        -- primer evento crudo agrupado (ms)
+        day               TEXT NOT NULL,           -- fecha civil local de ts, fijada al insertar
+        actor             TEXT NOT NULL,           -- claude|claude-shell|unknown|external
+        actor_session     TEXT NULL,               -- referencia compuesta (R-4)
+        actor_tool_use_id TEXT NULL,
+        confidence        TEXT NOT NULL,           -- high|medium|low
+        settled           INTEGER NOT NULL DEFAULT 0,  -- 1 = atribución definitiva (§7.3)
+        CHECK ((actor_session IS NULL) = (actor_tool_use_id IS NULL))
+    );
+    CREATE INDEX file_events_root_ts ON file_events(root_id, ts);
+    CREATE INDEX file_events_day ON file_events(day);
+
+    CREATE TABLE file_change_daily(
+        root_id       INTEGER NOT NULL,            -- 0 = sin proyecto resuelto (R-2)
+        day           TEXT NOT NULL,
+        actor         TEXT NOT NULL,
+        change        TEXT NOT NULL,
+        ext           TEXT NOT NULL,
+        files_touched INTEGER NOT NULL,
+        events        INTEGER NOT NULL,
+        PRIMARY KEY (root_id, day, actor, change, ext)
+    );
+
+    CREATE TABLE tool_usage_daily(
+        root_id     INTEGER NOT NULL,              -- 0 = sin proyecto resuelto (R-2)
+        day         TEXT NOT NULL,
+        tool        TEXT NOT NULL,
+        calls       INTEGER NOT NULL,
+        errors      INTEGER NOT NULL,
+        interrupted INTEGER NOT NULL,
+        p50_ms      INTEGER NULL,
+        p95_ms      INTEGER NULL,
+        total_ms    INTEGER NOT NULL,
+        PRIMARY KEY (root_id, day, tool)
+    );
+
+    CREATE TABLE aggregation_ledger(
+        target        TEXT NOT NULL,               -- file_change_daily|tool_usage_daily
+        root_id       INTEGER NOT NULL,            -- siempre COALESCE(root_id, 0)
+        day           TEXT NOT NULL,
+        state         TEXT NOT NULL,               -- done|dirty
+        source_rows   INTEGER NOT NULL,
+        aggregated_at INTEGER NOT NULL,
+        purged_at     INTEGER NULL,
+        PRIMARY KEY (target, root_id, day)
+    );
+
+    CREATE INDEX tool_calls_root_day ON tool_calls(COALESCE(root_id, 0), day);
+    CREATE INDEX tool_calls_root_started ON tool_calls(root_id, started_at);
+    CREATE INDEX sessions_root ON sessions(root_id);
+
+    -- tool_calls → tool_usage_daily
+    CREATE TRIGGER tc_ai AFTER INSERT ON tool_calls BEGIN
+      UPDATE aggregation_ledger SET state = 'dirty'
+       WHERE target = 'tool_usage_daily' AND root_id = COALESCE(NEW.root_id, 0) AND day = NEW.day;
+    END;
+    CREATE TRIGGER tc_au AFTER UPDATE OF root_id, day, tool, status, duration_ms, is_copy ON tool_calls BEGIN
+      UPDATE aggregation_ledger SET state = 'dirty'
+       WHERE target = 'tool_usage_daily'
+         AND ((root_id = COALESCE(OLD.root_id, 0) AND day = OLD.day)
+           OR (root_id = COALESCE(NEW.root_id, 0) AND day = NEW.day));
+    END;
+    CREATE TRIGGER tc_ad AFTER DELETE ON tool_calls BEGIN
+      UPDATE aggregation_ledger SET state = 'dirty'
+       WHERE target = 'tool_usage_daily' AND root_id = COALESCE(OLD.root_id, 0) AND day = OLD.day;
+    END;
+
+    -- file_events → file_change_daily (sin AFTER DELETE: solo borra la purga)
+    CREATE TRIGGER fe_ai AFTER INSERT ON file_events BEGIN
+      UPDATE aggregation_ledger SET state = 'dirty'
+       WHERE target = 'file_change_daily' AND root_id = COALESCE(NEW.root_id, 0) AND day = NEW.day;
+    END;
+    CREATE TRIGGER fe_au AFTER UPDATE OF root_id, day, actor, change, rel_path ON file_events BEGIN
+      UPDATE aggregation_ledger SET state = 'dirty'
+       WHERE target = 'file_change_daily'
+         AND ((root_id = COALESCE(OLD.root_id, 0) AND day = OLD.day)
+           OR (root_id = COALESCE(NEW.root_id, 0) AND day = NEW.day));
+    END;
     "#,
 ];
 

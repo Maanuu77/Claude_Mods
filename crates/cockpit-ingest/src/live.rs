@@ -1,9 +1,10 @@
-//! Canalización en vivo (SPEC §4): vigila los transcripts y el registro de
-//! sesiones, escribe en SQLite desde **un solo hilo** y mantiene `LiveState`.
+//! Canalización en vivo (SPEC §4): vigila los transcripts, el registro de
+//! sesiones y las raíces de proyecto, escribe en SQLite desde **un solo hilo** y
+//! mantiene `LiveState`.
 //!
 //! Sondeos (SPEC §11.3): `notify` es la fuente principal. Quedan tres respaldos:
 //! `stat` cada 2 s solo de los JSONL con actividad reciente, comprobación de PIDs
-//! cada 30 s y reescaneo completo cada 60 s.
+//! cada 30 s y reescaneo completo cada 60 s. Git no se sondea nunca (§7.2).
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io;
@@ -13,10 +14,11 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use cockpit_core::MIN_ENGINE;
 use cockpit_core::model::{EventKind, TokenUsage};
 use cockpit_core::privacy::PrivacyPolicy;
-use cockpit_store::{Batch, SessionSummary, Store};
+use cockpit_core::time::{closed_before, local_day_minus};
+use cockpit_core::{MIN_ENGINE, PATH_DETAIL_DAYS};
+use cockpit_store::{Batch, CompactOptions, CompactReport, FileEventView, SessionSummary, Store};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 
@@ -29,6 +31,7 @@ use crate::wire::{
     Ack, EventsRequest, HelloRequest, HelloResponse, PrivacyWire, SCHEMA, ServerInfo, SessionKnown,
     mod_event, to_event, tool_meta, usage_event, version_at_least,
 };
+use crate::workspace::{Sink, WorkspaceMsg, WorkspacePublisher, WorkspaceView, Workspaces};
 
 /// Agrupa las ráfagas de eventos del sistema de ficheros.
 const DEBOUNCE: Duration = Duration::from_millis(150);
@@ -42,6 +45,10 @@ const ACTIVE_FILE_WINDOW: Duration = Duration::from_secs(600);
 const RECENT_SESSION_MS: i64 = 30 * 60 * 1000;
 /// Una herramienta en `running` desde hace más de esto no se muestra en curso.
 const RUNNING_TOOL_MS: i64 = 60 * 60 * 1000;
+/// La compactación corre al arrancar y cada 24 h (§6.4.1).
+const COMPACT_EVERY: Duration = Duration::from_secs(24 * 3600);
+/// Cambios de fichero por raíz que se guardan para la instantánea de la vista.
+const RECENT_FILE_EVENTS: usize = 300;
 
 pub fn now_ms() -> i64 {
     SystemTime::now()
@@ -78,12 +85,20 @@ pub enum LiveDelta {
     Snapshot {
         sessions: Vec<SessionView>,
         backfill: BackfillState,
+        /// Raíces activas del Workspace Watcher (§7).
+        workspaces: Vec<WorkspaceView>,
+        /// Últimos cambios de fichero de cada raíz activa.
+        file_events: Vec<FileEventView>,
         generated_at: i64,
     },
     Update {
         upserts: Vec<SessionView>,
         removed: Vec<String>,
         backfill: Option<BackfillState>,
+        workspaces: Vec<WorkspaceView>,
+        workspaces_removed: Vec<i64>,
+        /// Cambios nuevos o con la atribución cambiada (se sustituyen por `id`).
+        file_events: Vec<FileEventView>,
         generated_at: i64,
     },
 }
@@ -95,6 +110,23 @@ struct Inner {
     removed: BTreeSet<String>,
     backfill: BackfillState,
     backfill_dirty: bool,
+    workspaces: BTreeMap<i64, WorkspaceView>,
+    ws_dirty: BTreeSet<i64>,
+    ws_removed: BTreeSet<i64>,
+    /// Raíz → (id → cambio), acotado a `RECENT_FILE_EVENTS` por raíz.
+    recent_files: BTreeMap<i64, BTreeMap<i64, FileEventView>>,
+    pending_files: BTreeMap<i64, FileEventView>,
+}
+
+impl Inner {
+    fn has_changes(&self) -> bool {
+        !(self.dirty.is_empty()
+            && self.removed.is_empty()
+            && !self.backfill_dirty
+            && self.ws_dirty.is_empty()
+            && self.ws_removed.is_empty()
+            && self.pending_files.is_empty())
+    }
 }
 
 /// Estado en vivo compartido entre la canalización y la interfaz.
@@ -125,9 +157,18 @@ impl LiveState {
         inner.dirty.clear();
         inner.removed.clear();
         inner.backfill_dirty = false;
+        inner.ws_dirty.clear();
+        inner.ws_removed.clear();
+        inner.pending_files.clear();
         LiveDelta::Snapshot {
             sessions: inner.sessions.values().cloned().collect(),
             backfill: inner.backfill.clone(),
+            workspaces: inner.workspaces.values().cloned().collect(),
+            file_events: inner
+                .recent_files
+                .values()
+                .flat_map(|m| m.values().cloned())
+                .collect(),
             generated_at: now_ms(),
         }
     }
@@ -135,7 +176,7 @@ impl LiveState {
     /// Cambios desde la última llamada, o `None` si no hay ninguno.
     pub fn take_update(&self) -> Option<LiveDelta> {
         let mut inner = self.lock();
-        if inner.dirty.is_empty() && inner.removed.is_empty() && !inner.backfill_dirty {
+        if !inner.has_changes() {
             return None;
         }
         let dirty = std::mem::take(&mut inner.dirty);
@@ -145,12 +186,45 @@ impl LiveState {
             .collect();
         let removed = std::mem::take(&mut inner.removed).into_iter().collect();
         let backfill = std::mem::take(&mut inner.backfill_dirty).then(|| inner.backfill.clone());
+        let ws_dirty = std::mem::take(&mut inner.ws_dirty);
+        let workspaces = ws_dirty
+            .iter()
+            .filter_map(|id| inner.workspaces.get(id).cloned())
+            .collect();
+        let workspaces_removed = std::mem::take(&mut inner.ws_removed).into_iter().collect();
+        let file_events = std::mem::take(&mut inner.pending_files)
+            .into_values()
+            .collect();
         Some(LiveDelta::Update {
             upserts,
             removed,
             backfill,
+            workspaces,
+            workspaces_removed,
+            file_events,
             generated_at: now_ms(),
         })
+    }
+
+    /// `cwd` conocido de una sesión publicada (solo con `record_paths`).
+    fn session_cwd(&self, id: &str) -> Option<String> {
+        self.lock()
+            .sessions
+            .get(id)
+            .and_then(|s| s.summary.cwd.clone())
+    }
+
+    /// Cambios de fichero en caché de una raíz (para la instantánea y los tests).
+    pub fn recent_file_events(&self, root_id: i64) -> Vec<FileEventView> {
+        self.lock()
+            .recent_files
+            .get(&root_id)
+            .map(|m| m.values().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    pub fn workspaces(&self) -> Vec<WorkspaceView> {
+        self.lock().workspaces.values().cloned().collect()
     }
 
     fn upsert(&self, view: SessionView) {
@@ -195,6 +269,53 @@ impl LiveState {
     }
 }
 
+impl WorkspacePublisher for LiveState {
+    fn upsert_workspace(&self, view: WorkspaceView) {
+        {
+            let mut inner = self.lock();
+            if inner.workspaces.get(&view.root_id) == Some(&view) {
+                return;
+            }
+            inner.ws_removed.remove(&view.root_id);
+            inner.ws_dirty.insert(view.root_id);
+            inner.workspaces.insert(view.root_id, view);
+        }
+        (self.on_change)();
+    }
+
+    fn remove_workspace(&self, root_id: i64) {
+        {
+            let mut inner = self.lock();
+            if inner.workspaces.remove(&root_id).is_none() {
+                return;
+            }
+            inner.ws_dirty.remove(&root_id);
+            inner.ws_removed.insert(root_id);
+            inner.recent_files.remove(&root_id);
+            inner.pending_files.retain(|_, e| e.root_id != root_id);
+        }
+        (self.on_change)();
+    }
+
+    fn push_file_events(&self, events: Vec<FileEventView>) {
+        if events.is_empty() {
+            return;
+        }
+        {
+            let mut inner = self.lock();
+            for e in events {
+                let recent = inner.recent_files.entry(e.root_id).or_default();
+                recent.insert(e.id, e.clone());
+                while recent.len() > RECENT_FILE_EVENTS {
+                    recent.pop_first();
+                }
+                inner.pending_files.insert(e.id, e);
+            }
+        }
+        (self.on_change)();
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LiveConfig {
     /// `~/.claude/projects`. Solo lectura.
@@ -212,6 +333,8 @@ enum Msg {
     Mod(ModRequest),
     Fs(PathBuf),
     Rescan,
+    /// Watcher, Git o resolutor de raíces (§7).
+    Workspace(Box<WorkspaceMsg>),
     Stop,
 }
 
@@ -231,9 +354,14 @@ impl LivePipeline {
         let (tx, rx) = mpsc::channel();
         let watcher = start_watcher(&config, tx.clone());
         let endpoint_path = config.endpoint_path.clone();
+        let ws_tx = tx.clone();
+        let sink: Sink = Arc::new(move |m| {
+            let _ = ws_tx.send(Msg::Workspace(Box::new(m)));
+        });
         let thread = thread::Builder::new()
             .name("cockpit-live".to_owned())
             .spawn(move || {
+                let workspaces = Workspaces::new(sink, config.policy.record_paths);
                 let mut worker = Worker {
                     config,
                     state,
@@ -242,6 +370,9 @@ impl LivePipeline {
                     registry: BTreeMap::new(),
                     active_files: HashMap::new(),
                     mod_sessions: BTreeSet::new(),
+                    workspaces,
+                    next_settle: None,
+                    last_compaction: None,
                     // El watcher vive lo mismo que el hilo.
                     _watcher: watcher,
                 };
@@ -310,6 +441,10 @@ struct Worker {
     active_files: HashMap<PathBuf, Instant>,
     /// Sesiones cuyo mod ha hecho `hello` desde que arrancó la app.
     mod_sessions: BTreeSet<String>,
+    workspaces: Workspaces,
+    /// Cuándo vence la próxima atribución provisional (ms).
+    next_settle: Option<i64>,
+    last_compaction: Option<Instant>,
     _watcher: Option<RecommendedWatcher>,
 }
 
@@ -317,18 +452,27 @@ impl Worker {
     fn run(&mut self, rx: &Receiver<Msg>) {
         self.reload_registry();
         self.seed();
+        self.workspaces.settle_leftovers(&mut self.store);
+        self.sync_workspaces();
         self.backfill();
+        // Con el historial ya leído: raíces de las sesiones guardadas y compactación.
+        self.workspaces.resolve_history(&self.store);
+        self.compact();
 
         let mut last_poll = Instant::now();
         let mut last_pid_check = Instant::now();
         let mut last_rescan = Instant::now();
         loop {
             // Sin ficheros activos no hay sondeo de 2 s: el hilo duerme hasta 30 s.
-            let wait = if self.active_files.is_empty() {
+            let mut wait = if self.active_files.is_empty() {
                 PID_CHECK
             } else {
                 ACTIVE_POLL
             };
+            if let Some(at) = self.next_settle {
+                let left = u64::try_from(at - now_ms()).unwrap_or(0);
+                wait = wait.min(Duration::from_millis(left));
+            }
             let mut transcripts = BTreeSet::new();
             let mut registry_changed = false;
             let mut rescan = false;
@@ -336,6 +480,12 @@ impl Worker {
                 Ok(Msg::Stop) | Err(RecvTimeoutError::Disconnected) => return,
                 Ok(Msg::Mod(request)) => {
                     self.handle_mod(request);
+                    self.settle();
+                    continue;
+                }
+                Ok(Msg::Workspace(msg)) => {
+                    self.handle_workspace(*msg);
+                    self.settle();
                     continue;
                 }
                 Ok(msg) => {
@@ -344,8 +494,9 @@ impl Worker {
                     while let Some(msg) = pending.take() {
                         match msg {
                             Msg::Stop => return,
-                            // El mod se atiende al momento, sin esperar a la agrupación.
+                            // El mod y el Watcher se atienden al momento, sin esperar a la agrupación.
                             Msg::Mod(request) => self.handle_mod(request),
+                            Msg::Workspace(msg) => self.handle_workspace(*msg),
                             Msg::Rescan => rescan = true,
                             Msg::Fs(path) => {
                                 if self.is_registry_path(&path) {
@@ -380,7 +531,103 @@ impl Worker {
                 last_pid_check = now;
                 self.reload_registry();
                 self.prune();
+                self.sync_workspaces();
             }
+            self.settle();
+            if self
+                .last_compaction
+                .is_none_or(|t| now.duration_since(t) >= COMPACT_EVERY)
+            {
+                self.compact();
+            }
+        }
+    }
+
+    /// Agregación de los días cerrados y purga de rutas antiguas (§6.4.1, §6.4.2).
+    fn compact(&mut self) -> Option<CompactReport> {
+        self.last_compaction = Some(Instant::now());
+        let now = now_ms();
+        let closed = closed_before(now);
+        let purge = local_day_minus(now, PATH_DETAIL_DAYS);
+        self.store
+            .compact(&CompactOptions {
+                closed_before: &closed,
+                purge_before: &purge,
+                errors_before_ms: now - i64::from(PATH_DETAIL_DAYS) * 86_400_000,
+                now_ms: now,
+            })
+            .ok()
+    }
+
+    fn settle(&mut self) {
+        let now = now_ms();
+        if self.next_settle.is_some_and(|at| at > now) {
+            return;
+        }
+        self.next_settle = self
+            .workspaces
+            .settle_due(&mut self.store, &self.state, now);
+    }
+
+    /// Sesiones vivas (registro o mod) con su `cwd`, para activar sus raíces (§7.1).
+    fn sync_workspaces(&mut self) {
+        let mut live: BTreeMap<String, Option<String>> = BTreeMap::new();
+        for (id, entry) in &self.registry {
+            live.insert(
+                id.clone(),
+                entry.cwd.clone().or_else(|| self.state.session_cwd(id)),
+            );
+        }
+        for id in &self.mod_sessions {
+            live.entry(id.clone())
+                .or_insert_with(|| self.state.session_cwd(id));
+        }
+        let live: Vec<(String, Option<String>)> = live.into_iter().collect();
+        let before: BTreeSet<i64> = self.workspaces.active_roots().into_iter().collect();
+        self.workspaces
+            .sync_live(&live, &mut self.store, &self.state);
+        // Una raíz recién activada trae sus últimos cambios guardados.
+        for root in self.workspaces.active_roots() {
+            if !before.contains(&root)
+                && let Ok(events) =
+                    self.store
+                        .file_events_page(root, None, RECENT_FILE_EVENTS as u32)
+            {
+                self.state.push_file_events(events);
+            }
+        }
+    }
+
+    fn handle_workspace(&mut self, msg: WorkspaceMsg) {
+        let now = now_ms();
+        match msg {
+            WorkspaceMsg::Watch { root_id, event } => {
+                self.workspaces
+                    .on_watch(root_id, event, &mut self.store, &self.state, now);
+                // `settle` recalcula el próximo vencimiento con los cambios nuevos.
+                self.next_settle = Some(now);
+            }
+            WorkspaceMsg::Git { root_id, snapshot } => {
+                self.workspaces.on_git(root_id, snapshot, &self.state);
+            }
+            WorkspaceMsg::Resolved { key, root } => {
+                if self.workspaces.on_resolved(key, root, &mut self.store, now) {
+                    self.sync_workspaces();
+                }
+            }
+        }
+    }
+
+    /// Hay herramientas nuevas en estas sesiones: se reevalúan sus raíces (§7.3).
+    fn reevaluate_sessions<'a>(&mut self, sessions: impl IntoIterator<Item = &'a String>) {
+        let roots: BTreeSet<i64> = sessions
+            .into_iter()
+            .filter_map(|s| self.workspaces.assign_root(s, &mut self.store))
+            .filter(|r| self.workspaces.is_active(*r))
+            .collect();
+        if !roots.is_empty() {
+            self.workspaces
+                .reevaluate(&roots, &mut self.store, &self.state, now_ms());
         }
     }
 
@@ -478,6 +725,7 @@ impl Worker {
             .cloned()
             .collect();
         self.refresh(&ids);
+        self.reevaluate_sessions(&ids);
     }
 
     fn reload_registry(&mut self) {
@@ -613,8 +861,12 @@ impl Worker {
             );
         }
         if engine_supported {
-            self.mod_sessions.insert(session_id.to_owned());
+            let first = self.mod_sessions.insert(session_id.to_owned());
             self.refresh(&BTreeSet::from([session_id.to_owned()]));
+            if first {
+                self.sync_workspaces();
+            }
+            self.reevaluate_sessions([&session_id.to_owned()]);
         }
         let policy = self.config.policy;
         HelloResponse {
@@ -679,6 +931,7 @@ impl Worker {
                 self.mod_sessions.insert(request.session_id.clone());
             }
             self.refresh(&BTreeSet::from([request.session_id.clone()]));
+            self.reevaluate_sessions([&request.session_id]);
         }
         EventsOutcome::Ack(Ack { ack_seq })
     }
