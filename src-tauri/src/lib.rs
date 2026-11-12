@@ -42,7 +42,7 @@ struct AppState {
     db_path: PathBuf,
     /// Conexión de solo lectura para las consultas, abierta la primera vez.
     reader: Mutex<Option<Store>>,
-    _pipeline: LivePipeline,
+    pipeline: LivePipeline,
 }
 
 impl AppState {
@@ -55,6 +55,16 @@ impl AppState {
             .find(|w| w.root_id == root_id)
             .map(|w| PathBuf::from(w.root))
             .ok_or_else(|| "la raíz no está activa".to_owned())
+    }
+
+    /// Consulta con la conexión de solo lectura, que se abre la primera vez.
+    fn read<T>(&self, query: impl FnOnce(&Store) -> cockpit_store::Result<T>) -> Result<T, String> {
+        let mut reader = self.reader.lock().unwrap_or_else(|e| e.into_inner());
+        if reader.is_none() {
+            *reader = Some(Store::open_read_only(&self.db_path).map_err(|e| e.to_string())?);
+        }
+        let store = reader.as_ref().ok_or("sin base de datos")?;
+        query(store).map_err(|e| e.to_string())
     }
 }
 
@@ -79,12 +89,29 @@ fn query_file_events(
 /// Project Map de una raíz activa (SPEC §9): estructura (ficheros, bytes y lenguajes
 /// por directorio) y componentes de sus manifiestos. Solo lectura y sin contenido:
 /// de los ficheros solo se mira el tamaño y solo se leen los manifiestos.
+///
+/// Los componentes salen de la caché mientras la huella de los manifiestos no cambie
+/// y el Watcher no haya visto cambiar ninguno; si se calculan de nuevo, se guardan
+/// a través del escritor único.
 #[tauri::command]
 async fn project_map(state: State<'_, AppState>, root_id: i64) -> Result<ProjectScan, String> {
     let root = state.active_root(root_id)?;
-    tauri::async_runtime::spawn_blocking(move || project_scan::scan(&root, &GitReader::new()))
-        .await
-        .map_err(|e| e.to_string())
+    // Sin caché legible se calcula entero: la caché nunca impide ver el mapa.
+    let cached = state
+        .read(|store| store.project_map_cache(root_id))
+        .ok()
+        .flatten();
+    let (scan, print) = tauri::async_runtime::spawn_blocking(move || {
+        project_scan::scan_with_cache(&root, &GitReader::new(), cached.as_ref())
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    if let Some(print) = print {
+        state
+            .pipeline
+            .save_project_map(root_id, scan.map.clone(), print);
+    }
+    Ok(scan)
 }
 
 /// Diagnóstico (SPEC §7, vista 5, y avisos de §6.4.2), con los mismos cortes que la
@@ -312,7 +339,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         perf_log: env_path("DEV_COCKPIT_PERF_LOG"),
         db_path,
         reader: Mutex::new(None),
-        _pipeline: pipeline,
+        pipeline,
     });
 
     // Mediciones de memoria (B8, B9): publica cada segundo los PIDs del grupo propio.

@@ -56,4 +56,6 @@ export interface ProjectScan {
     deps: Dependency[];
     problems: Problem[];
   };
+  /** Los componentes salen de la caché: ningún manifiesto ha cambiado. */
+  map_cached: boolean;
 }

@@ -314,6 +314,43 @@ const MIGRATIONS: &[&str] = &[
        AND NOT EXISTS (SELECT 1 FROM usage_snapshots s WHERE s.session_id = sessions.id)
        AND NOT EXISTS (SELECT 1 FROM api_errors e WHERE e.session_id = sessions.id);
     "#,
+    // 5: F4c, caché del Project Map (§9): la última instantánea de cada raíz. Solo
+    // metadatos de los manifiestos; nunca código. Se rehace cuando cambia un
+    // manifiesto y, al desactivarse la raíz, se conserva la última.
+    r#"
+    CREATE TABLE project_components(
+        root_id           INTEGER NOT NULL REFERENCES projects(id),
+        component_id      TEXT NOT NULL,           -- ruta del manifiesto (o ajustes#módulo)
+        kind              TEXT NOT NULL,           -- ecosistema
+        name              TEXT NOT NULL,
+        rel_dir           TEXT NOT NULL,
+        manifest_rel_path TEXT NOT NULL,
+        version           TEXT NULL,
+        is_group          INTEGER NOT NULL,
+        parts_json        TEXT NOT NULL,           -- Rojo: servicios del árbol
+        position          INTEGER NOT NULL,
+        PRIMARY KEY (root_id, component_id)
+    );
+
+    CREATE TABLE project_deps(
+        root_id        INTEGER NOT NULL REFERENCES projects(id),
+        position       INTEGER NOT NULL,
+        from_component TEXT NOT NULL,
+        to_name        TEXT NOT NULL,
+        to_component   TEXT NULL,                  -- componente interno, si lo es
+        version_req    TEXT NULL,
+        scope          TEXT NOT NULL,              -- prod|dev|build|peer|optional|module
+        PRIMARY KEY (root_id, position)
+    );
+
+    CREATE TABLE project_map_state(
+        root_id        INTEGER PRIMARY KEY REFERENCES projects(id),
+        scanned_at     INTEGER NOT NULL,
+        manifests_json TEXT NOT NULL,              -- huella: [ruta, bytes, mtime] por manifiesto
+        problems_json  TEXT NOT NULL,              -- [ruta, tipo de error]; nunca contenido
+        stale          INTEGER NOT NULL DEFAULT 0  -- el Watcher vio cambiar un manifiesto
+    );
+    "#,
 ];
 
 /// Versión de esquema que produce este binario.

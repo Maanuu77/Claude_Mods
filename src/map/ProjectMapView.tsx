@@ -310,6 +310,12 @@ function MapPanel({ ws, now }: { ws: WorkspaceView; now: number }) {
           <span className="card-meta">
             {formatInt(load.scan.tree.files)} ficheros · {formatBytes(load.scan.tree.bytes)} ·{" "}
             {load.scan.source === "git" ? "versionados en Git" : "sin Git, según .gitignore"}
+            {load.scan.map_cached && (
+              <span title="Ningún manifiesto ha cambiado desde el último escaneo: los componentes no se han vuelto a leer.">
+                {" "}
+                · componentes guardados
+              </span>
+            )}
           </span>
         )}
         <button type="button" className="tab" onClick={refresh} disabled={load.state === "loading"}>

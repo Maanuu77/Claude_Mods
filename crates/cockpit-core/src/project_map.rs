@@ -65,6 +65,20 @@ impl Ecosystem {
             Ecosystem::Rojo => "rojo",
         }
     }
+
+    pub fn parse(text: &str) -> Option<Self> {
+        [
+            Ecosystem::Node,
+            Ecosystem::Rust,
+            Ecosystem::Java,
+            Ecosystem::Python,
+            Ecosystem::Dotnet,
+            Ecosystem::Unity,
+            Ecosystem::Rojo,
+        ]
+        .into_iter()
+        .find(|e| e.as_str() == text)
+    }
 }
 
 /// Manifiesto reconocido (tabla de §9).
@@ -122,6 +136,19 @@ impl DepScope {
             DepScope::Module => "module",
         }
     }
+
+    pub fn parse(text: &str) -> Option<Self> {
+        [
+            DepScope::Prod,
+            DepScope::Dev,
+            DepScope::Build,
+            DepScope::Peer,
+            DepScope::Optional,
+            DepScope::Module,
+        ]
+        .into_iter()
+        .find(|s| s.as_str() == text)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -159,11 +186,37 @@ pub struct Problem {
     pub reason: &'static str,
 }
 
+/// Todos los valores posibles de [`Problem::reason`].
+pub const PROBLEM_REASONS: &[&str] = &["invalid_json", "invalid_toml", "invalid_xml", "too_large"];
+
+impl Problem {
+    /// El `reason` guardado, si es uno de los conocidos.
+    pub fn known_reason(text: &str) -> Option<&'static str> {
+        PROBLEM_REASONS.iter().copied().find(|r| *r == text)
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct ProjectMap {
     pub components: Vec<Component>,
     pub deps: Vec<Dependency>,
     pub problems: Vec<Problem>,
+}
+
+/// Huella de los manifiestos de una raíz: ruta relativa, bytes y fecha de
+/// modificación (ms) de cada uno, ordenada por ruta. Mientras no cambie, el mapa
+/// guardado en la caché sigue valiendo.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ManifestPrint(pub Vec<(String, u64, i64)>);
+
+/// Mapa guardado en la caché (SPEC §9: `project_components` y `project_deps`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CachedMap {
+    pub map: ProjectMap,
+    pub print: ManifestPrint,
+    /// El Watcher vio cambiar un manifiesto después de guardarlo.
+    pub stale: bool,
+    pub scanned_at: i64,
 }
 
 // ---------------------------------------------------------------------------
@@ -1800,6 +1853,30 @@ mod tests {
             build_map("r", &[("package.json".to_owned(), big)]).problems[0].reason,
             "too_large"
         );
+    }
+
+    #[test]
+    fn every_problem_reason_can_be_read_back_from_the_cache() {
+        let m = map(&[
+            ("package.json", "{"),
+            ("Cargo.toml", "[["),
+            ("pom.xml", "<project><a></b></project>"),
+            ("app/app.csproj", "<Project><a></b></Project>"),
+            ("pyproject.toml", "[["),
+            ("Packages/manifest.json", "{"),
+            ("default.project.json", "{"),
+        ]);
+        assert_eq!(m.problems.len(), 7, "{:#?}", m.problems);
+        for p in &m.problems {
+            assert_eq!(Problem::known_reason(p.reason), Some(p.reason));
+        }
+        assert_eq!(Problem::known_reason("otro"), None);
+        for e in ["node", "rust", "java", "python", "dotnet", "unity", "rojo"] {
+            assert_eq!(Ecosystem::parse(e).map(Ecosystem::as_str), Some(e));
+        }
+        for s in ["prod", "dev", "build", "peer", "optional", "module"] {
+            assert_eq!(DepScope::parse(s).map(DepScope::as_str), Some(s));
+        }
     }
 
     #[test]

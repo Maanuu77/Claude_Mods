@@ -9,6 +9,7 @@
 mod compact;
 mod diagnostics;
 mod history;
+mod project_cache;
 mod schema;
 mod summary;
 mod tasks;
