@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
+import { ChangesView } from "./changes/ChangesView";
 import { SessionCard } from "./live/SessionCard";
 import { formatInt } from "./live/format";
 import { connectLive, sortSessions, useLive } from "./live/store";
@@ -23,12 +24,16 @@ function useNow(active: boolean): number {
   return now;
 }
 
+type Tab = "live" | "changes";
+
 function App() {
-  const { connected, error, sessions, backfill } = useLive();
+  const { connected, error, sessions, backfill, workspaces } = useLive();
   useEffect(connectLive, []);
+  const [tab, setTab] = useState<Tab>("live");
 
   const ordered = useMemo(() => sortSessions(sessions), [sessions]);
-  const now = useNow(ordered.length > 0);
+  const roots = Object.keys(workspaces).length;
+  const now = useNow(ordered.length > 0 || roots > 0);
   const liveCount = ordered.filter((s) => s.live !== null).length;
   const percent =
     backfill && backfill.bytes_total > 0
@@ -39,6 +44,18 @@ function App() {
     <main className="app">
       <header className="top">
         <h1>DEV COCKPIT</h1>
+        <nav className="tabs" aria-label="Vistas">
+          <button type="button" className={tab === "live" ? "tab tab-on" : "tab"} onClick={() => setTab("live")}>
+            En vivo
+          </button>
+          <button
+            type="button"
+            className={tab === "changes" ? "tab tab-on" : "tab"}
+            onClick={() => setTab("changes")}
+          >
+            Cambios en directo{roots > 0 && ` (${formatInt(roots)})`}
+          </button>
+        </nav>
         <p className="summary">
           {connected
             ? `${formatInt(liveCount)} ${liveCount === 1 ? "sesión viva" : "sesiones vivas"} · ${formatInt(ordered.length)} con actividad reciente`
@@ -60,7 +77,9 @@ function App() {
         </p>
       )}
 
-      {connected && ordered.length === 0 && !backfill?.running ? (
+      {tab === "changes" ? (
+        <ChangesView now={now} />
+      ) : connected && ordered.length === 0 && !backfill?.running ? (
         <p className="empty">
           No hay sesiones de Claude Code activas. Aparecerán aquí en cuanto se abra una.
         </p>
