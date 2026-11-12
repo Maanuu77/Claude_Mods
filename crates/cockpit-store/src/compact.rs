@@ -10,7 +10,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use rusqlite::{TransactionBehavior, params};
+use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use serde::Serialize;
 
 use crate::{Result, Store, StoreError};
@@ -52,6 +52,22 @@ pub struct CompactReport {
     pub tool_paths_purged: usize,
     pub file_events_purged: usize,
     pub errors_purged: usize,
+}
+
+/// Clave de `schema_meta`: instante (ms) en que se pulsó «borrar rutas ahora».
+const PATHS_CLEARED_AT: &str = "paths_cleared_at";
+
+/// Resultado de «borrar rutas ahora» (SPEC §6.4.1).
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
+pub struct ClearPathsReport {
+    /// Agregación de los días cerrados y purga de todos los ya agregados.
+    pub compact: CompactReport,
+    /// Herramientas de días aún sin purgar a las que se ha quitado la ruta o el host.
+    pub tool_paths_cleared: usize,
+    /// Cambios de fichero que conservan la ruta hasta que su día se agregue (hoy,
+    /// o un día cuya agregación falló): la agregación la necesita para contar
+    /// ficheros distintos, y un día sin agregar nunca se purga (§6.4.2).
+    pub file_events_pending: u64,
 }
 
 /// Clave de `file_change_daily`: `(actor, change, ext)`.
@@ -96,6 +112,66 @@ impl Store {
         self.conn
             .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()))?;
         Ok(report)
+    }
+
+    /// «Borrar rutas ahora» (SPEC §6.4.1): adelanta la purga sin esperar a los
+    /// `path_detail_days`.
+    ///
+    /// 1. Agrega los días cerrados pendientes y purga **todos** los ya agregados,
+    ///    con las mismas reglas de §6.4.2. `ingest_errors` se borra entero.
+    /// 2. Quita la ruta y el host de todas las herramientas que aún los tengan:
+    ///    `tool_usage_daily` no los usa y el trigger no los mira, así que no
+    ///    cambia ningún agregado.
+    /// 3. Recuerda el instante: las compactaciones siguientes purgan también los
+    ///    días hasta ese, en cuanto estén agregados ([`Store::paths_cleared_at`]).
+    pub fn clear_paths_now(
+        &mut self,
+        closed_before: &str,
+        now_ms: i64,
+    ) -> Result<ClearPathsReport> {
+        let compact = self.compact(&CompactOptions {
+            closed_before,
+            purge_before: closed_before,
+            errors_before_ms: i64::MAX,
+            now_ms,
+        })?;
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let tool_paths_cleared = tx.execute(
+            "UPDATE tool_calls SET rel_path = NULL, host = NULL
+             WHERE rel_path IS NOT NULL OR host IS NOT NULL",
+            [],
+        )?;
+        tx.execute(
+            "INSERT INTO schema_meta(key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![PATHS_CLEARED_AT, now_ms.to_string()],
+        )?;
+        let file_events_pending: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM file_events WHERE rel_path IS NOT NULL OR from_rel_path IS NOT NULL",
+            [],
+            |r| r.get(0),
+        )?;
+        tx.commit()?;
+        Ok(ClearPathsReport {
+            compact,
+            tool_paths_cleared,
+            file_events_pending: file_events_pending.max(0) as u64,
+        })
+    }
+
+    /// Cuándo se pulsó por última vez «borrar rutas ahora», si se pulsó.
+    pub fn paths_cleared_at(&self) -> Result<Option<i64>> {
+        let value: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT value FROM schema_meta WHERE key = ?1",
+                [PATHS_CLEARED_AT],
+                |r| r.get(0),
+            )
+            .optional()?;
+        Ok(value.and_then(|v| v.parse().ok()))
     }
 
     /// Días candidatos del target: los cerrados sin `done`, más los `dirty`.
@@ -495,6 +571,47 @@ mod tests {
         file(&mut store, root, "SRC/A.rs", T0 + 10, Actor::Claude);
         file(&mut store, root, "README", T0 + 20, Actor::External);
         (store, root)
+    }
+
+    #[test]
+    fn clearing_paths_now_purges_every_aggregated_day_and_keeps_the_aggregates() {
+        // Día 0 y día 1 con rutas; «ahora» es el día 2, a mediodía. Hoy hay una
+        // herramienta y un cambio más, aún sin agregar.
+        let (mut store, root) = seeded();
+        let (closed, _, now) = at(2);
+        tool(
+            &mut store,
+            "s3",
+            "hoy",
+            "WebFetch",
+            now - 1000,
+            10,
+            ToolStatus::Ok,
+        );
+        file(&mut store, root, "src/hoy.rs", now - 500, Actor::Claude);
+        // Los agregados con la retención normal, que aún no purga nada.
+        assert_eq!(compact(&mut store, 2).file_events_purged, 0);
+        let mut expected = aggregates(&store);
+
+        let report = store.clear_paths_now(&closed, now).unwrap();
+        assert_eq!(report.compact.file_events_purged, 3, "{report:?}");
+        assert_eq!(report.compact.tool_paths_purged, 4);
+        assert_eq!(report.tool_paths_cleared, 1, "la herramienta de hoy");
+        assert_eq!(
+            report.file_events_pending, 1,
+            "el cambio de hoy espera a su agregación"
+        );
+        assert_eq!(store.paths_cleared_at().unwrap(), Some(now));
+        let left = dump(
+            &store,
+            "SELECT COUNT(*) FROM tool_calls WHERE rel_path IS NOT NULL OR host IS NOT NULL",
+        );
+        assert_eq!(left, ["Integer(0)"]);
+        // Ningún agregado cambia y ningún día queda sucio.
+        expected[2].sort();
+        let mut now_aggregates = aggregates(&store);
+        now_aggregates[2].sort();
+        assert_eq!(now_aggregates, expected);
     }
 
     #[test]

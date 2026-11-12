@@ -337,6 +337,8 @@ pub struct Workspaces {
     sink: Sink,
     resolver: Sender<(String, String)>,
     record_paths: bool,
+    /// `retention.path_detail_days`: un cambio de un día más antiguo no se guarda.
+    path_detail_days: u32,
     /// Clave de `cwd` → `(raíz, prefijo)`, o `None` si no se pudo resolver.
     resolved: HashMap<String, Option<(i64, String)>>,
     requested: HashSet<String>,
@@ -353,6 +355,12 @@ pub struct Workspaces {
 }
 
 impl Workspaces {
+    /// Días de detalle de rutas (`retention.path_detail_days`, §6.4.1). Por defecto, 30.
+    pub fn with_path_detail_days(mut self, days: u32) -> Self {
+        self.path_detail_days = days;
+        self
+    }
+
     pub fn new(sink: Sink, record_paths: bool) -> Self {
         let (tx, rx) = mpsc::channel::<(String, String)>();
         let resolver_sink = sink.clone();
@@ -369,6 +377,7 @@ impl Workspaces {
             sink,
             resolver: tx,
             record_paths,
+            path_detail_days: PATH_DETAIL_DAYS,
             resolved: HashMap::new(),
             requested: HashSet::new(),
             waiting: HashMap::new(),
@@ -722,7 +731,7 @@ impl Workspaces {
                 (c, a)
             })
             .collect();
-        let cutoff = local_day_minus(now, PATH_DETAIL_DAYS);
+        let cutoff = local_day_minus(now, self.path_detail_days);
         let Ok(ids) = store.insert_file_events(root_id, &rows, self.record_paths, &cutoff) else {
             return;
         };

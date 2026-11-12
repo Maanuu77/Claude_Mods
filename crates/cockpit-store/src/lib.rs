@@ -23,7 +23,7 @@ use cockpit_core::tasks::TaskSource;
 use cockpit_core::time::local_day;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
-pub use compact::{CompactOptions, CompactReport, Target};
+pub use compact::{ClearPathsReport, CompactOptions, CompactReport, Target};
 pub use diagnostics::{AggregationHealth, Diagnostics, EngineSeen, ErrorGroup, PathDetail};
 pub use history::{DayTokens, GroupTokens, History, LimitPoint, Tokens, ToolStats};
 pub use schema::SCHEMA_VERSION;

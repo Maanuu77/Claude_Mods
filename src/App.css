@@ -1212,3 +1212,42 @@ body {
 .tm-spark .tm-spark-zero {
   fill: var(--border);
 }
+
+/* --- Privacidad y retención (SPEC §10) --- */
+
+.pv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.6rem 1rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.pv-flag {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.pv-flag input[type="number"] {
+  width: 3.5rem;
+  font: inherit;
+}
+
+.pv-flag span {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.pv-flag small {
+  color: var(--muted);
+}
+
+.pv-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.4rem 0 0.75rem;
+}

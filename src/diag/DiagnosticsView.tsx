@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { formatAgo, formatInt } from "../live/format";
 import { sortSessions, useLive } from "../live/store";
+import { PrivacySettings } from "./PrivacySettings";
 
 /** Espejo de `DiagnosticsView` en `src-tauri` (SPEC §7, vista 5, y §6.4.2). */
 interface Diagnostics {
@@ -180,10 +181,13 @@ export function DiagnosticsView({ now }: { now: number }) {
               </Row>
             </dl>
             <p className="card-meta">
-              Las rutas se guardan 30 días; después solo quedan los totales por día (§6.4.1).
+              Las rutas se guardan los días fijados en «Privacidad y retención»; después solo quedan los totales por
+              día (§6.4.1).
             </p>
           </section>
         )}
+
+        <PrivacySettings now={now} onCleared={() => setRound((r) => r + 1)} />
 
         {diag && (
           <section className="card">

@@ -14,12 +14,12 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use cockpit_core::privacy::PrivacyPolicy;
 use cockpit_ingest::git::{FileDiff, GitReader};
 use cockpit_ingest::live::{LiveConfig, LiveDelta, LivePipeline, LiveState};
 use cockpit_ingest::project_scan::{self, ProjectScan};
+use cockpit_ingest::settings::{self, Settings};
 use cockpit_ingest::workspace::{FilePreview, read_preview};
-use cockpit_store::{DB_FILE_NAME, Diagnostics, FileEventView, History, Store};
+use cockpit_store::{ClearPathsReport, DB_FILE_NAME, Diagnostics, FileEventView, History, Store};
 use tauri::ipc::Channel;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -43,6 +43,10 @@ struct AppState {
     /// Conexión de solo lectura para las consultas, abierta la primera vez.
     reader: Mutex<Option<Store>>,
     pipeline: LivePipeline,
+    /// Carpeta de `settings.json` (la de la base de datos).
+    settings_dir: PathBuf,
+    /// Ajustes con los que arrancó la app: los que están en vigor.
+    applied: Settings,
 }
 
 impl AppState {
@@ -124,6 +128,42 @@ struct DiagnosticsView {
     wal_bytes: u64,
 }
 
+/// Ajustes guardados frente a los que están en vigor (cambian al reiniciar).
+#[derive(serde::Serialize)]
+struct SettingsView {
+    saved: Settings,
+    applied: Settings,
+    /// Última vez que se pulsó «borrar rutas ahora» (ms).
+    paths_cleared_at: Option<i64>,
+}
+
+#[tauri::command]
+fn get_settings(state: State<'_, AppState>) -> Result<SettingsView, String> {
+    Ok(SettingsView {
+        saved: settings::load(&state.settings_dir),
+        applied: state.applied,
+        paths_cleared_at: state.read(|store| store.paths_cleared_at())?,
+    })
+}
+
+/// Guarda los ajustes. Se aplican al reiniciar la app (§5.4: los mods adoptan la
+/// política nueva en su siguiente `hello`).
+#[tauri::command]
+fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<Settings, String> {
+    settings::save(&state.settings_dir, &settings).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn restart_app(app: AppHandle) {
+    app.restart();
+}
+
+/// «Borrar rutas ahora» (SPEC §6.4.1). Irreversible: la interfaz pide confirmación.
+#[tauri::command]
+async fn clear_paths_now(state: State<'_, AppState>) -> Result<ClearPathsReport, String> {
+    state.pipeline.clear_paths()
+}
+
 #[tauri::command]
 fn diagnostics(state: State<'_, AppState>) -> Result<DiagnosticsView, String> {
     let mut reader = state.reader.lock().unwrap_or_else(|e| e.into_inner());
@@ -133,7 +173,7 @@ fn diagnostics(state: State<'_, AppState>) -> Result<DiagnosticsView, String> {
     let store = reader.as_ref().ok_or("sin base de datos")?;
     let now = cockpit_ingest::live::now_ms();
     let closed = cockpit_core::time::closed_before(now);
-    let purge = cockpit_core::time::local_day_minus(now, cockpit_core::PATH_DETAIL_DAYS);
+    let purge = cockpit_core::time::local_day_minus(now, state.applied.retention.path_detail_days);
     let size = |suffix: &str| {
         let mut path = state.db_path.clone().into_os_string();
         path.push(suffix);
@@ -279,7 +319,7 @@ fn record_panics(path: PathBuf) {
     }));
 }
 
-fn live_config() -> Result<LiveConfig, String> {
+fn live_config() -> Result<(LiveConfig, Settings), String> {
     let claude = home_dir().map(|h| h.join(".claude"));
     let projects_root = env_path("DEV_COCKPIT_PROJECTS_DIR")
         .or_else(|| claude.as_ref().map(|c| c.join("projects")))
@@ -295,15 +335,20 @@ fn live_config() -> Result<LiveConfig, String> {
     // El mod busca `endpoint.json` junto a la base de datos real. Con una base de
     // pruebas, el fichero queda en la carpeta de pruebas y el mod real no lo ve.
     let endpoint_path = db_path.parent().map(|dir| dir.join("endpoint.json"));
-    Ok(LiveConfig {
+    // Ajustes de privacidad y retención (§10), junto a la base de datos.
+    let settings = db_path.parent().map(settings::load).unwrap_or_default();
+    let config = LiveConfig {
         projects_root,
         sessions_dir,
         db_path,
         endpoint_path,
-        policy: PrivacyPolicy::APP_DEFAULT,
-        // A3 se puede desactivar mientras no haya ajustes en la interfaz (SPEC §8).
-        desktop_plan: std::env::var_os("DEV_COCKPIT_DISABLE_DESKTOP_PLAN").is_none(),
-    })
+        policy: settings.policy(),
+        // A3 también se puede desactivar con la variable, para las pruebas (SPEC §8).
+        desktop_plan: settings.adapters.desktop_plan
+            && std::env::var_os("DEV_COCKPIT_DISABLE_DESKTOP_PLAN").is_none(),
+        path_detail_days: settings.retention.path_detail_days,
+    };
+    Ok((config, settings))
 }
 
 fn window_is_showing(app: &AppHandle) -> bool {
@@ -345,8 +390,12 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let live = LiveState::new(move || {
         let _ = notifier.send(());
     });
-    let config = live_config()?;
+    let (config, applied) = live_config()?;
     let db_path = config.db_path.clone();
+    let settings_dir = db_path
+        .parent()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."));
     if let Some(dir) = db_path.parent() {
         record_panics(dir.join(PANICS_FILE));
     }
@@ -367,6 +416,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         db_path,
         reader: Mutex::new(None),
         pipeline,
+        settings_dir,
+        applied,
     });
 
     // Mediciones de memoria (B8, B9): publica cada segundo los PIDs del grupo propio.
@@ -450,7 +501,11 @@ pub fn run() {
             read_file_preview,
             project_map,
             diagnostics,
-            history
+            history,
+            get_settings,
+            save_settings,
+            restart_app,
+            clear_paths_now
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

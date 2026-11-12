@@ -4,12 +4,15 @@
 //! - F2: `SessionRegistryWatch` y la canalización en vivo (`live`).
 //! - F3: `HttpIngest` y el contrato del mod (`wire`).
 //! - F4a: `WorkspaceWatcher` (`workspace`, `watcher`) y `GitReader` (`git`).
+//! - F4c: escaneo del Project Map (`project_scan`).
+//! - F5: ajustes de privacidad y retención (`settings`).
 
 pub mod git;
 pub mod http;
 pub mod live;
 pub mod project_scan;
 pub mod registry;
+pub mod settings;
 pub mod tailer;
 pub mod watcher;
 pub mod wire;

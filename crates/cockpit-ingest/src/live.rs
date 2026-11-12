@@ -14,14 +14,15 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use cockpit_core::MIN_ENGINE;
 use cockpit_core::model::{EventKind, TokenUsage};
 use cockpit_core::privacy::PrivacyPolicy;
 use cockpit_core::project_map::{ManifestPrint, ProjectMap};
 use cockpit_core::tasks::TaskSource;
-use cockpit_core::time::{closed_before, local_day_minus};
-use cockpit_core::{MIN_ENGINE, PATH_DETAIL_DAYS};
+use cockpit_core::time::{closed_before, local_day, local_day_minus};
 use cockpit_store::{
-    ActivityView, Batch, CompactOptions, CompactReport, FileEventView, SessionSummary, Store,
+    ActivityView, Batch, ClearPathsReport, CompactOptions, CompactReport, FileEventView,
+    SessionSummary, Store,
 };
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
@@ -228,6 +229,14 @@ impl LiveState {
             .unwrap_or_default()
     }
 
+    /// Olvida los cambios de fichero en memoria (tras «borrar rutas ahora»): la
+    /// interfaz los vuelve a pedir a la base.
+    pub fn forget_file_events(&self) {
+        let mut inner = self.lock();
+        inner.recent_files.clear();
+        inner.pending_files.clear();
+    }
+
     pub fn workspaces(&self) -> Vec<WorkspaceView> {
         self.lock().workspaces.values().cloned().collect()
     }
@@ -335,6 +344,8 @@ pub struct LiveConfig {
     /// Adaptador A3 (`update_plan` del Desktop, esquema no publicado). Desactivado,
     /// sus operaciones se siguen registrando pero su lista no se muestra (SPEC §8).
     pub desktop_plan: bool,
+    /// `retention.path_detail_days` (§6.4.1): días de detalle de rutas. 30 por defecto (D3).
+    pub path_detail_days: u32,
 }
 
 enum Msg {
@@ -345,6 +356,8 @@ enum Msg {
     Workspace(Box<WorkspaceMsg>),
     /// Mapa recién calculado de una raíz, para la caché (§9).
     ProjectMap(Box<SavedMap>),
+    /// «Borrar rutas ahora» (§6.4.1), con la respuesta para la interfaz.
+    ClearPaths(Sender<Result<ClearPathsReport, String>>),
     Stop,
 }
 
@@ -384,7 +397,8 @@ impl LivePipeline {
         let thread = thread::Builder::new()
             .name("cockpit-live".to_owned())
             .spawn(move || {
-                let workspaces = Workspaces::new(sink, config.policy.record_paths);
+                let workspaces = Workspaces::new(sink, config.policy.record_paths)
+                    .with_path_detail_days(config.path_detail_days);
                 let mut worker = Worker {
                     config,
                     state,
@@ -422,6 +436,17 @@ impl LivePipeline {
 
 impl LivePipeline {
     /// Guarda el mapa de una raíz en la caché, a través del escritor único (§6.4).
+    /// «Borrar rutas ahora» (§6.4.1), en el escritor único. Espera su resultado.
+    pub fn clear_paths(&self) -> Result<ClearPathsReport, String> {
+        let (reply, answer) = mpsc::channel();
+        self.tx
+            .send(Msg::ClearPaths(reply))
+            .map_err(|_| "la canalización no está en marcha".to_owned())?;
+        answer
+            .recv_timeout(Duration::from_secs(120))
+            .map_err(|_| "sin respuesta de la canalización".to_owned())?
+    }
+
     pub fn save_project_map(&self, root_id: i64, map: ProjectMap, print: ManifestPrint) {
         let _ = self.tx.send(Msg::ProjectMap(Box::new(SavedMap {
             root_id,
@@ -523,6 +548,10 @@ impl Worker {
                     self.settle();
                     continue;
                 }
+                Ok(Msg::ClearPaths(reply)) => {
+                    let _ = reply.send(self.clear_paths());
+                    continue;
+                }
                 Ok(Msg::ProjectMap(saved)) => {
                     self.save_project_map(*saved);
                     continue;
@@ -537,6 +566,9 @@ impl Worker {
                             Msg::Mod(request) => self.handle_mod(request),
                             Msg::Workspace(msg) => self.handle_workspace(*msg),
                             Msg::ProjectMap(saved) => self.save_project_map(*saved),
+                            Msg::ClearPaths(reply) => {
+                                let _ = reply.send(self.clear_paths());
+                            }
                             Msg::Rescan => rescan = true,
                             Msg::Fs(path) => {
                                 if self.is_registry_path(&path) {
@@ -593,12 +625,21 @@ impl Worker {
         self.last_compaction = Some(Instant::now());
         let now = now_ms();
         let closed = closed_before(now);
-        let purge = local_day_minus(now, PATH_DETAIL_DAYS);
+        let days = self.config.path_detail_days;
+        let mut purge = local_day_minus(now, days);
+        // Tras «borrar rutas ahora», también los días hasta ese momento, en cuanto
+        // estén agregados.
+        if let Ok(Some(at)) = self.store.paths_cleared_at() {
+            let floor = local_day(at + 86_400_000);
+            if floor > purge {
+                purge = floor;
+            }
+        }
         self.store
             .compact(&CompactOptions {
                 closed_before: &closed,
                 purge_before: &purge,
-                errors_before_ms: now - i64::from(PATH_DETAIL_DAYS) * 86_400_000,
+                errors_before_ms: now - i64::from(days) * 86_400_000,
                 now_ms: now,
             })
             .ok()
@@ -961,7 +1002,7 @@ impl Worker {
                 accepted_schemas: [SCHEMA],
             },
             privacy: PrivacyWire {
-                policy_id: "app-default-1",
+                policy_id: policy_id(&policy),
                 capture_task_titles: policy.capture_task_titles,
                 record_paths: policy.record_paths,
                 capture_shell_program: policy.capture_shell_program,
@@ -1022,10 +1063,35 @@ impl Worker {
     }
 
     /// Retira las sesiones sin proceso vivo y sin actividad reciente.
+    /// «Borrar rutas ahora» (§6.4.1). Después se vuelven a publicar las sesiones
+    /// (sus herramientas ya no llevan ruta) y se olvidan los cambios en memoria.
+    fn clear_paths(&mut self) -> Result<ClearPathsReport, String> {
+        self.last_compaction = Some(Instant::now());
+        let now = now_ms();
+        let report = self
+            .store
+            .clear_paths_now(&closed_before(now), now)
+            .map_err(|e| e.to_string())?;
+        self.state.forget_file_events();
+        self.prune();
+        Ok(report)
+    }
+
     fn prune(&mut self) {
         let ids: BTreeSet<String> = self.state.session_ids().into_iter().collect();
         self.refresh(&ids);
     }
+}
+
+/// Id de la política: `app-1-` y un bit por ajuste (títulos, programa, rutas).
+fn policy_id(policy: &PrivacyPolicy) -> String {
+    let bit = |on: bool| if on { '1' } else { '0' };
+    format!(
+        "app-1-{}{}{}",
+        bit(policy.capture_task_titles),
+        bit(policy.capture_shell_program),
+        bit(policy.record_paths)
+    )
 }
 
 fn placeholder(entry: &RegistryEntry, policy: PrivacyPolicy, now: i64) -> SessionSummary {
@@ -1210,6 +1276,7 @@ mod tests {
                 endpoint_path: None,
                 policy: PrivacyPolicy::APP_DEFAULT,
                 desktop_plan: true,
+                path_detail_days: cockpit_core::PATH_DETAIL_DAYS,
             },
             state.clone(),
         )
@@ -1279,6 +1346,7 @@ mod tests {
                 endpoint_path: None,
                 policy: PrivacyPolicy::APP_DEFAULT,
                 desktop_plan: true,
+                path_detail_days: cockpit_core::PATH_DETAIL_DAYS,
             },
             LiveState::new(|| {}),
         )
@@ -1301,5 +1369,32 @@ mod tests {
             (cached.map, cached.print, cached.stale),
             (map, print, false)
         );
+    }
+
+    #[test]
+    fn clearing_paths_goes_through_the_single_writer() {
+        let dir = tempfile::tempdir().unwrap();
+        let projects = dir.path().join("projects");
+        fs::create_dir_all(&projects).unwrap();
+        let db = dir.path().join("cockpit.db");
+        let pipeline = LivePipeline::spawn(
+            LiveConfig {
+                projects_root: projects,
+                sessions_dir: None,
+                db_path: db.clone(),
+                endpoint_path: None,
+                policy: PrivacyPolicy::APP_DEFAULT,
+                desktop_plan: true,
+                path_detail_days: cockpit_core::PATH_DETAIL_DAYS,
+            },
+            LiveState::new(|| {}),
+        )
+        .unwrap();
+        let before = now_ms();
+        let report = pipeline.clear_paths().unwrap();
+        assert_eq!(report.file_events_pending, 0);
+        let reader = Store::open_read_only(&db).unwrap();
+        let at = reader.paths_cleared_at().unwrap().unwrap();
+        assert!(at >= before, "{at} < {before}");
     }
 }

@@ -123,6 +123,7 @@ fn hello_then_events_is_idempotent_and_feeds_the_live_state() {
             endpoint_path: Some(dir.path().join("endpoint.json")),
             policy: PrivacyPolicy::APP_DEFAULT,
             desktop_plan: true,
+            path_detail_days: cockpit_core::PATH_DETAIL_DAYS,
         },
         state.clone(),
     )
@@ -274,6 +275,7 @@ fn task_ops_and_agents_reach_the_session_view() {
             endpoint_path: Some(dir.path().join("endpoint.json")),
             policy: PrivacyPolicy::APP_DEFAULT,
             desktop_plan: true,
+            path_detail_days: cockpit_core::PATH_DETAIL_DAYS,
         },
         state.clone(),
     )

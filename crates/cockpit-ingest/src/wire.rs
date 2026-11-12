@@ -337,7 +337,8 @@ pub struct ServerInfo {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PrivacyWire {
-    pub policy_id: &'static str,
+    /// Identifica la política en vigor: cambia si cambian los ajustes (§10).
+    pub policy_id: String,
     pub capture_task_titles: bool,
     pub record_paths: bool,
     pub capture_shell_program: bool,
