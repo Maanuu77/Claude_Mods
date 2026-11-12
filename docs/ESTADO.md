@@ -35,11 +35,11 @@ Están en [`DEVELOPMENT_WORKFLOW.md`](DEVELOPMENT_WORKFLOW.md) (W1–W11). Las q
 | F2 shell Tauri y vista En vivo | Hecha y fusionada | `src-tauri/`, `src/` |
 | F3 mod puente | Hecha y fusionada | `mods/dev-cockpit-bridge`, `crates/cockpit-ingest/src/http.rs`, `wire.rs` |
 | F4a Workspace Watcher | Hecha y fusionada | `crates/cockpit-ingest/src/{git,watcher,workspace}.rs`, `cockpit-core/src/attribution.rs`, `cockpit-store/src/{compact,workspace}.rs`, `src/changes/` |
-| **F4b Task Monitor** | **En curso:** código, G6, prueba en la app, P1 y P2 hechos; faltan decisiones del usuario (ver «Siguiente paso») | rama `feature/f4b-task-monitor`; `crates/cockpit-core/src/tasks.rs`, `cockpit-store/src/tasks.rs`, `src/tasks/` |
-| F4c Project Map | **En curso** en `feature/f4c-project-map` (sale de `main`, sin F4b): mapa, histórico, diagnóstico y grafo G8 hechos; falta la caché persistente del mapa (migración 5, después de fusionar F4b) | `cockpit-core/src/project_map.rs`, `cockpit-ingest/src/project_scan.rs`, `cockpit-store/src/{diagnostics,history}.rs`, `src/{map,history,diag}/`; informe `docs/perf/2026-11-12-f4c.md` en esa rama |
+| F4b Task Monitor | Hecha y fusionada (desviaciones del criterio aceptadas por el usuario) | `crates/cockpit-core/src/tasks.rs`, `cockpit-store/src/tasks.rs`, `src/tasks/` |
+| **F4c Project Map** | **En curso** en `feature/f4c-project-map`: mapa, histórico, diagnóstico y grafo G8 hechos; falta la caché persistente del mapa (migración 5) | `cockpit-core/src/project_map.rs`, `cockpit-ingest/src/project_scan.rs`, `cockpit-store/src/{diagnostics,history}.rs`, `src/{map,history,diag}/`; informe `docs/perf/2026-11-12-f4c.md` en esa rama |
 | F5 endurecimiento | Sin empezar | — |
 
-`main` contiene la fusión de F4a (`git log --merges -1 main`). La calibración de G5 (SPEC §7.3) la aceptó el usuario el 2026-11-12.
+`main` contiene la fusión de F4b (`git log --merges -1 main`). La calibración de G5 (SPEC §7.3) y las desviaciones del criterio de F4b las aceptó el usuario el 2026-11-12.
 
 ## F3: lo que está hecho
 
@@ -97,7 +97,7 @@ Resultados en [`perf/2026-11-12-f4a.md`](perf/2026-11-12-f4a.md):
 
 ## F4b: lo que está hecho (2026-11-12)
 
-Commits en `feature/f4b-task-monitor`: `b25f4f9` (núcleo, store, contrato y G6), `05290dc` (mod y vista «Tareas») y `2b17f4a` (relectura del historial).
+Commits en `feature/f4b-task-monitor`: `b25f4f9` (núcleo, store, contrato y G6), `05290dc` (mod y vista «Tareas»), `2b17f4a` (relectura del historial), `9128595` (`session-owner`) y los de documentación de P1 y P2.
 
 - **Adaptadores** (`cockpit-core/src/tasks.rs`): A1 `TaskCreate`/`TaskUpdate` y hooks `TaskCreated`/`TaskCompleted`, A2 `TodoWrite`, A3 `update_plan` del Desktop (desactivable con `DEV_COCKPIT_DISABLE_DESKTOP_PLAN`) y A4 subagentes. Cada llamada es una operación idempotente; el estado de una lista es su reproducción ordenada, así que el mod y el transcript pueden entregar la misma en cualquier orden. Solo se leen los campos de §10; los títulos, truncados a 120 caracteres (D1). Una forma inesperada es deriva, nunca una suposición.
 - **Store:** migración 4 (`task_ops`, `tasks`, `agents`, `file_offsets.parser_version`) y vistas por sesión de tareas, subagentes y actividad.
@@ -111,19 +111,17 @@ Resultados en [`perf/2026-11-12-f4b.md`](perf/2026-11-12-f4b.md):
 | Criterio | Resultado |
 |---|---|
 | **G6** | **resuelta: sí.** 521 de 521 estados comprobables coinciden con lo que respondió el Desktop (2.1.299–2.1.321, fixtures anonimizados) |
-| Tests | 147 en verde; fmt, clippy, typecheck, lint y `tsc` del mod contra 2.1.289/2.1.317/2.1.321 sin avisos |
+| Tests | 148 en verde antes de fusionar; fmt, clippy, typecheck, lint y `tsc` del mod contra 2.1.289/2.1.317/2.1.321 sin avisos |
 | Prueba en la app (copia de la base) | 162 ficheros releídos; 567 operaciones (526 `update_plan`, 35 `TodoWrite`, 6 `TaskCreate`), 155 tareas, 99 subagentes; actualización en directo solo con el transcript |
 | `claude plugin validate/test` con los tests nuevos | **pasan:** 10/10 en CLI 2.1.289 y Desktop 2.1.321 (autorizado) |
-| E2E con el mod en los motores | **pasa con `TaskCreate`/`TaskUpdate`** (repetido a las 22:32, autorizado): en CLI 2.1.289 y Desktop 2.1.321, 5 operaciones por sesión, todas de mod + transcript, sin duplicados, y la lista reconstruida correcta. Sin rutas ni títulos antes del handshake. **`TodoWrite` no se pudo probar en vivo:** los motores no la ofrecen junto a las herramientas de tareas. `update_plan` con el mod: desviación pendiente de aprobar |
+| E2E con el mod en los motores | **pasa con `TaskCreate`/`TaskUpdate`** (repetido a las 22:32, autorizado): en CLI 2.1.289 y Desktop 2.1.321, 5 operaciones por sesión, todas de mod + transcript, sin duplicados, y la lista reconstruida correcta. Sin rutas ni títulos antes del handshake. **`TodoWrite` no se pudo probar en vivo:** los motores no la ofrecen junto a las herramientas de tareas. Esa desviación y la de `update_plan` con el mod las **aceptó el usuario** (2026-11-12) |
 | Base real | migrada a la versión 4 y releída; **copia previa** en `%APPDATA%\dev-cockpit\backups\pre-f4b-2026-11-12\` |
 
 ## Siguiente paso
 
-Cerrar **F4b**. P2 ya está hecho. Faltan decisiones del usuario:
-1. **Aprobar las desviaciones del criterio de F4b** («E2E con `TodoWrite` y `update_plan`», SPEC §15): `update_plan` con el mod no se puede probar sin tocar `~/.claude`, y `TodoWrite` no se ofrece junto a las herramientas de tareas. Las dos quedan cubiertas por `plugin test` y por el historial real. La alternativa para `TodoWrite` es una sesión `-p` sin `TaskCreate`/`TaskUpdate`, que necesita autorización aparte (W11).
-2. **Decidir qué hacer con los hooks `classic.TaskCreated`/`TaskCompleted`:** son redundantes con `TaskCreate`/`TaskUpdate`, y en el Desktop el motor los salta y avisa al modelo cada vez. Quitarlos del mod es una desviación de §5.2.
+**F4c, Project Map:** traer `main` a `feature/f4c-project-map`, añadir la caché persistente del mapa (migración 5: `project_components` y `project_deps`, SPEC §9), probarla y cerrar F4c.
 
-Después, fusionar F4b, traer `main` a `feature/f4c-project-map`, añadir la caché persistente del mapa (migración 5) y cerrar F4c.
+Decisión pendiente del usuario: **qué hacer con los hooks `classic.TaskCreated`/`TaskCompleted` del mod.** Son redundantes con `TaskCreate`/`TaskUpdate`, y en el Desktop el motor los salta y avisa al modelo cada vez. Quitarlos es una desviación de §5.2. Mientras no decida, se quedan.
 
 ## Hallazgos que afectan a fases futuras
 
