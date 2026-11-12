@@ -7,7 +7,7 @@ use cockpit_core::model::{RateLimit, TokenUsage};
 use rusqlite::{OptionalExtension, params};
 use serde::Serialize;
 
-use crate::{Result, Store};
+use crate::{ActivityView, AgentView, Result, Store, TaskListView};
 
 /// Herramientas recientes que se devuelven por sesión.
 const RECENT_TOOLS: i64 = 12;
@@ -58,6 +58,11 @@ pub struct SessionSummary {
     pub usage_snapshot: Option<UsageView>,
     pub running_tools: Vec<ToolView>,
     pub recent_tools: Vec<ToolView>,
+    /// Listas declaradas (Task Monitor, SPEC §8). Vacío = «sin lista de tareas declarada».
+    pub tasks: Vec<TaskListView>,
+    pub agents: Vec<AgentView>,
+    /// Herramientas por minuto: actividad, no progreso.
+    pub activity: ActivityView,
 }
 
 fn tool_view(r: &rusqlite::Row<'_>) -> rusqlite::Result<ToolView> {
@@ -176,6 +181,10 @@ impl Store {
             ))?
             .query_map(params![id, RECENT_TOOLS], tool_view)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
+        let tasks = self.session_tasks(id)?;
+        let agents = self.session_agents(id)?;
+        // La ventana de actividad acaba en la última actividad conocida de la sesión.
+        let activity = self.session_activity(id, last_seen_at)?;
 
         Ok(Some(SessionSummary {
             id: id.to_owned(),
@@ -194,6 +203,9 @@ impl Store {
             usage_snapshot,
             running_tools,
             recent_tools,
+            tasks,
+            agents,
+            activity,
         }))
     }
 

@@ -13,7 +13,10 @@ const TRAP = 'SECRETO-TRAMPA'
 type Sent = { path: string; token: string; body: any } // eslint-disable-line @typescript-eslint/no-explicit-any
 
 /** Una app de mentira y el mundo mínimo que necesita el mod. */
-function world(on: On, options: { isAppOpen: boolean; engine?: string; isSupported?: boolean }) {
+function world(
+  on: On,
+  options: { isAppOpen: boolean; engine?: string; isSupported?: boolean; agents?: () => unknown[] },
+) {
   const app = {
     isOpen: options.isAppOpen,
     token: 'token-1',
@@ -33,7 +36,8 @@ function world(on: On, options: { isAppOpen: boolean; engine?: string; isSupport
   on('session.usage', () => ({
     value: { startedAt: 0, context: { window: 200_000, tokens: 86_000, percent: 43 }, rateLimits: [], cost: { usd: 1.25 } },
   }))
-  on('agent.list', () => ({ value: [] }))
+  // Un motor solo admite un hook por evento en el test: la lista la da la opción.
+  on('agent.list', () => ({ value: (options.agents?.() ?? []) as never }))
   on('command.register', () => ({ value: { command: 'cockpit' } }))
   on('ui.status', (_$, e) => {
     app.status.push(e.text)
@@ -325,5 +329,89 @@ test('G3: un veredicto `ask` de tool.check marca la espera, sin decidir nada', a
   // El mod no decide: las dos herramientas corren y el veredicto sube como lo dio el motor.
   expect(app.events().filter(e => e.kind === 'tool_finished').map(e => e.status)).toEqual(['ok', 'ok'])
   for (const [i, verdict] of verdicts.entries()) expect(verdict.decision).toBe(i === 0 ? 'ask' : 'allow')
+  expect(JSON.stringify(app.sent).includes(TRAP)).toBe(false)
+})
+
+test('Task Monitor: cada herramienta de tareas declara su operación, sin títulos antes del hello', async ($, on) => {
+  const { app, clock } = world(on, { isAppOpen: false })
+  on('tool.call', (_$, e) => {
+    if (e.tool === 'TaskCreate') return { result: { task: { id: '7', subject: 'Revisar la SPEC' } } }
+    if (e.tool === 'TodoWrite' && (e as { fail?: boolean }).fail) return { result: {}, isError: true as const }
+    return { result: {} }
+  })
+  await $.session.start(START)
+  await clock.settle()
+
+  // Antes del primer `hello`: la operación sale, pero sin títulos.
+  await $.tool.call({ tool: 'TodoWrite', todos: [{ content: 'Leer', status: 'in_progress', activeForm: TRAP }] })
+  app.isOpen = true
+  await clock.advance(15_000)
+  const before = app.events().filter(e => e.kind === 'task_op')
+  expect(before.map(e => [e.source, e.op])).toEqual([['todo_write', { type: 'replace', items: [{ status: 'in_progress' }] }]])
+
+  // Con la política de la app: títulos de 120 caracteres en una línea.
+  await $.tool.call({ tool: 'TaskCreate', subject: 'Revisar la SPEC', description: TRAP, activeForm: TRAP })
+  await $.tool.call({ tool: 'TaskUpdate', taskId: '7', status: 'in_progress', owner: 'ana', addBlockedBy: ['3', 'no válido'], description: TRAP, metadata: { k: TRAP } })
+  await $.tool.call({ tool: 'mcp__ccd_turn__update_plan', items: [{ content: `Paso\nlargo ${'x'.repeat(200)}`, status: 'in_progress' }, { content: 'Dos', status: 'pending' }], scope: 'continuation' })
+  await $.tool.call({ tool: 'mcp__ccd_turn__update_plan', advance: true })
+  await $.tool.call({ tool: 'mcp__ccd_turn__update_plan', done: [1, 2], start: 3 })
+  // No declaran nada: un subagente, una llamada fallida y un esquema desconocido.
+  await $.tool.call({ tool: 'TodoWrite', agentId: 'agente-1', todos: [{ content: 'x', status: 'pending' }] } as never)
+  await $.tool.call({ tool: 'TodoWrite', fail: true, todos: [{ content: 'x', status: 'pending' }] } as never)
+  await $.tool.call({ tool: 'mcp__ccd_turn__update_plan', advance: true, mode: 'nuevo' } as never)
+  await clock.advance(100)
+
+  const ops = app.events().filter(e => e.kind === 'task_op').slice(1)
+  expect(ops.map(e => [e.source, e.op.type])).toEqual([
+    ['task_tools', 'create'],
+    ['task_tools', 'update'],
+    ['desktop_plan', 'replace'],
+    ['desktop_plan', 'advance'],
+    ['desktop_plan', 'mark'],
+  ])
+  expect(ops[0].op).toEqual({ type: 'create', task_id: '7', subject: 'Revisar la SPEC' })
+  expect(ops[1].op).toEqual({ type: 'update', task_id: '7', status: 'in_progress', owner: 'ana', blocked_by: ['3'] })
+  expect(ops[2].op.items[0].subject.length).toBe(120)
+  expect(ops[2].op.items[0].subject.startsWith('Paso largo')).toBe(true)
+  expect(ops[4].op).toEqual({ type: 'mark', done: [1, 2], start: 3 })
+  // Cada operación de una herramienta lleva su `tool_use_id`, que la deduplica con el transcript.
+  expect(ops.every(e => typeof e.tool_use_id === 'string')).toBe(true)
+  expect(JSON.stringify(app.sent).includes(TRAP)).toBe(false)
+})
+
+test('Task Monitor: hooks de tareas y subagentes, y la lista de agentes solo cuando cambia', async ($, on) => {
+  let agents: Array<{ id: string; type: string; status: string; parentId?: string; description: string }> = []
+  const { app, clock } = world(on, { isAppOpen: true, agents: () => agents })
+  on('classic.TaskCreated', () => ({}))
+  on('classic.TaskCompleted', () => ({}))
+  on('classic.SubagentStart', () => ({}))
+  on('classic.SubagentStop', () => ({}))
+  on('turn.start', (_$, e) => e as never)
+  await $.session.start(START)
+  await clock.settle()
+
+  await $.classic.TaskCreated({ task_id: '1', task_subject: 'Escribir el adaptador', task_description: TRAP } as never)
+  await $.classic.TaskCompleted({ task_id: '1', task_subject: 'Escribir el adaptador' } as never)
+  agents = [{ id: 'a1', type: 'Explore', status: 'running', description: TRAP }]
+  await $.classic.SubagentStart({ agent_id: 'a1', agent_type: 'Explore' } as never)
+  await clock.advance(100)
+  // Sin cambios en la lista, no se repite.
+  await $.turn.start({ turnId: 't1', agentId: 'a1' } as never)
+  await clock.advance(100)
+  agents = []
+  await $.classic.SubagentStop({ agent_id: 'a1', agent_type: 'Explore', agent_transcript_path: TRAP, stop_hook_active: false } as never)
+  await clock.advance(100)
+
+  const ops = app.events().filter(e => e.kind === 'task_op')
+  expect(ops.map(e => e.op)).toEqual([
+    { type: 'create', task_id: '1', subject: 'Escribir el adaptador' },
+    { type: 'complete', task_id: '1' },
+  ])
+  const lists = app.events().filter(e => e.kind === 'agents').map(e => e.agents)
+  expect(lists).toEqual([
+    [{ id: 'a1', type: 'Explore', status: 'running' }],
+    // El motor ya lo ha soltado: queda lo que dijo el hook.
+    [{ id: 'a1', type: 'Explore', status: 'completed' }],
+  ])
   expect(JSON.stringify(app.sent).includes(TRAP)).toBe(false)
 })

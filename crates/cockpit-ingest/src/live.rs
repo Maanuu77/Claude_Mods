@@ -16,20 +16,24 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use cockpit_core::model::{EventKind, TokenUsage};
 use cockpit_core::privacy::PrivacyPolicy;
+use cockpit_core::tasks::TaskSource;
 use cockpit_core::time::{closed_before, local_day_minus};
 use cockpit_core::{MIN_ENGINE, PATH_DETAIL_DAYS};
-use cockpit_store::{Batch, CompactOptions, CompactReport, FileEventView, SessionSummary, Store};
+use cockpit_store::{
+    ActivityView, Batch, CompactOptions, CompactReport, FileEventView, SessionSummary, Store,
+};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 
 use crate::http::{APP_VERSION, EventsOutcome, HttpIngest, ModRequest, Submit};
 use crate::registry::{Liveness, PidProbe, RegistryEntry, read_registry};
 use crate::tailer::{
-    IngestFailure, IngestStats, TranscriptFile, ingest_file, ingest_tree, scan_transcripts,
+    IngestFailure, IngestStats, TranscriptFile, ingest_file, ingest_tree, is_subagent_meta,
+    scan_transcripts, subagent_meta_event,
 };
 use crate::wire::{
     Ack, EventsRequest, HelloRequest, HelloResponse, PrivacyWire, SCHEMA, ServerInfo, SessionKnown,
-    mod_event, to_event, tool_meta, usage_event, version_at_least,
+    agent_event, mod_event, to_events, tool_meta, usage_event, version_at_least,
 };
 use crate::workspace::{Sink, WorkspaceMsg, WorkspacePublisher, WorkspaceView, Workspaces};
 
@@ -327,6 +331,9 @@ pub struct LiveConfig {
     /// `%APPDATA%\dev-cockpit\endpoint.json`. `None` desactiva `HttpIngest`.
     pub endpoint_path: Option<PathBuf>,
     pub policy: PrivacyPolicy,
+    /// Adaptador A3 (`update_plan` del Desktop, esquema no publicado). Desactivado,
+    /// sus operaciones se siguen registrando pero su lista no se muestra (SPEC §8).
+    pub desktop_plan: bool,
 }
 
 enum Msg {
@@ -350,7 +357,14 @@ impl LivePipeline {
         if let Some(dir) = config.db_path.parent() {
             std::fs::create_dir_all(dir)?;
         }
-        let store = Store::open(&config.db_path).map_err(io::Error::other)?;
+        let mut store = Store::open(&config.db_path).map_err(io::Error::other)?;
+        if !config.desktop_plan {
+            store.set_disabled_task_sources(&[TaskSource::DesktopPlan]);
+        }
+        if !config.policy.capture_task_titles {
+            // Sin títulos, tampoco los ya guardados (SPEC §10).
+            store.clear_task_subjects().map_err(io::Error::other)?;
+        }
         let (tx, rx) = mpsc::channel();
         let watcher = start_watcher(&config, tx.clone());
         let endpoint_path = config.endpoint_path.clone();
@@ -474,6 +488,7 @@ impl Worker {
                 wait = wait.min(Duration::from_millis(left));
             }
             let mut transcripts = BTreeSet::new();
+            let mut metas = BTreeSet::new();
             let mut registry_changed = false;
             let mut rescan = false;
             match rx.recv_timeout(wait) {
@@ -503,6 +518,8 @@ impl Worker {
                                     registry_changed = true;
                                 } else if path.extension().is_some_and(|e| e == "jsonl") {
                                     transcripts.insert(path);
+                                } else if is_subagent_meta(&path) {
+                                    metas.insert(path);
                                 }
                             }
                         }
@@ -526,6 +543,9 @@ impl Worker {
             }
             if !transcripts.is_empty() {
                 self.ingest_paths(&transcripts);
+            }
+            if !metas.is_empty() {
+                self.ingest_subagent_metas(&metas);
             }
             if registry_changed || now.duration_since(last_pid_check) >= PID_CHECK {
                 last_pid_check = now;
@@ -706,6 +726,30 @@ impl Worker {
         self.after_ingest(&stats);
     }
 
+    /// Un `.meta.json` de subagente cambia al terminar este (`finished`, A4).
+    fn ingest_subagent_metas(&mut self, paths: &BTreeSet<PathBuf>) {
+        let now = now_ms();
+        let events: Vec<_> = paths
+            .iter()
+            .filter_map(|p| subagent_meta_event(p, now))
+            .collect();
+        if events.is_empty() {
+            return;
+        }
+        let applied = self.store.apply(&Batch {
+            events: &events,
+            now_ms: now,
+            ..Default::default()
+        });
+        if applied.is_ok() {
+            let stats = IngestStats {
+                touched_sessions: events.iter().map(|e| e.session_id.clone()).collect(),
+                ..Default::default()
+            };
+            self.after_ingest(&stats);
+        }
+    }
+
     fn after_ingest(&mut self, stats: &IngestStats) {
         // Solo interesan las sesiones vivas o con actividad reciente.
         let cutoff = now_ms() - RECENT_SESSION_MS;
@@ -833,6 +877,14 @@ impl Worker {
             if let Some(usage) = &hello.snapshot.usage {
                 events.push(mod_event(session_id, None, now, None, usage_event(usage)));
             }
+            // `agents` se fusiona por id (SPEC §6.2.1).
+            events.extend(
+                hello
+                    .snapshot
+                    .agents
+                    .iter()
+                    .filter_map(|a| agent_event(session_id, now, a)),
+            );
             for tool in &hello.snapshot.running_tools {
                 events.push(mod_event(
                     session_id,
@@ -908,7 +960,7 @@ impl Worker {
         if !fresh.is_empty() {
             let events: Vec<_> = fresh
                 .iter()
-                .map(|e| to_event(&request.session_id, e, &self.config.policy))
+                .flat_map(|e| to_events(&request.session_id, e, &self.config.policy))
                 .collect();
             let applied = self.store.apply(&Batch {
                 events: &events,
@@ -962,6 +1014,9 @@ fn placeholder(entry: &RegistryEntry, policy: PrivacyPolicy, now: i64) -> Sessio
         usage_snapshot: None,
         running_tools: Vec::new(),
         recent_tools: Vec::new(),
+        tasks: Vec::new(),
+        agents: Vec::new(),
+        activity: ActivityView::default(),
     }
 }
 
@@ -1121,6 +1176,7 @@ mod tests {
                 db_path: dir.path().join("db").join("cockpit.db"),
                 endpoint_path: None,
                 policy: PrivacyPolicy::APP_DEFAULT,
+                desktop_plan: true,
             },
             state.clone(),
         )

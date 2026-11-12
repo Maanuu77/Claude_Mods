@@ -7,6 +7,7 @@ import { connectLive, sortSessions, useLive } from "./live/store";
 import { DiagnosticsView } from "./diag/DiagnosticsView";
 import { HistoryView } from "./history/HistoryView";
 import { ProjectMapView } from "./map/ProjectMapView";
+import { TaskMonitor } from "./tasks/TaskMonitor";
 
 /** Reloj local para los tiempos transcurridos. Se para con la ventana oculta. */
 function useNow(active: boolean): number {
@@ -27,7 +28,7 @@ function useNow(active: boolean): number {
   return now;
 }
 
-type Tab = "live" | "changes" | "map" | "history" | "diag";
+type Tab = "live" | "tasks" | "changes" | "map" | "history" | "diag";
 
 function App() {
   const { connected, error, sessions, backfill, workspaces } = useLive();
@@ -50,6 +51,9 @@ function App() {
         <nav className="tabs" aria-label="Vistas">
           <button type="button" className={tab === "live" ? "tab tab-on" : "tab"} onClick={() => setTab("live")}>
             En vivo
+          </button>
+          <button type="button" className={tab === "tasks" ? "tab tab-on" : "tab"} onClick={() => setTab("tasks")}>
+            Tareas
           </button>
           <button
             type="button"
@@ -91,6 +95,8 @@ function App() {
 
       {tab === "changes" ? (
         <ChangesView now={now} />
+      ) : tab === "tasks" ? (
+        <TaskMonitor now={now} />
       ) : tab === "map" ? (
         <ProjectMapView now={now} />
       ) : tab === "history" ? (

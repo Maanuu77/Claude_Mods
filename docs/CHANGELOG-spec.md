@@ -15,6 +15,19 @@ No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-12-f4c.md
 
   La lista de componentes que hay junto al grafo es su alternativa en texto.
 
+## Cierre de F4b: Task Monitor, G6 y desviaciones aceptadas (2026-11-12)
+
+No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-12-f4b.md`](perf/2026-11-12-f4b.md).
+
+- **G6 resuelta: sí.** Las tres formas de `update_plan` (`items`, `advance` y `done`/`start`) son estables entre Desktop 2.1.299 y 2.1.321: 521 de 521 estados comprobables coinciden. Cualquier otra forma es deriva y no se aplica. A3 se puede desactivar con `DEV_COCKPIT_DISABLE_DESKTOP_PLAN`. (SPEC §8, §13.2)
+- **Operaciones idempotentes:** cada llamada de un adaptador es una operación con clave `(session_id, op_key)`, y el estado de una lista es su reproducción ordenada. Así el mod y el transcript pueden entregar la misma operación en cualquier orden sin duplicarla. Concreta la identidad `(session_id, source, task_id)` de §3 y §6.3.
+- **Relectura del historial:** `file_offsets` guarda la versión del parser (`parser_version`, migración 4). Un fichero leído con una versión anterior se relee, pero de la parte ya ingerida solo se aplican los eventos nuevos, sin recuperar rutas purgadas (D3). (SPEC §6.1)
+- **Tipo de línea `session-owner`:** se ignora sin leer sus campos, que son identificadores de cuenta. (SPEC §6.1, §10)
+- **Desviaciones del criterio de F4b («E2E con `TodoWrite` y `update_plan`»), aceptadas por el usuario (2026-11-12):**
+  - `update_plan` con el mod no se prueba en vivo: la herramienta solo existe en la app de escritorio, y cargar el mod allí exige tocar `~/.claude/settings.json`. Lo cubren `plugin test` con las tres formas y el transcript real.
+  - `TodoWrite` no se prueba en vivo con el mod: CLI 2.1.289 y Desktop 2.1.321 no la ofrecen en una sesión que tiene `TaskCreate`/`TaskUpdate`. La cubren `plugin test` y las 35 listas reales del historial. El E2E con el mod sí pasa con `TaskCreate`/`TaskUpdate` en los dos motores.
+- **Pendiente de decidir:** en Desktop 2.1.321, el motor salta los hooks `classic.TaskCreated`/`TaskCompleted` del mod porque otro plugin del entorno de escritorio se ejecuta antes, y avisa al modelo cada vez. Son redundantes con `TaskCreate`/`TaskUpdate`. Quitarlos sería una desviación de §5.2.
+
 ## Precisiones de F4a: Workspace Watcher (2026-11-12)
 
 No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-12-f4a.md`](perf/2026-11-12-f4a.md).

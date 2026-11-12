@@ -250,6 +250,8 @@ fn live_config() -> Result<LiveConfig, String> {
         db_path,
         endpoint_path,
         policy: PrivacyPolicy::APP_DEFAULT,
+        // A3 se puede desactivar mientras no haya ajustes en la interfaz (SPEC §8).
+        desktop_plan: std::env::var_os("DEV_COCKPIT_DISABLE_DESKTOP_PLAN").is_none(),
     })
 }
 

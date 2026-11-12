@@ -164,6 +164,7 @@ fn file_changes_are_attributed_and_git_state_is_published() {
             db_path: db_dir.join("cockpit.db"),
             endpoint_path: Some(db_dir.join("endpoint.json")),
             policy: PrivacyPolicy::APP_DEFAULT,
+            desktop_plan: true,
         },
         state.clone(),
     )
