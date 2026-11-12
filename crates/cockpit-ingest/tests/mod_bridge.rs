@@ -192,9 +192,58 @@ fn hello_then_events_is_idempotent_and_feeds_the_live_state() {
     );
     assert!(usage.rate_limits.is_empty());
 
+    // G3: una herramienta en curso pasa a esperar permiso, vuelve y termina.
+    let send = |seq: i64, event: &str| {
+        let body = format!(
+            r#"{{"schema":1,"instance_id":"{INSTANCE}","session_id":"{SESSION}","events":[
+                {{"seq":{seq},"t":{now},"tool_use_id":"toolu_wait",{event}}}]}}"#
+        );
+        assert_eq!(client.post("/v1/events", &body).0, 200);
+        session(&state).unwrap().summary
+    };
+    let running = |summary: &cockpit_store::SessionSummary| -> Vec<String> {
+        summary
+            .running_tools
+            .iter()
+            .map(|t| t.status.clone())
+            .collect()
+    };
+    assert_eq!(
+        running(&send(6, r#""kind":"tool_started","tool":"Write""#)),
+        ["running"]
+    );
+    assert_eq!(
+        running(&send(7, r#""kind":"permission_requested""#)),
+        ["awaiting_permission"]
+    );
+    assert_eq!(
+        running(&send(8, r#""kind":"permission_resolved""#)),
+        ["running"]
+    );
+    assert_eq!(
+        running(&send(9, r#""kind":"permission_requested""#)),
+        ["awaiting_permission"]
+    );
+    let done = send(10, r#""kind":"tool_finished","status":"ok""#);
+    assert!(done.running_tools.is_empty());
+    assert_eq!(
+        done.recent_tools
+            .iter()
+            .find(|t| t.tool == "Write")
+            .unwrap()
+            .status,
+        "ok"
+    );
+    // Un permiso que llega tarde no reabre una herramienta terminada.
+    assert!(
+        send(11, r#""kind":"permission_requested""#)
+            .running_tools
+            .is_empty()
+    );
+
     // Un `hello` repetido devuelve la marca de agua y no reabre nada.
     let (_, again) = client.post("/v1/hello", &hello("2.1.321", 2, now));
-    assert_eq!(again["events"]["ack_seq"], 5);
+    assert_eq!(again["events"]["ack_seq"], 11);
     assert_eq!(again["session"]["known"], true);
     assert!(session(&state).unwrap().summary.running_tools.is_empty());
 

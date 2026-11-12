@@ -63,12 +63,14 @@ fn perf_enabled(state: State<'_, AppState>) -> bool {
 
 /// Registra una latencia transcript → pintado, solo durante las mediciones de B4.
 #[tauri::command]
-fn perf_mark(state: State<'_, AppState>, event_ts_ms: i64, painted_ts_ms: i64) {
+fn perf_mark(state: State<'_, AppState>, kind: String, event_ts_ms: i64, painted_ts_ms: i64) {
     let Some(path) = &state.perf_log else { return };
+    // `tool`: una herramienta nueva (B3). `other`: cualquier otro cambio (B4).
+    let kind = if kind == "tool" { "tool" } else { "other" };
     if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
         let _ = writeln!(
             file,
-            "{event_ts_ms},{painted_ts_ms},{}",
+            "{event_ts_ms},{painted_ts_ms},{},{kind}",
             painted_ts_ms - event_ts_ms
         );
     }

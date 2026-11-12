@@ -224,7 +224,7 @@ on('tool.call', async ($, e, next) => {
 - **«Trabajando» visible al instante:** la UI pinta la herramienta en estado *running* con `ToolStarted` y calcula el tiempo transcurrido en local (rAF, solo con la ventana visible). No pide nada a Rust.
 - **Herramientas huérfanas** (hay `started` pero no llega `finished` por un reload del mod o un cierre): las cierra el `tool_result` del transcript, o `session.end` las marca como `unknown`.
 - **Llamadas en paralelo:** cada una se identifica por su propio `tool_use_id`.
-- **[EXP] G3:** hay que comprobar si el tiempo que `tool.call` pasa en `next` incluye la espera del diálogo de permisos. Si la incluye, se añade el estado `awaiting_permission` observando `classic.PermissionRequest` (sin responder).
+- **G3, resuelta en F3:** el tiempo que `tool.call` pasa en `next` incluye la espera del diálogo de permisos. El estado `awaiting_permission` se marca cuando `tool.check` da el veredicto `ask` para esa llamada: el mod lee el veredicto y lo devuelve intacto, sin decidir. El motor no avisa de cuándo se contesta el diálogo, así que la espera se cierra con el fin de la herramienta. `classic.PermissionRequest` no llega al mod en una sesión interactiva; se observa (sin responder) solo donde llega, y ahí sí marca el final.
 
 ### 5.3 Envío y cola
 - **Flush bajo demanda:** cuando la cola pasa de vacía a no vacía, `$.clock.after(50)` programa **un** `$.http.fetch(POST /v1/events)` con todo el lote. No hay temporizador permanente. Con la sesión inactiva y conectado, el mod tiene 0 timers. Desconectado, tiene como máximo uno: la vigilancia de §5.4.
@@ -905,8 +905,8 @@ Se mantienen R1–R11 de v1 (resumidos) y se añaden R12–R17.
 |---|---|---|---|
 | **G1** | ¿Existen `session.measure`, `classic.Task*`, `$.agent.list`, `$.session.version`, `$.http.fetch`, `$.fs.stat/read` y `$.clock.after/every` en 2.1.289, 2.1.317 y 2.1.321? | **Antes de F0** (a petición tuya): tipos generados por cada motor con un mod sonda + `tsc` + `validate` | Plan alternativo §11.3 o subir `minEngine`. Se presenta para que decidas. |
 | **G2** | ¿Cuánto cuesta hookear `turn.step` (passthrough)? | B2 con y sin el hook | No se usa (por defecto) |
-| **G3** | ¿El tiempo en `next` de `tool.call` incluye el diálogo de permisos? | Herramienta con aprobación manual cronometrada | Estado `awaiting_permission` con `classic.PermissionRequest` |
-| **G4** | ¿Ve el mod las herramientas de los subagentes con `agentId`? | E2E con 1 subagente | Completar desde `subagents/*.jsonl` |
+| **G3** | ¿El tiempo en `next` de `tool.call` incluye el diálogo de permisos? **Resuelta (F3): sí.** | Herramienta con aprobación manual cronometrada | Estado `awaiting_permission` con el veredicto `ask` de `tool.check` (`classic.PermissionRequest` no llega en sesiones interactivas) |
+| **G4** | ¿Ve el mod las herramientas de los subagentes con `agentId`? **Resuelta (F3): sí.** | E2E con 1 subagente | Completar desde `subagents/*.jsonl` |
 | **G5** | Precisión de la atribución por intervalo (§7.3) | Guion con verdad conocida de ≥ 200 cambios: ediciones de Claude (Edit/Write), cambios hechos por `Bash` de Claude, cambios externos durante una sesión activa, herramientas en paralelo y dos sesiones en la misma raíz. Se publica la matriz de confusión por regla y se calibran ε y δ. **Objetivos:** precisión ≥ 0,95 en `high`, ≥ 0,80 en `medium`, 0 casos `external` mal atribuidos a `claude`. | Ajustar ε y δ. Si aun así no se llega, rebajar la regla afectada un nivel de confianza o mostrar solo `unknown`/`external`. |
 | **G6** | Esquema estable de `update_plan` en el Desktop | Fixtures de 2.1.317 y 2.1.321 | Desactivar A3 |
 | **G7** | ¿`notify-debouncer-full` une los renombrados en NTFS de forma fiable? | B6 con renombrados y movimientos entre carpetas | Eventos Delete + Create sin `from` |

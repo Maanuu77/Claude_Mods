@@ -387,10 +387,10 @@ mod tests {
         let http = server(dir.path());
         let path = dir.path().join("endpoint.json");
         assert!(path.exists());
-        let (port, _) = endpoint(dir.path());
+        // No se comprueba que el puerto quede cerrado: otro test en paralelo puede
+        // recibir ese mismo puerto en cuanto se libera.
         drop(http);
         assert!(!path.exists());
-        assert!(std::net::TcpStream::connect(local_addr(port)).is_err());
     }
 
     #[test]

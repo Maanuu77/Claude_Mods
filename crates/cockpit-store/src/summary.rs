@@ -162,7 +162,8 @@ impl Store {
         let running_tools = conn
             .prepare_cached(&format!(
                 "SELECT {TOOL_COLUMNS} FROM tool_calls
-                 WHERE session_id = ?1 AND is_copy = 0 AND status = 'running' AND started_at >= ?2
+                 WHERE session_id = ?1 AND is_copy = 0
+                   AND status IN ('running', 'awaiting_permission') AND started_at >= ?2
                  ORDER BY started_at LIMIT ?3"
             ))?
             .query_map(params![id, running_since_ms, MAX_RUNNING], tool_view)?

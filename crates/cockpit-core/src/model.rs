@@ -119,6 +119,12 @@ pub enum EventKind {
         status: Option<u16>,
         error_type: Option<String>,
     },
+    /// La herramienta espera (o deja de esperar) la respuesta del diálogo de
+    /// permisos. El motor llama al hook de `tool.call` antes de pedir permiso (G3).
+    ToolPermission {
+        tool_use_id: String,
+        is_waiting: bool,
+    },
     /// Fin de un turno, visto por el mod (`turn.complete`).
     TurnCompleted {
         turn_id: String,

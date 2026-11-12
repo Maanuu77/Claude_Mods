@@ -244,3 +244,86 @@ test('el uso y el fin de sesión se envían, y el último envío no espera al te
   await $.session.end({ reason: 'other', sessionId: 'session-1', resume: undefined as never })
   expect(app.events().at(-1)).toMatchObject({ kind: 'session_ended', reason: 'other' })
 })
+
+test('G3: el diálogo de permisos se señala y se retira, sin decidir nada', async ($, on) => {
+  const { app, clock } = world(on, { isAppOpen: true })
+  // El motor pide permiso dentro de la herramienta y el usuario tarda 8 s.
+  on('classic.PermissionRequest', async () => {
+    await clock.sleep(8_000)
+    return {}
+  })
+  on('tool.call', async () => {
+    await $.classic.PermissionRequest({ tool_name: 'Write', tool_input: { content: TRAP } })
+    await clock.sleep(1_000)
+    return { result: {} }
+  })
+  await $.session.start(START)
+  await clock.settle()
+
+  const call = $.tool.call({ tool: 'Write', file_path: `${CWD}\\g3.txt`, content: TRAP })
+  await clock.advance(100)
+  expect(app.events().map(e => e.kind)).toEqual(['tool_started', 'permission_requested'])
+  expect(app.events()[1].tool_use_id).toBe(app.events()[0].tool_use_id)
+
+  await clock.advance(8_000)
+  await clock.advance(100)
+  expect(app.events().at(-1).kind).toBe('permission_resolved')
+
+  await clock.advance(1_000)
+  await call
+  await clock.advance(100)
+  expect(app.events().map(e => e.kind)).toEqual([
+    'tool_started',
+    'permission_requested',
+    'permission_resolved',
+    'tool_finished',
+  ])
+  expect(JSON.stringify(app.sent).includes(TRAP)).toBe(false)
+})
+
+test('G3: un veredicto `ask` de tool.check marca la espera, sin decidir nada', async ($, on) => {
+  const { app, clock } = world(on, { isAppOpen: true })
+  const kinds = () => app.events().map(e => e.kind).filter(k => k !== 'permission_resolved')
+  const checked = new Set<string>()
+  const verdicts: Array<{ decision?: string }> = []
+  // En un test, 2.1.321 comprueba el permiso por su cuenta y pasa el `ask` por
+  // PermissionRequest (que aquí aprueba); 2.1.289 no comprueba nada.
+  on('classic.PermissionRequest', () => ({ decision: { behavior: 'allow' as const } }))
+  // El motor: Write pide permiso, Read no.
+  on('tool.check', (_$, e) => {
+    checked.add(e.tool)
+    return e.tool === 'Write' ? { decision: 'ask' as const, reason: TRAP } : { decision: 'allow' as const }
+  })
+  on('tool.call', async (_$, e) => {
+    if (!checked.has(e.tool)) {
+      // Donde el motor del test no comprueba, se hace aquí como en una llamada
+      // real: con el id de la llamada.
+      const input = e.tool === 'Write' ? { file_path: `${CWD}\g3.txt`, content: TRAP } : { file_path: `${CWD}\a.rs` }
+      verdicts.push((await $.tool.check({ tool: e.tool, input, tool_use_id: e.tool_use_id } as never)) as { decision?: string })
+    }
+    await clock.sleep(3_000)
+    return { result: {} }
+  })
+  await $.session.start(START)
+  await clock.settle()
+
+  const write = $.tool.call({ tool: 'Write', file_path: `${CWD}\g3.txt`, content: TRAP })
+  await clock.advance(100)
+  expect(kinds()).toEqual(['tool_started', 'permission_requested'])
+  expect(app.events()[1].tool_use_id).toBe(app.events()[0].tool_use_id)
+  await clock.advance(3_000)
+  await write
+
+  const read = $.tool.call({ tool: 'Read', file_path: `${CWD}\a.rs` })
+  await clock.advance(3_100)
+  await read
+  await clock.advance(100)
+
+  // Una sola señal por espera, que se cierra como tarde con el fin de la
+  // herramienta; un `allow` no señala nada.
+  expect(kinds()).toEqual(['tool_started', 'permission_requested', 'tool_finished', 'tool_started', 'tool_finished'])
+  // El mod no decide: las dos herramientas corren y el veredicto sube como lo dio el motor.
+  expect(app.events().filter(e => e.kind === 'tool_finished').map(e => e.status)).toEqual(['ok', 'ok'])
+  for (const [i, verdict] of verdicts.entries()) expect(verdict.decision).toBe(i === 0 ? 'ask' : 'allow')
+  expect(JSON.stringify(app.sent).includes(TRAP)).toBe(false)
+})

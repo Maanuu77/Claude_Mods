@@ -283,6 +283,11 @@ body {
   color: var(--muted);
 }
 
+.tag-wait {
+  background: var(--idle-bg);
+  color: var(--idle);
+}
+
 .tag-error {
   background: var(--error-bg);
   color: var(--error);

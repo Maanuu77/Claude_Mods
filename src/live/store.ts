@@ -31,14 +31,27 @@ export const useLive = create<LiveStore>((set) => ({
     }),
 }));
 
-/** Latencia transcript → pintado. Solo cuando la app se lanza para medir B4. */
+/** Latencias hasta el pintado. Solo cuando la app se lanza para medir B3 y B4. */
 let perfEnabled = false;
+let newestToolTs = 0;
 
 function markPainted(delta: LiveDelta) {
   if (!perfEnabled || delta.type !== "update" || delta.upserts.length === 0) return;
-  const eventTs = Math.max(...delta.upserts.map((s) => s.last_seen_at));
+  // B3: una herramienta que aparece por primera vez, desde su inicio real.
+  const toolTs = Math.max(
+    0,
+    ...delta.upserts.flatMap((s) => [...s.running_tools, ...s.recent_tools].map((t) => t.started_at)),
+  );
+  const isNewTool = toolTs > newestToolTs;
+  if (isNewTool) newestToolTs = toolTs;
+  // B4: cualquier otra actualización, desde la última actividad de la sesión.
+  const eventTs = isNewTool ? toolTs : Math.max(...delta.upserts.map((s) => s.last_seen_at));
   requestAnimationFrame(() => {
-    void invoke("perf_mark", { eventTsMs: eventTs, paintedTsMs: Date.now() });
+    void invoke("perf_mark", {
+      kind: isNewTool ? "tool" : "other",
+      eventTsMs: eventTs,
+      paintedTsMs: Date.now(),
+    });
   });
 }
 

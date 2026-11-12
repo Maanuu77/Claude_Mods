@@ -508,7 +508,7 @@ fn apply_event(tx: &Transaction<'_>, e: &CockpitEvent, stats: &mut BatchStats) -
                     "UPDATE tool_calls SET status = ?1, finished_at = ?2,
                             duration_ms = MAX(0, ?2 - started_at)
                      WHERE session_id = ?3 AND tool_use_id = ?4
-                       AND (status IN ('running', 'unknown') OR ?5 = 1)",
+                       AND (status IN ('running', 'awaiting_permission', 'unknown') OR ?5 = 1)",
                 )?
                 // El fin que da el mod es exacto y sustituye al del transcript.
                 .execute(params![
@@ -528,6 +528,23 @@ fn apply_event(tx: &Transaction<'_>, e: &CockpitEvent, stats: &mut BatchStats) -
                     stats.orphan_results += 1;
                 }
             }
+        }
+        EventKind::ToolPermission {
+            tool_use_id,
+            is_waiting,
+        } => {
+            // Solo se mueve entre los dos estados «en curso»: nunca reabre una
+            // herramienta que ya terminó.
+            let (from, to) = if *is_waiting {
+                ("running", "awaiting_permission")
+            } else {
+                ("awaiting_permission", "running")
+            };
+            tx.prepare_cached(
+                "UPDATE tool_calls SET status = ?1
+                 WHERE session_id = ?2 AND tool_use_id = ?3 AND status = ?4",
+            )?
+            .execute(params![to, e.session_id, tool_use_id, from])?;
         }
         EventKind::TurnCompleted {
             turn_id,
@@ -603,7 +620,8 @@ fn apply_event(tx: &Transaction<'_>, e: &CockpitEvent, stats: &mut BatchStats) -
                 .execute(params![e.ts_ms, e.session_id])?;
             // Lo que seguía en curso queda sin resultado conocido (SPEC §5.2).
             tx.prepare_cached(
-                "UPDATE tool_calls SET status = 'unknown' WHERE session_id = ?1 AND status = 'running'",
+                "UPDATE tool_calls SET status = 'unknown'
+                 WHERE session_id = ?1 AND status IN ('running', 'awaiting_permission')",
             )?
             .execute(params![e.session_id])?;
         }

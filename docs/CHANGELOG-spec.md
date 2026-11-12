@@ -4,13 +4,27 @@ Documento de referencia: [`SPEC.md`](SPEC.md). Las tablas detalladas de cada ver
 
 ---
 
+## Cierre de F3: G3, G4 y desviaciones aceptadas (2026-11-12)
+
+No cambia la arquitectura ni el alcance. Resultados en [`perf/2026-11-11-f3.md`](perf/2026-11-11-f3.md), sección «Actualización».
+
+- **G4 resuelta: sí.** Las herramientas de un subagente llegan al mod con `agentId`. (SPEC §13.2)
+- **G3 resuelta: sí**, el tiempo de la herramienta incluye el diálogo de permisos. **Cambia la señal** del estado `awaiting_permission`: la SPEC preveía `classic.PermissionRequest`, pero el motor no lo entrega al mod en una sesión interactiva (en 2.1.321 lo atiende antes un plugin del propio motor). El mod observa el veredicto de `tool.check` y lo devuelve intacto; un `ask` marca la espera. No hay señal del momento en que se contesta: la espera se cierra con el fin de la herramienta. (SPEC §5.2, §13.2)
+- **Contrato:** eventos nuevos `permission_requested` y `permission_resolved` en `/v1/events`, y estado `awaiting_permission` en `tool_calls.status`. Sin migración. (SPEC §6.2)
+- **B3:** `perf_mark` distingue la latencia de una herramienta nueva (`tool`) del resto de actualizaciones (`other`, B4).
+- **Desviaciones de los criterios de F3, aceptadas por el usuario (2026-11-12):**
+  - B11 con una muestra por motor en lugar de 10, y S2 sin medir en una sesión real (cubierto por el test del mod).
+  - B2 (coste propio del mod < 1 ms) sin medir de forma aislada; cota superior de 1,3 ms por llamada con todo incluido.
+  - Desktop 2.1.317 sin validar con su binario: ya no está instalado. El mod compila contra sus tipos.
+  - Hooks `classic.Task*` y `classic.Subagent*` aplazados a F4b.
+
 ## Precisiones de F3: mod puente (2026-11-11)
 
 No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-11-f3.md`](perf/2026-11-11-f3.md).
 
 - **Matriz de motores:** Desktop 2.1.317 ya no está instalado (la aplicación se actualizó a 2.1.321). El mod compila contra sus tipos, pero no se puede validar ni probar con su binario. (SPEC §12)
 - **G1:** `session.measure` se dispara en 2.1.289, además de existir.
-- **G3 y G4 siguen abiertas**, junto con B3 y la prueba E2E: los motores ejecutados directamente no tienen sesión iniciada y no pueden enviar prompts.
+- **G3 y G4 seguían abiertas** en esta fecha, junto con B3 y la prueba E2E, por falta de sesión iniciada. Se cerraron después: ver la entrada del 2026-11-12.
 - **El mod es un solo fichero** (`hooks/register.ts`), sin `privacy.ts` aparte: no está comprobado que el motor cargue módulos relativos. La lista blanca del mod es un espejo de `cockpit-core/src/privacy.rs`. (SPEC §5.1)
 - **Hooks aplazados a F4b:** `classic.TaskCreated/TaskCompleted` y `classic.SubagentStart/SubagentStop` alimentan el Task Monitor y se añaden con él. El `hello` ya envía `agents`, que la app acepta y todavía no guarda. `turn.start` no se envía. (SPEC §5.2)
 - **Reloj:** el mod usa `Date.now()` en lugar de `$.clock.now()`, que es asíncrono y añadiría una espera dentro del hook.

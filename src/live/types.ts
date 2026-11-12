@@ -12,7 +12,7 @@ export interface ToolView {
   tool_use_id: string;
   tool: string;
   agent_id: string | null;
-  status: "running" | "ok" | "error" | "interrupted" | "unknown";
+  status: "running" | "awaiting_permission" | "ok" | "error" | "interrupted" | "unknown";
   started_at: number;
   duration_ms: number | null;
   rel_path: string | null;

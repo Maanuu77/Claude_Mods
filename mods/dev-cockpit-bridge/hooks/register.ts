@@ -89,10 +89,20 @@ type WireEvent = { seq: number; t: number } & (
       }
     }
   | { kind: 'usage_snapshot'; usage: UsageWire }
+  | { kind: 'permission_requested'; tool_use_id: string }
+  | { kind: 'permission_resolved'; tool_use_id: string }
   | { kind: 'session_ended'; reason?: string }
 )
 type Pending = WireEvent extends infer E ? (E extends WireEvent ? Omit<E, 'seq'> : never) : never
-type RunningTool = { tool_use_id: string; tool: string; agent_id?: string; started_at: number; meta: ToolMeta }
+type RunningTool = {
+  tool_use_id: string
+  tool: string
+  agent_id?: string
+  started_at: number
+  meta: ToolMeta
+  /** El diálogo de permisos está abierto para esta llamada. No se transmite. */
+  isAwaitingPermission?: boolean
+}
 
 /** La política más restrictiva: sin títulos y sin rutas de ningún tipo (SPEC §5.4). */
 const PRE_HANDSHAKE: Policy = {
@@ -178,6 +188,52 @@ export const register: Register = on => {
       noteHook(t1)
     }
     // Si algo de este hook falla, la herramienta sigue su curso sin el mod.
+  }).catch((_$, e, next) => next(e))
+
+  // G3: el motor llama a `tool.call` antes de pedir permiso, así que el tiempo de
+  // la herramienta incluye el diálogo. Hay dos señales y ninguna decide nada.
+  //
+  // 1) `tool.check`: el veredicto del motor. Se lee y se devuelve tal cual (un
+  //    veredicto que sube intacto no cuenta como del mod). Si es `ask`, alguien
+  //    tiene que contestar. El motor no avisa de cuándo contesta: la espera se
+  //    cierra con `permission_resolved` (si llega) o con el fin de la herramienta.
+  on('tool.check', async ($, e, next) => {
+    const verdict = await next(e)
+    try {
+      const id = (e as { tool_use_id?: string }).tool_use_id
+      const asked = id === undefined ? undefined : st.running.get(id)
+      if (verdict.decision === 'ask' && asked && !asked.isAwaitingPermission) {
+        asked.isAwaitingPermission = true
+        enqueue({ kind: 'permission_requested', t: Date.now(), tool_use_id: asked.tool_use_id })
+        scheduleFlush($)
+      }
+    } catch {
+      // Observar no puede cambiar el veredicto.
+    }
+    return verdict
+  })
+
+  // 2) `classic.PermissionRequest`: solo llega donde no contesta una persona en
+  //    el diálogo (subagentes en segundo plano, `-p`). Ahí sí marca el final.
+  on('classic.PermissionRequest', async ($, e, next) => {
+    const sameTool = [...st.running.values()].reverse().filter(r => r.tool === e.tool_name)
+    const waiting = sameTool.find(r => r.isAwaitingPermission) ?? sameTool[0]
+    if (!waiting) return next(e)
+    if (!waiting.isAwaitingPermission) {
+      waiting.isAwaitingPermission = true
+      enqueue({ kind: 'permission_requested', t: Date.now(), tool_use_id: waiting.tool_use_id })
+      scheduleFlush($)
+    }
+    try {
+      return await next(e)
+    } finally {
+      waiting.isAwaitingPermission = false
+      if (st.running.has(waiting.tool_use_id)) {
+        enqueue({ kind: 'permission_resolved', t: Date.now(), tool_use_id: waiting.tool_use_id })
+        scheduleFlush($)
+      }
+    }
+    // Si este hook falla, la petición de permiso sigue su curso sin el mod.
   }).catch((_$, e, next) => next(e))
 
   on('turn.complete', async ($, e, next) => {
@@ -282,7 +338,17 @@ async function handshake($: Api): Promise<boolean> {
       reason: st.hasConnectedOnce ? 'reconnect' : 'startup',
       hello_seq: st.helloSeq,
       applied_policy: st.policy,
-      snapshot: { usage, agents, running_tools: [...st.running.values()] },
+      snapshot: {
+        usage,
+        agents,
+        running_tools: [...st.running.values()].map(r => ({
+          tool_use_id: r.tool_use_id,
+          tool: r.tool,
+          agent_id: r.agent_id,
+          started_at: r.started_at,
+          meta: r.meta,
+        })),
+      },
       queue: { pending: st.queue.length, dropped: st.dropped, next_seq: st.seq + 1 },
     })
     if (response.status !== 200) throw new Error(`hello ${response.status}`)

@@ -39,20 +39,22 @@ const ENTRYPOINT_LABEL: Record<string, string> = {
 };
 
 function ToolRow({ tool, now }: { tool: ToolView; now: number }) {
-  const running = tool.status === "running";
+  const waiting = tool.status === "awaiting_permission";
+  const running = tool.status === "running" || waiting;
   const time = running
     ? formatDuration(now - tool.started_at)
     : tool.duration_ms !== null
       ? formatDuration(tool.duration_ms)
       : "";
   return (
-    <li className={`tool tool-${tool.status}`}>
+    <li className={`tool tool-${waiting ? "running" : tool.status}`}>
       <span className="tool-dot" aria-hidden="true" />
       <span className="tool-name">{toolLabel(tool.tool)}</span>
       {tool.agent_id && <span className="tag">subagente</span>}
       <span className="tool-path" title={tool.rel_path ?? undefined}>
         {tool.rel_path ?? ""}
       </span>
+      {waiting && <span className="tag tag-wait">esperando permiso</span>}
       {tool.status === "error" && <span className="tag tag-error">error</span>}
       <span className="tool-time">{time}</span>
     </li>

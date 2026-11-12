@@ -212,6 +212,16 @@ pub enum WireEvent {
         t: i64,
         usage: UsageWire,
     },
+    PermissionRequested {
+        seq: i64,
+        t: i64,
+        tool_use_id: String,
+    },
+    PermissionResolved {
+        seq: i64,
+        t: i64,
+        tool_use_id: String,
+    },
     SessionEnded {
         seq: i64,
         t: i64,
@@ -235,6 +245,8 @@ impl WireEvent {
             | WireEvent::ToolFinished { seq, .. }
             | WireEvent::TurnCompleted { seq, .. }
             | WireEvent::UsageSnapshot { seq, .. }
+            | WireEvent::PermissionRequested { seq, .. }
+            | WireEvent::PermissionResolved { seq, .. }
             | WireEvent::SessionEnded { seq, .. } => *seq,
         }
     }
@@ -435,6 +447,17 @@ pub fn to_event(session_id: &str, event: &WireEvent, policy: &PrivacyPolicy) -> 
                     cache_read: u.cache_read_input_tokens,
                     cache_creation: u.cache_creation_input_tokens,
                 }),
+            },
+        ),
+        WireEvent::PermissionRequested { t, tool_use_id, .. }
+        | WireEvent::PermissionResolved { t, tool_use_id, .. } => mod_event(
+            session_id,
+            None,
+            *t,
+            None,
+            EventKind::ToolPermission {
+                tool_use_id: ident(tool_use_id, 128),
+                is_waiting: matches!(event, WireEvent::PermissionRequested { .. }),
             },
         ),
         WireEvent::UsageSnapshot { t, usage, .. } => {

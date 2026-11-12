@@ -5,6 +5,7 @@ Mod de Claude Code que hace de puente entre una sesión y la app de escritorio D
 ## Qué hace
 
 - Avisa a la app cuando empieza y cuando termina cada herramienta, para que se vea en curso al instante.
+- Avisa de que una herramienta está esperando permiso: lee el veredicto de permisos del motor (`tool.check`) y lo devuelve sin tocarlo.
 - Envía el final de cada turno y el uso de la sesión (contexto, límites y coste) cuando el motor lo publica.
 - Muestra un indicador en la línea de estado (`◉ cockpit` conectado, `○ cockpit` sin conexión) y el comando `/cockpit` con el diagnóstico.
 
