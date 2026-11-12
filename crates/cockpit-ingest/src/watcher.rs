@@ -35,7 +35,8 @@ pub const STORM_EVENTS_PER_SEC: usize = 500;
 pub const STORM_PAUSE: Duration = Duration::from_secs(2);
 
 /// Directorios que nunca se vigilan, en cualquier nivel (§7.1).
-const EXCLUDED_DIRS: [&str; 6] = ["node_modules", "target", "dist", "build", ".venv", ".git"];
+pub(crate) const EXCLUDED_DIRS: [&str; 6] =
+    ["node_modules", "target", "dist", "build", ".venv", ".git"];
 
 /// Lo que el vigilante entrega a la canalización.
 #[derive(Debug, Clone, PartialEq, Eq)]

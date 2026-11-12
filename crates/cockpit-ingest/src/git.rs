@@ -351,6 +351,24 @@ impl GitReader {
         let out = self.run(root, &["ls-files", "-z"], MAX_LIST_BYTES)?;
         Ok(out.stdout.iter().filter(|b| **b == 0).count())
     }
+
+    /// Ficheros versionados (`ls-files -z`), relativos a la raíz y con `/`. Solo
+    /// los que se pueden abrir sin salir de ella; `true` si la lista se cortó.
+    pub fn list_tracked(&self, root: &Path) -> Result<(Vec<String>, bool)> {
+        let out = self.run(root, &["ls-files", "-z"], MAX_LIST_BYTES)?;
+        let mut paths: Vec<String> = out
+            .stdout
+            .split(|b| *b == 0)
+            .filter(|p| !p.is_empty())
+            .map(|p| String::from_utf8_lossy(p).into_owned())
+            .filter(|p| is_safe_rel_path(p))
+            .collect();
+        // Con la salida cortada, el último puede estar a medias.
+        if out.truncated {
+            paths.pop();
+        }
+        Ok((paths, out.truncated))
+    }
 }
 
 /// Lee como mucho `cap` bytes. `true` si había más.

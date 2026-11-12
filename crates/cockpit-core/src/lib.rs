@@ -7,6 +7,7 @@
 pub mod attribution;
 pub mod model;
 pub mod privacy;
+pub mod project_map;
 pub mod time;
 pub mod transcript;
 pub mod workspace;
