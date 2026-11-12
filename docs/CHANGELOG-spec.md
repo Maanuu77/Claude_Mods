@@ -8,7 +8,7 @@ Documento de referencia: [`SPEC.md`](SPEC.md). Las tablas detalladas de cada ver
 
 No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-12-f4a.md`](perf/2026-11-12-f4a.md).
 
-- **Calibración de la atribución tras G5 (desviación de §7.3, pendiente de aprobación del usuario).** Con las reglas de §7.3 al pie de la letra, G5 no llegaba a los objetivos (`medium` 0,73 y 8 cambios externos atribuidos a `claude`). Siguiendo la vía que prevé G5 para ese caso («rebajar la regla afectada o mostrar solo `unknown`»), se cambian tres cosas:
+- **Calibración de la atribución tras G5 (desviación de §7.3, aceptada por el usuario el 2026-11-12).** Con las reglas de §7.3 al pie de la letra, G5 no llegaba a los objetivos (`medium` 0,73 y 8 cambios externos atribuidos a `claude`). Siguiendo la vía que prevé G5 para ese caso («rebajar la regla afectada o mostrar solo `unknown`»), se cambian tres cosas:
   1. **R2 solo se aplica a ediciones sin ruta comparable** (`PRE_HANDSHAKE`, `record_paths = false` o fuera del `cwd`). Un `Edit`/`Write` con ruta conocida que no coincide deja de ser candidato, porque esas herramientas solo escriben su propio fichero. Ese cambio queda en R3, R4 o R5.
   2. **Desempate por intervalo real:** si alguna candidata contiene el cambio en `[started_at, finished_at]` (sin ε ni δ), solo cuentan esas. La cola δ de una herramienta ya terminada deja de empatar con la que está en curso.
   3. **Subida tardía:** una atribución definitiva también puede pasar a R1 si la confianza sube (por ejemplo, un R2 o un R3 que resulta ser un `Edit` del mismo fichero cuyo aviso llegó tarde). Sigue sin rebajarse nunca una `high`.

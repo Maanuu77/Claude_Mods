@@ -34,12 +34,12 @@ Están en [`DEVELOPMENT_WORKFLOW.md`](DEVELOPMENT_WORKFLOW.md) (W1–W11). Las q
 | F1 ingesta de transcripts | Hecha y fusionada | `crates/cockpit-core`, `cockpit-store`, `cockpit-ingest` |
 | F2 shell Tauri y vista En vivo | Hecha y fusionada | `src-tauri/`, `src/` |
 | F3 mod puente | Hecha y fusionada | `mods/dev-cockpit-bridge`, `crates/cockpit-ingest/src/http.rs`, `wire.rs` |
-| **F4a Workspace Watcher** | **Hecha en `feature/f4a-workspace-watcher`; pendiente de aprobar la calibración de G5 para fusionar** | `crates/cockpit-ingest/src/{git,watcher,workspace}.rs`, `cockpit-core/src/attribution.rs`, `cockpit-store/src/{compact,workspace}.rs`, `src/changes/` |
-| F4b Task Monitor | Sin empezar | — |
+| F4a Workspace Watcher | Hecha y fusionada | `crates/cockpit-ingest/src/{git,watcher,workspace}.rs`, `cockpit-core/src/attribution.rs`, `cockpit-store/src/{compact,workspace}.rs`, `src/changes/` |
+| **F4b Task Monitor** | **Siguiente, sin empezar** | — |
 | F4c Project Map | Sin empezar | — |
 | F5 endurecimiento | Sin empezar | — |
 
-`main` contiene la fusión de F3 (`git log --merges -1 main`).
+`main` contiene la fusión de F4a (`git log --merges -1 main`). La calibración de G5 (SPEC §7.3) la aceptó el usuario el 2026-11-12.
 
 ## F3: lo que está hecho
 
@@ -97,8 +97,7 @@ Resultados en [`perf/2026-11-12-f4a.md`](perf/2026-11-12-f4a.md):
 
 ## Siguiente paso
 
-1. **Aprobar (o no) la calibración de G5** (CHANGELOG, entrada de F4a) y fusionar F4a.
-2. **F4b, Task Monitor** (SPEC §8): rama `feature/f4b-task-monitor`. Puerta G6; incluye los hooks `classic.Task*` y `classic.Subagent*` aplazados de F3.
+**F4b, Task Monitor** (SPEC §8): rama nueva `feature/f4b-task-monitor` desde `main`. Adaptadores A1–A4, puerta G6 y E2E con `TodoWrite` y `update_plan`; incluye los hooks `classic.Task*` y `classic.Subagent*` aplazados de F3.
 
 ## Hallazgos que afectan a fases futuras
 

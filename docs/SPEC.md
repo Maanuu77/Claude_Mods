@@ -676,7 +676,7 @@ Sin cambios desde v1: single-instance, cerrar la ventana la oculta en la bandeja
 
 Respaldo: [DOC] para los eventos y el intervalo. La heurística es propia, así que la precisión se valida experimentalmente en **G5** (§13.2), con objetivos numéricos.
 
-**Calibración de G5 (F4a, 2026-11-12; pendiente de aprobación):**
+**Calibración de G5 (F4a, aceptada por el usuario el 2026-11-12):**
 - **R2** solo se aplica a herramientas de edición **sin ruta comparable** (sin ruta o fuera del `cwd`). Un `Edit`/`Write` con ruta conocida distinta no es candidato: esas herramientas solo escriben su propio fichero.
 - **Primer desempate:** si alguna candidata contiene `t` en su intervalo real `[started_at, finished_at]`, sin ε ni δ, solo cuentan esas.
 - **Asentamiento:** además de `unknown` → R1/R2, una atribución definitiva puede subir a R1 si la confianza sube. Nunca se rebaja una `high`.
@@ -916,7 +916,7 @@ Se mantienen R1–R11 de v1 (resumidos) y se añaden R12–R17.
 | **G2** | ¿Cuánto cuesta hookear `turn.step` (passthrough)? | B2 con y sin el hook | No se usa (por defecto) |
 | **G3** | ¿El tiempo en `next` de `tool.call` incluye el diálogo de permisos? **Resuelta (F3): sí.** | Herramienta con aprobación manual cronometrada | Estado `awaiting_permission` con el veredicto `ask` de `tool.check` (`classic.PermissionRequest` no llega en sesiones interactivas) |
 | **G4** | ¿Ve el mod las herramientas de los subagentes con `agentId`? **Resuelta (F3): sí.** | E2E con 1 subagente | Completar desde `subagents/*.jsonl` |
-| **G5** | Precisión de la atribución por intervalo (§7.3) **Resuelta (F4a), con la calibración de §7.3 pendiente de aprobación:** 256 cambios, `high` 1,00, `medium` 0,86, 0 externos atribuidos a `claude`. | Guion con verdad conocida de ≥ 200 cambios: ediciones de Claude (Edit/Write), cambios hechos por `Bash` de Claude, cambios externos durante una sesión activa, herramientas en paralelo y dos sesiones en la misma raíz. Se publica la matriz de confusión por regla y se calibran ε y δ. **Objetivos:** precisión ≥ 0,95 en `high`, ≥ 0,80 en `medium`, 0 casos `external` mal atribuidos a `claude`. | Ajustar ε y δ. Si aun así no se llega, rebajar la regla afectada un nivel de confianza o mostrar solo `unknown`/`external`. |
+| **G5** | Precisión de la atribución por intervalo (§7.3) **Resuelta (F4a), con la calibración de §7.3:** 256 cambios, `high` 1,00, `medium` 0,86, 0 externos atribuidos a `claude`. | Guion con verdad conocida de ≥ 200 cambios: ediciones de Claude (Edit/Write), cambios hechos por `Bash` de Claude, cambios externos durante una sesión activa, herramientas en paralelo y dos sesiones en la misma raíz. Se publica la matriz de confusión por regla y se calibran ε y δ. **Objetivos:** precisión ≥ 0,95 en `high`, ≥ 0,80 en `medium`, 0 casos `external` mal atribuidos a `claude`. | Ajustar ε y δ. Si aun así no se llega, rebajar la regla afectada un nivel de confianza o mostrar solo `unknown`/`external`. |
 | **G6** | Esquema estable de `update_plan` en el Desktop | Fixtures de 2.1.317 y 2.1.321 | Desactivar A3 |
 | **G7** | ¿`notify-debouncer-full` une los renombrados en NTFS de forma fiable? **Resuelta (F4a): dentro de un directorio sí (40/40).** Entre carpetas, Windows entrega borrado + creado y el debouncer no los une; F4a los une si el nombre no cambia (20/20). Con otro nombre, respaldo (20/20). | B6 con renombrados y movimientos entre carpetas | Eventos Delete + Create sin `from` |
 | **G8** | React Flow + dagre con 200 nodos o más dentro del presupuesto | B8 en la vista Mapa | SVG propio + dagre |
