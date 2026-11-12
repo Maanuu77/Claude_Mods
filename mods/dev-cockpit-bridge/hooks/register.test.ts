@@ -13,7 +13,10 @@ const TRAP = 'SECRETO-TRAMPA'
 type Sent = { path: string; token: string; body: any } // eslint-disable-line @typescript-eslint/no-explicit-any
 
 /** Una app de mentira y el mundo mínimo que necesita el mod. */
-function world(on: On, options: { isAppOpen: boolean; engine?: string; isSupported?: boolean }) {
+function world(
+  on: On,
+  options: { isAppOpen: boolean; engine?: string; isSupported?: boolean; agents?: () => unknown[] },
+) {
   const app = {
     isOpen: options.isAppOpen,
     token: 'token-1',
@@ -33,7 +36,8 @@ function world(on: On, options: { isAppOpen: boolean; engine?: string; isSupport
   on('session.usage', () => ({
     value: { startedAt: 0, context: { window: 200_000, tokens: 86_000, percent: 43 }, rateLimits: [], cost: { usd: 1.25 } },
   }))
-  on('agent.list', () => ({ value: [] }))
+  // Un motor solo admite un hook por evento en el test: la lista la da la opción.
+  on('agent.list', () => ({ value: (options.agents?.() ?? []) as never }))
   on('command.register', () => ({ value: { command: 'cockpit' } }))
   on('ui.status', (_$, e) => {
     app.status.push(e.text)
@@ -376,9 +380,8 @@ test('Task Monitor: cada herramienta de tareas declara su operación, sin títul
 })
 
 test('Task Monitor: hooks de tareas y subagentes, y la lista de agentes solo cuando cambia', async ($, on) => {
-  const { app, clock } = world(on, { isAppOpen: true })
   let agents: Array<{ id: string; type: string; status: string; parentId?: string; description: string }> = []
-  on('agent.list', () => ({ value: agents as never }))
+  const { app, clock } = world(on, { isAppOpen: true, agents: () => agents })
   on('classic.TaskCreated', () => ({}))
   on('classic.TaskCompleted', () => ({}))
   on('classic.SubagentStart', () => ({}))
