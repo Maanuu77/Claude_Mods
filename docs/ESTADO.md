@@ -1,4 +1,4 @@
-# DEV COCKPIT: estado del trabajo (2026-11-12)
+# DEV COCKPIT: estado del trabajo (2026-11-12, noche)
 
 Resumen para retomar el proyecto en otra conversación sin releerlo todo. La referencia normativa sigue siendo [`SPEC.md`](SPEC.md); los cambios respecto a ella están en [`CHANGELOG-spec.md`](CHANGELOG-spec.md).
 
@@ -35,7 +35,7 @@ Están en [`DEVELOPMENT_WORKFLOW.md`](DEVELOPMENT_WORKFLOW.md) (W1–W11). Las q
 | F2 shell Tauri y vista En vivo | Hecha y fusionada | `src-tauri/`, `src/` |
 | F3 mod puente | Hecha y fusionada | `mods/dev-cockpit-bridge`, `crates/cockpit-ingest/src/http.rs`, `wire.rs` |
 | F4a Workspace Watcher | Hecha y fusionada | `crates/cockpit-ingest/src/{git,watcher,workspace}.rs`, `cockpit-core/src/attribution.rs`, `cockpit-store/src/{compact,workspace}.rs`, `src/changes/` |
-| **F4b Task Monitor** | **Siguiente, sin empezar** | — |
+| **F4b Task Monitor** | **En curso:** código, G6 y prueba en la app hechos; faltan las pruebas en los motores (W11) | rama `feature/f4b-task-monitor`; `crates/cockpit-core/src/tasks.rs`, `cockpit-store/src/tasks.rs`, `src/tasks/` |
 | F4c Project Map | Sin empezar | — |
 | F5 endurecimiento | Sin empezar | — |
 
@@ -95,13 +95,36 @@ Resultados en [`perf/2026-11-12-f4a.md`](perf/2026-11-12-f4a.md):
 | **B7** `numstat` → pintado | p95 de 1,19 s por cambio con un cambio cada 150 ms (objetivo < 1,5 s), tras limitar la coalescencia a 1 s desde el primer cambio (con 2 s: 2,4 s) |
 | Prueba en la app real (copia de la base) | raíz activada sola; un `Edit` de esta sesión, `Claude · alta` solo con el transcript |
 
+## F4b: lo que está hecho (2026-11-12)
+
+Commits en `feature/f4b-task-monitor`: `b25f4f9` (núcleo, store, contrato y G6), `05290dc` (mod y vista «Tareas») y `2b17f4a` (relectura del historial).
+
+- **Adaptadores** (`cockpit-core/src/tasks.rs`): A1 `TaskCreate`/`TaskUpdate` y hooks `TaskCreated`/`TaskCompleted`, A2 `TodoWrite`, A3 `update_plan` del Desktop (desactivable con `DEV_COCKPIT_DISABLE_DESKTOP_PLAN`) y A4 subagentes. Cada llamada es una operación idempotente; el estado de una lista es su reproducción ordenada, así que el mod y el transcript pueden entregar la misma en cualquier orden. Solo se leen los campos de §10; los títulos, truncados a 120 caracteres (D1). Una forma inesperada es deriva, nunca una suposición.
+- **Store:** migración 4 (`task_ops`, `tasks`, `agents`, `file_offsets.parser_version`) y vistas por sesión de tareas, subagentes y actividad.
+- **Contrato HTTP:** eventos `task_op` y `agents`, con `deny_unknown_fields`; la app vuelve a aplicar su política.
+- **Mod:** envía la operación de cada herramienta de tareas al terminar, hookea `classic.Task*` y `classic.Subagent*` (aplazados de F3) y lee `$.agent.list()` por evento.
+- **Interfaz:** pestaña «Tareas» con las listas declaradas (fuente, completadas/total, paso en curso, bloqueos), el árbol de subagentes y la actividad aparte; la tarjeta «En vivo» muestra el progreso declarado.
+- **Relectura del historial:** cada fichero recuerda la versión del parser con que se leyó; los leídos antes de F4b se releen aplicando solo los eventos nuevos (sin recuperar rutas purgadas).
+
+Resultados en [`perf/2026-11-12-f4b.md`](perf/2026-11-12-f4b.md):
+
+| Criterio | Resultado |
+|---|---|
+| **G6** | **resuelta: sí.** 521 de 521 estados comprobables coinciden con lo que respondió el Desktop (2.1.299–2.1.321, fixtures anonimizados) |
+| Tests | 147 en verde; fmt, clippy, typecheck, lint y `tsc` del mod contra 2.1.289/2.1.317/2.1.321 sin avisos |
+| Prueba en la app (copia de la base) | 162 ficheros releídos; 567 operaciones (526 `update_plan`, 35 `TodoWrite`, 6 `TaskCreate`), 155 tareas, 99 subagentes; actualización en directo solo con el transcript |
+| `claude plugin validate/test` con los tests nuevos | **pendiente** (W11) |
+| E2E con el mod en los motores | **pendiente** (W11) |
+
 ## Siguiente paso
 
-**F4b, Task Monitor** (SPEC §8): rama nueva `feature/f4b-task-monitor` desde `main`. Adaptadores A1–A4, puerta G6 y E2E con `TodoWrite` y `update_plan`; incluye los hooks `classic.Task*` y `classic.Subagent*` aplazados de F3.
+Cerrar **F4b**: con autorización (W11), ejecutar `claude plugin validate` y `claude plugin test` del mod en CLI 2.1.289 y Desktop 2.1.321, y el E2E con sesiones reales que usen `TaskCreate`/`TodoWrite` y `update_plan` con el mod cargado por `--plugin-dir`. Después, fusionar F4b y empezar **F4c, Project Map** (SPEC §9).
 
 ## Hallazgos que afectan a fases futuras
 
 - **F4b:** en 2.1.289 y 2.1.321 el modelo usó `TaskCreate`, no `TodoWrite`. El adaptador A1 importa más de lo que decía la SPEC.
+- **F4b, subagentes de *workflow*:** sus ficheros no dicen su estado; 72 de los 99 subagentes del historial salen «sin estado».
+- **F4b, sesiones antiguas:** las listas de sesiones que terminaron sin completar su plan conservan un paso «en curso». La vista solo muestra sesiones con actividad reciente, así que no se ve; habrá que tenerlo en cuenta en el histórico.
 - **Reinicio de la app:** una sesión inactiva con el mod no se entera y aparece como «sin mod» hasta su siguiente evento.
 - **`cost-state`:** los tokens deduplicados del transcript solo coinciden exactamente con `cost-state` en 19 de 33 sesiones.
 - **Aviso del enlazador** `.rsrc merge failure: multiple non-default manifests`: sigue sin resolver; hay que mirarlo antes del instalador de F5.
