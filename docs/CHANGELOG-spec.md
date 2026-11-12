@@ -4,6 +4,17 @@ Documento de referencia: [`SPEC.md`](SPEC.md). Las tablas detalladas de cada ver
 
 ---
 
+## Precisiones de F4c: Project Map (2026-11-12)
+
+No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-12-f4c.md`](perf/2026-11-12-f4c.md).
+
+- **G8: grafo de componentes con SVG propio y layout por capas propio, sin React Flow ni dagre (desviación de §9 y de la alternativa de G8, decidida por delegación del usuario: «Haz lo que creas mejor», 2026-11-12).** §9 pedía React Flow (`@xyflow/react`) + dagre, y G8 preveía «SVG propio + dagre» si no rendía. Se usa SVG con un Sugiyama simplificado escrito para el proyecto (`src/map/layout.ts`): capas por camino más largo, nodos virtuales para las aristas que saltan capas, baricentros y posición por regresión isotónica. Motivos:
+  1. no añade dependencias, así que no hace falta instalar nada ni crece el bundle;
+  2. el grafo es de solo lectura: no necesita el arrastre ni la edición de React Flow;
+  3. rinde con margen: 200 nodos y 398 aristas, layout en 4,6 ms y pintado en 33 ms.
+
+  La lista de componentes que hay junto al grafo es su alternativa en texto.
+
 ## Precisiones de F4a: Workspace Watcher (2026-11-12)
 
 No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-12-f4a.md`](perf/2026-11-12-f4a.md).

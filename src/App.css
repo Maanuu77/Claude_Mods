@@ -992,3 +992,72 @@ body {
 .hs-swatch.hs-s2 {
   background: var(--series-2);
 }
+
+/* --- Grafo de componentes (SPEC §9, G8) ----------------------------------- */
+
+.pm-graph {
+  margin: 18px 0 0;
+}
+
+.pm-graph figcaption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.pm-graph-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.pm-graph-scroll {
+  overflow: auto;
+  max-height: 60vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  justify-content: safe center;
+}
+
+.pm-node {
+  fill: var(--surface);
+  stroke: var(--border);
+  stroke-width: 1px;
+}
+
+.pm-node-group {
+  fill: var(--off-bg);
+}
+
+.pm-node-name {
+  fill: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pm-node-meta {
+  fill: var(--muted);
+  font-size: 10px;
+}
+
+.pm-edge {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.5px;
+}
+
+.pm-edge-module {
+  stroke-dasharray: 4 3;
+}
+
+.pm-arrow {
+  fill: var(--muted);
+}

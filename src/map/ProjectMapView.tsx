@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { formatInt } from "../live/format";
 import { useLive } from "../live/store";
 import type { FileEventView, WorkspaceView } from "../live/types";
+import { ComponentGraph } from "./ComponentGraph";
 import type { Component, Dependency, DepScope, DirSummary, Ecosystem, ProjectScan } from "./types";
 
 const ECOSYSTEM_LABEL: Record<Ecosystem, string> = {
@@ -351,6 +352,7 @@ function MapPanel({ ws, now }: { ws: WorkspaceView; now: number }) {
               )}
             </section>
           </div>
+          <ComponentGraph components={load.scan.map.components} deps={load.scan.map.deps} />
         </>
       )}
     </div>
