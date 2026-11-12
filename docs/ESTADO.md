@@ -35,8 +35,8 @@ Están en [`DEVELOPMENT_WORKFLOW.md`](DEVELOPMENT_WORKFLOW.md) (W1–W11). Las q
 | F2 shell Tauri y vista En vivo | Hecha y fusionada | `src-tauri/`, `src/` |
 | F3 mod puente | Hecha y fusionada | `mods/dev-cockpit-bridge`, `crates/cockpit-ingest/src/http.rs`, `wire.rs` |
 | F4a Workspace Watcher | Hecha y fusionada | `crates/cockpit-ingest/src/{git,watcher,workspace}.rs`, `cockpit-core/src/attribution.rs`, `cockpit-store/src/{compact,workspace}.rs`, `src/changes/` |
-| **F4b Task Monitor** | **En curso:** código, G6 y prueba en la app hechos; faltan las pruebas en los motores (W11) | rama `feature/f4b-task-monitor`; `crates/cockpit-core/src/tasks.rs`, `cockpit-store/src/tasks.rs`, `src/tasks/` |
-| F4c Project Map | Sin empezar | — |
+| **F4b Task Monitor** | **En curso:** código, G6, prueba en la app, P1 y P2 hechos; faltan decisiones del usuario (ver «Siguiente paso») | rama `feature/f4b-task-monitor`; `crates/cockpit-core/src/tasks.rs`, `cockpit-store/src/tasks.rs`, `src/tasks/` |
+| F4c Project Map | **En curso** en `feature/f4c-project-map` (sale de `main`, sin F4b): mapa, histórico, diagnóstico y grafo G8 hechos; falta la caché persistente del mapa (migración 5, después de fusionar F4b) | `cockpit-core/src/project_map.rs`, `cockpit-ingest/src/project_scan.rs`, `cockpit-store/src/{diagnostics,history}.rs`, `src/{map,history,diag}/`; informe `docs/perf/2026-11-12-f4c.md` en esa rama |
 | F5 endurecimiento | Sin empezar | — |
 
 `main` contiene la fusión de F4a (`git log --merges -1 main`). La calibración de G5 (SPEC §7.3) la aceptó el usuario el 2026-11-12.
@@ -114,16 +114,22 @@ Resultados en [`perf/2026-11-12-f4b.md`](perf/2026-11-12-f4b.md):
 | Tests | 147 en verde; fmt, clippy, typecheck, lint y `tsc` del mod contra 2.1.289/2.1.317/2.1.321 sin avisos |
 | Prueba en la app (copia de la base) | 162 ficheros releídos; 567 operaciones (526 `update_plan`, 35 `TodoWrite`, 6 `TaskCreate`), 155 tareas, 99 subagentes; actualización en directo solo con el transcript |
 | `claude plugin validate/test` con los tests nuevos | **pasan:** 10/10 en CLI 2.1.289 y Desktop 2.1.321 (autorizado) |
-| E2E con el mod en los motores | **a medias:** el mod carga y hace `hello` en los dos motores, pero el modelo no respondió por el **límite de uso de la cuenta** (se restablece a las 22:30 del 2026-11-12). `update_plan` con el mod: desviación pendiente de aprobar |
+| E2E con el mod en los motores | **pasa con `TaskCreate`/`TaskUpdate`** (repetido a las 22:32, autorizado): en CLI 2.1.289 y Desktop 2.1.321, 5 operaciones por sesión, todas de mod + transcript, sin duplicados, y la lista reconstruida correcta. Sin rutas ni títulos antes del handshake. **`TodoWrite` no se pudo probar en vivo:** los motores no la ofrecen junto a las herramientas de tareas. `update_plan` con el mod: desviación pendiente de aprobar |
 | Base real | migrada a la versión 4 y releída; **copia previa** en `%APPDATA%\dev-cockpit\backups\pre-f4b-2026-11-12\` |
 
 ## Siguiente paso
 
-Cerrar **F4b** (P2 ya está autorizado): cuando se restablezca el límite de uso, repetir la sesión `-p` con `TaskCreate`/`TaskUpdate`/`TodoWrite` en CLI 2.1.289 y Desktop 2.1.321, con la app abierta sobre la base real (`scripts\measure\app-cycle.ps1 -Action start`) y comprobar que las operaciones del mod y del transcript se reconcilian sin duplicar. Pedir la aprobación de la desviación de `update_plan` con el mod y fusionar. Después, **F4c, Project Map** (SPEC §9).
+Cerrar **F4b**. P2 ya está hecho. Faltan decisiones del usuario:
+1. **Aprobar las desviaciones del criterio de F4b** («E2E con `TodoWrite` y `update_plan`», SPEC §15): `update_plan` con el mod no se puede probar sin tocar `~/.claude`, y `TodoWrite` no se ofrece junto a las herramientas de tareas. Las dos quedan cubiertas por `plugin test` y por el historial real. La alternativa para `TodoWrite` es una sesión `-p` sin `TaskCreate`/`TaskUpdate`, que necesita autorización aparte (W11).
+2. **Decidir qué hacer con los hooks `classic.TaskCreated`/`TaskCompleted`:** son redundantes con `TaskCreate`/`TaskUpdate`, y en el Desktop el motor los salta y avisa al modelo cada vez. Quitarlos del mod es una desviación de §5.2.
+
+Después, fusionar F4b, traer `main` a `feature/f4c-project-map`, añadir la caché persistente del mapa (migración 5) y cerrar F4c.
 
 ## Hallazgos que afectan a fases futuras
 
-- **F4b:** en 2.1.289 y 2.1.321 el modelo usó `TaskCreate`, no `TodoWrite`. El adaptador A1 importa más de lo que decía la SPEC.
+- **F4b:** en 2.1.289 y 2.1.321 el modelo usó `TaskCreate`, no `TodoWrite`. El adaptador A1 importa más de lo que decía la SPEC. En P2 se vio además que esos motores no ofrecen `TodoWrite` cuando están las herramientas de tareas.
+- **Mod, hooks saltados:** en Desktop 2.1.321, un plugin del entorno de escritorio (`cc-plugin-sec-default`) se ejecuta antes que `classic.TaskCreated`/`TaskCompleted` y el motor salta los del mod, con una notificación que entra en el contexto del modelo. Puede pasar con otros hooks `classic.*` del mod.
+- **Sesiones de prueba desde el Desktop:** las sesiones `-p` lanzadas desde una sesión del Desktop heredan su entorno (`CLAUDE_CODE_ENTRYPOINT=claude-desktop`, `CLAUDE_CODE_CHILD_SESSION=1`…). No son del todo iguales a una sesión abierta a mano.
 - **F4b, subagentes de *workflow*:** sus ficheros no dicen su estado; 72 de los 99 subagentes del historial salen «sin estado».
 - **F4b, sesiones antiguas:** las listas de sesiones que terminaron sin completar su plan conservan un paso «en curso». La vista solo muestra sesiones con actividad reciente, así que no se ve; habrá que tenerlo en cuenta en el histórico.
 - **Reinicio de la app:** una sesión inactiva con el mod no se entera y aparece como «sin mod» hasta su siguiente evento.
