@@ -4,6 +4,16 @@ Documento de referencia: [`SPEC.md`](SPEC.md). Las tablas detalladas de cada ver
 
 ---
 
+## Identidad visual (2026-11-13)
+
+La SPEC no fijaba una estética y no había ninguna propuesta previa. A petición del usuario se ha definido un sistema visual completo, normativo desde ahora en [`DESIGN.md`](DESIGN.md), y se ha aplicado a todas las vistas. No cambia la arquitectura, el alcance, los datos ni las órdenes IPC; no añade dependencias, llamadas externas ni telemetría.
+
+- **Estructura de la ventana:** barra lateral con la marca, las seis vistas y el estado del núcleo, en lugar de pestañas arriba. Por debajo de 1.000 px se reduce a una barra de iconos con nombre accesible y tooltip. (SPEC §7)
+- **Tema:** sigue el modo claro u oscuro del sistema. Todos los pares de texto y fondo cumplen 4,5:1 en los dos temas; los gráficos usan una paleta de datos comprobada para daltonismo.
+- **Icono de la app:** un dial de instrumento; el original vectorial está en `src-tauri/icons/source.svg` y los PNG/ICO se generan con `tauri icon`.
+- **Estados:** cada vista distingue cargando, vacío, error y sin conexión con el núcleo; en este último ya no dice «no hay sesiones» o «no hay proyectos», sino «Sin datos del núcleo».
+- **Añadidos menores de interfaz** (sin datos nuevos): botón para cerrar el visor de diff, columna «Interrumpidas» y «Reintentar» en el Histórico, botón «Descartar cambios» en los ajustes de privacidad, y el visor de diff se trae a la vista al abrirlo.
+
 ## Precisiones de F5: endurecimiento (2026-11-12)
 
 No cambian la arquitectura ni el alcance. Resultados en [`perf/2026-11-12-f5.md`](perf/2026-11-12-f5.md).

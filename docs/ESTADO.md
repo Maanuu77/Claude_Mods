@@ -1,4 +1,4 @@
-# DEV COCKPIT: estado del trabajo (2026-11-12, noche)
+# DEV COCKPIT: estado del trabajo (2026-11-13)
 
 Resumen para retomar el proyecto en otra conversación sin releerlo todo. La referencia normativa sigue siendo [`SPEC.md`](SPEC.md); los cambios respecto a ella están en [`CHANGELOG-spec.md`](CHANGELOG-spec.md).
 
@@ -38,6 +38,7 @@ Están en [`DEVELOPMENT_WORKFLOW.md`](DEVELOPMENT_WORKFLOW.md) (W1–W11). Las q
 | F4b Task Monitor | Hecha y fusionada (desviaciones del criterio aceptadas por el usuario) | `crates/cockpit-core/src/tasks.rs`, `cockpit-store/src/tasks.rs`, `src/tasks/` |
 | F4c Project Map | Hecha y fusionada (sin «borrar rutas ahora», desviación aceptada por el usuario) | `cockpit-core/src/project_map.rs`, `cockpit-ingest/src/project_scan.rs`, `cockpit-store/src/{diagnostics,history,project_cache}.rs`, `src/{map,history,diag}/`; informe `docs/perf/2026-11-12-f4c.md` en esa rama |
 | **F5 endurecimiento** | **En curso** en `feature/f5-hardening`: hecho todo menos **B9**, que el usuario ejecuta en otro equipo | `src-tauri/{build.rs,windows-app-manifest.xml}`, `cockpit-ingest/src/settings.rs`, `cockpit-store/src/compact.rs` (`clear_paths_now`), `src/diag/PrivacySettings.tsx`, `scripts/measure/{b9-soak.ps1,replay-transcript.mjs}`; informe `docs/perf/2026-11-12-f5.md` |
+| **Identidad visual** | **Hecha** en `feature/visual-identity` (sale de `feature/f5-hardening`); sin fusionar hasta cerrar F5 | `docs/DESIGN.md`, `src/ui/`, `src/app/`, CSS por vista, `src-tauri/icons/` |
 
 `main` contiene la fusión de F4c (`git log --merges -1 main`). La calibración de G5 (SPEC §7.3), las desviaciones del criterio de F4b y la de F4c («borrar rutas ahora» aplazado) las aceptó el usuario el 2026-11-12.
 
@@ -159,9 +160,19 @@ Resultados en [`perf/2026-11-12-f5.md`](perf/2026-11-12-f5.md):
 | **B9** 24 h | **pendiente:** el usuario la lanza en otro equipo con `target\b9-kit` (instalador de `8b324f3`, `b9-soak.ps1` y `LEEME.txt`). Hay que traer `Escritorio\dev-cockpit-b9` y resumirla con `b9-soak.ps1 -Summarize -OutDir <carpeta>` |
 | Tests | 180 en verde (1 ignorado); fmt, clippy, typecheck y lint sin avisos |
 
+## Identidad visual: lo que está hecho (2026-11-13)
+
+Rama `feature/visual-identity`, creada desde `feature/f5-hardening` porque toca `PrivacySettings.tsx`. La pidió el usuario («una de las cosas más importantes de este proyecto era la estética») con un encargo propio, sin propuesta previa: el sistema se definió desde cero y está en [`DESIGN.md`](DESIGN.md).
+
+- **Sistema «Instrumento»:** el color solo indica estado (`accent`, `positive`, `attention`, `critical`, `neutral`), cifras tabulares, rejilla de 4 px, tres niveles de profundidad y movimiento solo para lo vivo. Tema claro y oscuro según el sistema.
+- **Código:** tokens en `src/ui/tokens.css`; base, iconos SVG propios, tonos y componentes compartidos en `src/ui/`; barra lateral, cabecera de vista, avisos globales y `LiveEmpty` en `src/app/Shell.tsx`. Cada vista tiene su CSS al lado y ya no hay `App.css`.
+- **Revisión:** 64 capturas en Edge headless con las respuestas IPC reales grabadas de la app (copia de la base) y escenarios simulados para vacío, cargando, error, sin conexión, lectura del historial, ajustes pendientes y anchos de 600 a 1.440 px; después, capturas de la app real por CDP en los dos temas. La pantalla estaba bloqueada, así que no sirvieron las capturas de ventana con UI Automation.
+- **Arreglos que salieron de la revisión:** filas de herramientas que se salían de la tarjeta, métricas desalineadas, gráficos que escalaban el texto con la ventana (ahora 1:1 con `useWidth`), visor de diff que se abría fuera de la vista, tablas por proyecto y modelo recortadas, estados vacíos engañosos sin conexión y tarjetas de Diagnóstico vacías tras un error.
+- **Comprobaciones:** typecheck, lint, fmt, clippy y tests en verde; el contraste se calculó para todos los pares de tokens (mínimo 4,80:1).
+
 ## Siguiente paso
 
-**Cerrar F5** cuando llegue el resultado de B9: resumirlo, rellenar su fila en §11.2 y el informe, y fusionar `feature/f5-hardening` en `main` si cumple (crecimiento < 10 % y 0 pánicos). Si no cumple, investigar antes de fusionar.
+**Cerrar F5** cuando llegue el resultado de B9: resumirlo, rellenar su fila en §11.2 y el informe, y fusionar `feature/f5-hardening` en `main` si cumple (crecimiento < 10 % y 0 pánicos). Si no cumple, investigar antes de fusionar. Después, fusionar `feature/visual-identity` (contiene F5).
 
 Otra decisión pendiente del usuario: **qué hacer con los hooks `classic.TaskCreated`/`TaskCompleted` del mod.** Son redundantes con `TaskCreate`/`TaskUpdate`, y en el Desktop el motor los salta y avisa al modelo cada vez. Quitarlos es una desviación de §5.2. Mientras no decida, se quedan.
 
