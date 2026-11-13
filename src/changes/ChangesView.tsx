@@ -214,7 +214,8 @@ function GitMeta({ ws, now }: { ws: WorkspaceView; now: number }) {
         <Icon name="branch" size={14} />
         {git.branch ?? "HEAD separado"}
       </span>
-      {(git.ahead || git.behind) && (
+      {/* Con `0 || 0` React pintaría un «0» suelto: se compara con 0 explícitamente. */}
+      {(git.ahead ?? 0) + (git.behind ?? 0) > 0 && (
         <span className="ch-meta-item num" title="Commits por delante y por detrás del remoto">
           <Icon name="arrow-up" size={12} />
           {git.ahead ?? 0}
@@ -347,16 +348,18 @@ function RootPanel({ ws, now }: { ws: WorkspaceView; now: number }) {
               </EmptyState>
             </div>
           )}
-          {selected && (
-            <DiffViewer
-              key={`${ws.root_id}:${selected}`}
-              rootId={ws.root_id}
-              path={selected}
-              untracked={selectedFile?.status === "untracked"}
-              onClose={() => setSelected(null)}
-            />
-          )}
         </section>
+
+        {/* Debajo de las dos columnas y a todo el ancho: un diff necesita sitio. */}
+        {selected && (
+          <DiffViewer
+            key={`${ws.root_id}:${selected}`}
+            rootId={ws.root_id}
+            path={selected}
+            untracked={selectedFile?.status === "untracked"}
+            onClose={() => setSelected(null)}
+          />
+        )}
       </div>
     </Card>
   );

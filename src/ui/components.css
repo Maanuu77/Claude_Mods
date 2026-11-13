@@ -487,6 +487,12 @@
   font-size: var(--fs-hero);
   line-height: 34px;
 }
+@media (max-width: 640px) {
+  .ui-metric-lg .ui-metric-value {
+    font-size: var(--fs-metric);
+    line-height: 28px;
+  }
+}
 .ui-metric-hint {
   color: var(--text-muted);
   font-size: var(--fs-meta);

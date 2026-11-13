@@ -2,7 +2,7 @@
  * Componentes compartidos del sistema visual (docs/DESIGN.md §6). Las vistas no
  * definen botones, insignias, avisos ni estados propios: usan estos.
  */
-import { type ButtonHTMLAttributes, type ReactNode, useId } from "react";
+import { type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode, useId } from "react";
 import { Icon, type IconName } from "./icons";
 import type { Tone } from "./tone";
 
@@ -63,14 +63,26 @@ export function Segmented<T extends string | number>({
   onChange: (value: T) => void;
   label: string;
 }) {
+  // Patrón de grupo de radio (WAI-ARIA): un solo punto de tabulación y flechas
+  // para cambiar de opción.
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    if (step === 0 || options.length === 0) return;
+    e.preventDefault();
+    const current = Math.max(0, options.findIndex((o) => o.value === value));
+    const next = (current + step + options.length) % options.length;
+    onChange(options[next].value);
+    (e.currentTarget.children[next] as HTMLElement | undefined)?.focus();
+  };
   return (
-    <div className="ui-segmented" role="radiogroup" aria-label={label}>
+    <div className="ui-segmented" role="radiogroup" aria-label={label} onKeyDown={onKeyDown}>
       {options.map((o) => (
         <button
           key={String(o.value)}
           type="button"
           role="radio"
           aria-checked={o.value === value}
+          tabIndex={o.value === value ? 0 : -1}
           className={cx("ui-seg", o.value === value && "ui-seg-on")}
           onClick={() => onChange(o.value)}
           title={o.title}

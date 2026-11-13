@@ -148,12 +148,15 @@
 
 .ch-dirty {
   max-height: calc(100vh - 300px);
-  min-height: 120px;
   overflow: auto;
 }
-/* Con el visor abierto, la lista cede sitio para que el diff quede a la vista. */
-.ch-col:has(.dv) .ch-dirty {
+/* Con el visor abierto, las listas ceden sitio para que el diff quede a la vista. */
+.ch-body:has(> .dv) .ch-dirty {
   max-height: 232px;
+}
+.ch-body:has(> .dv) .ch-list {
+  height: 300px;
+  min-height: 0;
 }
 .ch-dirty li:last-child .ch-dirty-row {
   border-bottom: 0;
@@ -170,6 +173,10 @@
   overflow: hidden;
   animation: ui-enter var(--dur-base) var(--ease);
 }
+.ch-body > .dv {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
 .dv-head {
   display: flex;
   align-items: center;
@@ -179,12 +186,15 @@
   background: var(--surface);
   color: var(--text-muted);
 }
+/* Se recorta por la izquierda, como toda ruta: el nombre del fichero queda a la vista. */
 .dv-path {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  direction: rtl;
+  text-align: left;
   color: var(--text);
   font-family: var(--font-mono);
   font-size: var(--fs-meta);

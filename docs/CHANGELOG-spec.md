@@ -12,7 +12,7 @@ La SPEC no fijaba una estética y no había ninguna propuesta previa. A petició
 - **Tema:** sigue el modo claro u oscuro del sistema. Todos los pares de texto y fondo cumplen 4,5:1 en los dos temas; los gráficos usan una paleta de datos comprobada para daltonismo.
 - **Icono de la app:** un dial de instrumento; el original vectorial está en `src-tauri/icons/source.svg` y los PNG/ICO se generan con `tauri icon`.
 - **Estados:** cada vista distingue cargando, vacío, error y sin conexión con el núcleo; en este último ya no dice «no hay sesiones» o «no hay proyectos», sino «Sin datos del núcleo».
-- **Añadidos menores de interfaz** (sin datos nuevos): botón para cerrar el visor de diff, columna «Interrumpidas» y «Reintentar» en el Histórico, botón «Descartar cambios» en los ajustes de privacidad, y el visor de diff se trae a la vista al abrirlo.
+- **Añadidos menores de interfaz** (sin datos nuevos): botón para cerrar el visor de diff, columna «Interrumpidas» y «Reintentar» en el Histórico, botón «Descartar cambios» en los ajustes de privacidad; el visor de diff se abre a todo el ancho del panel y se trae a la vista, y los selectores de periodo y proyecto se manejan con las flechas.
 
 ## Precisiones de F5: endurecimiento (2026-11-12)
 

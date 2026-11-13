@@ -228,6 +228,10 @@
   .sh-item[data-tip]:not(:hover):not(:focus-visible)::after {
     display: none;
   }
+  /* Un solo tooltip: si el ratón está sobre otro icono, se oculta el del foco. */
+  .sh-nav:hover .sh-item:not(:hover)::after {
+    display: none;
+  }
 }
 
 @media (max-width: 640px) {

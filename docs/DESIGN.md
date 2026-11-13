@@ -133,6 +133,7 @@ Juego propio en `src/ui/icons.tsx`: SVG de 16 px (20 en la navegación), trazo d
 - **Cabecera de vista:** título, resumen de una línea y las acciones de la vista (Actualizar, periodo, proyecto).
 - **Avisos globales** debajo de la cabecera; los de una vista, dentro de ella.
 - El contenido usa rejillas de tarjetas que se reorganizan solas (mínimo 340 px por columna).
+- Al cambiar de vista, el contenido vuelve arriba: las vistas comparten el contenedor con desplazamiento.
 
 ## 6. Componentes compartidos
 
@@ -177,7 +178,7 @@ Toda vista resuelve, con los componentes de §6:
 |---|---|
 | **En vivo** | Tarjeta por sesión con filo de estado; cabecera con proyecto, estado (punto + insignia) y motor; fila de métricas; medidores de contexto y límites; progreso declarado; herramientas en curso arriba y últimas debajo; pie con mod y última actividad. |
 | **Tareas** | Tarjeta por sesión; cada lista con su fuente, barra de progreso y pasos (icono de estado, en curso resaltado, bloqueos en ámbar); árbol de subagentes con punto y duración; actividad separada con `Sparkline`. |
-| **Cambios en directo** | Selector de proyecto; panel con Git en metadatos (rama, adelanto, `HEAD`, ficheros); lista en un pozo con grupos por herramienta; columna de ficheros con cambios y visor de diff con líneas coloreadas. |
+| **Cambios en directo** | Selector de proyecto; panel con Git en metadatos (rama, adelanto, `HEAD`, ficheros); lista en un pozo con grupos por herramienta; columna de ficheros con cambios; el visor de diff se abre debajo, a todo el ancho del panel, con líneas coloreadas. |
 | **Mapa** | Selector de proyecto; árbol en un pozo con cifras alineadas y calor de hoy en ámbar; componentes por ecosistema; grafo con nodos neutros y grupos en `accent`. |
 | **Histórico** | Periodo en la cabecera; métricas grandes; gráficos con la paleta de datos (§2.3), eje discreto, tooltip y vista de tabla; tablas compactas. |
 | **Diagnóstico** | Tarjetas de propiedades con insignias de estado; «Privacidad y retención» con interruptores, campo numérico y botones (`primary`, `secondary`, `danger` con `ConfirmBar`). |
@@ -195,6 +196,6 @@ En una fila con insignias (herramientas, ficheros), la ruta es lo primero que ce
 
 - Contraste comprobado de todos los pares de texto/fondo en los dos temas: texto ≥ 4,5:1 (mínimo medido 4,80) y `--text-faint` ≥ 3:1, solo para lo no esencial.
 - El estado nunca depende solo del color (icono o palabra siempre).
-- Navegación por teclado con foco visible; los iconos solos llevan nombre accesible.
+- Navegación por teclado con foco visible; los iconos solos llevan nombre accesible. Los selectores (`Segmented`) siguen el patrón de grupo de radio: un solo punto de tabulación y flechas para cambiar de opción.
 - Las gráficas tienen tooltip, etiqueta accesible y vista de tabla.
 - `prefers-reduced-motion` detiene el pulso y las transiciones.

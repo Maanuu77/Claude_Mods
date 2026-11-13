@@ -88,9 +88,11 @@
 }
 .pm-comps {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-2);
 }
 .pm-comp {
+  min-width: 0;
   padding: 10px var(--sp-3);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
@@ -101,6 +103,9 @@
   align-items: center;
   gap: var(--sp-2);
   min-width: 0;
+}
+.pm-comp-head > strong {
+  flex: 0 1 auto;
 }
 .pm-version {
   flex: none;

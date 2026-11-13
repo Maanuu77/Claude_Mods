@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./ui/tokens.css";
 import "./ui/base.css";
 import "./ui/components.css";
@@ -35,6 +35,11 @@ function App() {
   const { sessions, workspaces } = useLive();
   useEffect(connectLive, []);
   const [tab, setTab] = useState<Tab>("live");
+  const main = useRef<HTMLElement>(null);
+  // Las vistas comparten el contenedor con desplazamiento: al cambiar, se vuelve arriba.
+  useEffect(() => {
+    main.current?.scrollTo(0, 0);
+  }, [tab]);
 
   const ordered = useMemo(() => sortSessions(sessions), [sessions]);
   const roots = Object.keys(workspaces).length;
@@ -50,7 +55,7 @@ function App() {
         liveCount={liveCount}
         recent={ordered.length}
       />
-      <main className="sh-main">
+      <main ref={main} className="sh-main">
         {tab === "live" ? (
           <LiveView sessions={ordered} now={now} />
         ) : tab === "tasks" ? (
