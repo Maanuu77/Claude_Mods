@@ -10,6 +10,10 @@ fn main() {
     let windows = tauri_build::WindowsAttributes::new()
         .app_manifest(include_str!("windows-app-manifest.xml"));
     println!("cargo:rerun-if-changed=windows-app-manifest.xml");
+    // Con un `rerun-if-changed` propio, Cargo solo vuelve a ejecutar este script
+    // cuando cambian los ficheros declarados: sin esta línea, un icono nuevo no
+    // llegaba al exe (recurso de Windows) ni a la ventana.
+    println!("cargo:rerun-if-changed=icons");
 
     if std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("gnu")
         && std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows")
