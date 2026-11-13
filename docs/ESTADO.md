@@ -154,6 +154,8 @@ Resultados en [`perf/2026-11-12-f5.md`](perf/2026-11-12-f5.md):
 | **B10** instalador | **3,55 MiB** (objetivo < 15 MB); binario 10,3 MiB, bundle JS 304 KiB |
 | **B8** reposo (5 min) | 194 MB en total y 6,3 MB el proceso Rust (objetivos < 250 y < 60); CPU 0,01 % (objetivo < 0,5 %); 298/300 muestras válidas |
 | **B5** carga (30 min, 107 herramientas/min) | CPU **0,06 %** de media y 0,71 % de máximo (objetivo < 3 %); **224 MB** en total y 8,9 MB el proceso Rust; 3.210 de 3.210 herramientas guardadas; 1.799/1.800 muestras válidas |
+| **C2** con Teams abierto (§16, paso 5) | de 18 procesos WebView2 del equipo, 5 propios y ninguno de Teams; los dos métodos coinciden en 60/60 muestras |
+| Sección «Privacidad y retención» en la app | revisada con UI Automation y capturas; «Borrar rutas ahora» funciona de punta a punta |
 | **B9** 24 h | **pendiente:** el usuario la lanza en otro equipo con `target\b9-kit` (instalador de `8b324f3`, `b9-soak.ps1` y `LEEME.txt`). Hay que traer `Escritorio\dev-cockpit-b9` y resumirla con `b9-soak.ps1 -Summarize -OutDir <carpeta>` |
 | Tests | 180 en verde (1 ignorado); fmt, clippy, typecheck y lint sin avisos |
 
