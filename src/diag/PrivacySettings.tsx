@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { formatAgo, formatInt } from "../live/format";
 import { useLive } from "../live/store";
+import { Button, Card, ConfirmBar, Loading, Notice, NumberField, SectionLabel, Switch } from "../ui/components";
 
 /** Espejo de `cockpit_ingest::settings::Settings` (SPEC §10). */
 interface Settings {
@@ -86,10 +87,15 @@ export function PrivacySettings({ now, onCleared }: { now: number; onCleared: ()
 
   if (!view || !draft) {
     return (
-      <section className="card">
-        <h3>Privacidad y retención</h3>
-        <p className="card-meta">{failure ? `No se han podido leer los ajustes: ${failure}` : "Cargando…"}</p>
-      </section>
+      <Card title="Privacidad y retención" className="grid-wide">
+        {failure ? (
+          <Notice tone="critical" title="No se han podido leer los ajustes">
+            {failure}
+          </Notice>
+        ) : (
+          <Loading label="Leyendo los ajustes…" />
+        )}
+      </Card>
     );
   }
 
@@ -121,96 +127,95 @@ export function PrivacySettings({ now, onCleared }: { now: number; onCleared: ()
   };
 
   const pendingRestart = !same(view.saved, view.applied);
+  const dirty = !same(draft, view.saved);
   return (
-    <section className="card dg-wide">
-      <h3>Privacidad y retención</h3>
+    <Card
+      title="Privacidad y retención"
+      subtitle="Qué se guarda y cuánto tiempo (SPEC §10). Los cambios se aplican al reiniciar la app."
+      className="grid-wide"
+    >
       {failure && (
-        <p className="banner banner-error" role="alert">
+        <Notice tone="critical" title="No se ha podido completar la acción">
           {failure}
-        </p>
+        </Notice>
       )}
       <div className="pv-grid">
         {FLAGS.map((f) => (
-          <label key={f.key.join(".")} className="pv-flag">
-            <input
-              type="checkbox"
-              checked={flag(draft, f.key)}
-              onChange={(e) => setDraft(withFlag(draft, f.key, e.target.checked))}
-            />
-            <span>
-              <strong>{f.label}</strong>
-              <small>{f.help}</small>
-            </span>
-          </label>
-        ))}
-        <label className="pv-flag">
-          <input
-            type="number"
-            min={1}
-            max={30}
-            value={draft.retention.path_detail_days}
-            onChange={(e) =>
-              setDraft({
-                ...draft,
-                retention: { path_detail_days: Math.min(30, Math.max(1, Number(e.target.value) || 1)) },
-              })
-            }
+          <Switch
+            key={f.key.join(".")}
+            checked={flag(draft, f.key)}
+            onChange={(v) => setDraft(withFlag(draft, f.key, v))}
+            label={f.label}
+            help={f.help}
           />
-          <span>
-            <strong>Días con rutas</strong>
-            <small>De 1 a 30. Después solo quedan los totales por día, sin rutas.</small>
-          </span>
-        </label>
+        ))}
+        <NumberField
+          value={draft.retention.path_detail_days}
+          min={1}
+          max={30}
+          unit="días"
+          onChange={(v) => setDraft({ ...draft, retention: { path_detail_days: v } })}
+          label="Días con rutas"
+          help="De 1 a 30. Después solo quedan los totales por día, sin rutas."
+        />
       </div>
       <div className="pv-actions">
-        <button type="button" className="tab" onClick={save} disabled={busy || same(draft, view.saved)}>
+        <Button variant="primary" onClick={save} disabled={busy || !dirty}>
           Guardar
-        </button>
-        {pendingRestart && (
-          <>
-            <span className="card-meta">Los cambios guardados se aplican al reiniciar DEV COCKPIT.</span>
-            <button type="button" className="tab" onClick={() => void invoke("restart_app")} disabled={busy}>
-              Reiniciar ahora
-            </button>
-          </>
+        </Button>
+        {dirty && (
+          <Button variant="ghost" onClick={() => setDraft(view.saved)} disabled={busy}>
+            Descartar cambios
+          </Button>
         )}
       </div>
+      {pendingRestart && (
+        <Notice
+          tone="attention"
+          title="Hay ajustes guardados sin aplicar"
+          actions={
+            <Button size="sm" variant="primary" icon="refresh" onClick={() => void invoke("restart_app")} disabled={busy}>
+              Reiniciar ahora
+            </Button>
+          }
+        >
+          Se aplican al reiniciar DEV COCKPIT; cada mod adopta la política nueva en su siguiente conexión.
+        </Notice>
+      )}
 
-      <h3>Borrar rutas ahora</h3>
-      <p className="card-meta">
-        Borra ya el detalle de rutas de todos los días agregados, quita la ruta de todas las herramientas y borra
-        las incidencias de la ingesta. Los totales por día se conservan. Las rutas de los cambios de hoy se borran en
-        cuanto el día se agregue, porque hacen falta para contar los ficheros distintos.
+      <SectionLabel>Borrar rutas ahora</SectionLabel>
+      <p className="pv-text">
+        Borra ya el detalle de rutas de todos los días agregados, quita la ruta de todas las herramientas y borra las
+        incidencias de la ingesta. Los totales por día se conservan. Las rutas de los cambios de hoy se borran en cuanto
+        el día se agregue, porque hacen falta para contar los ficheros distintos.
         {view.applied.privacy.record_paths && " Con «Rutas de fichero» activado, las rutas nuevas se siguen guardando."}
-        {view.paths_cleared_at && ` Última vez: ${formatAgo(view.paths_cleared_at, now)}.`}
+        {view.paths_cleared_at && <span className="muted"> Última vez: {formatAgo(view.paths_cleared_at, now)}.</span>}
       </p>
       {confirming ? (
-        <div className="pv-actions">
-          <span className="warn">No se puede deshacer. ¿Borrar las rutas?</span>
-          <button type="button" className="tab" onClick={clear} disabled={busy}>
-            {busy ? "Borrando…" : "Borrar"}
-          </button>
-          <button type="button" className="tab" onClick={() => setConfirming(false)} disabled={busy}>
-            Cancelar
-          </button>
-        </div>
+        <ConfirmBar
+          message="No se puede deshacer. ¿Borrar las rutas?"
+          confirmLabel="Borrar las rutas"
+          onConfirm={clear}
+          onCancel={() => setConfirming(false)}
+          busy={busy}
+        />
       ) : (
         <div className="pv-actions">
-          <button type="button" className="tab" onClick={() => setConfirming(true)} disabled={busy}>
+          <Button variant="danger" icon="trash" onClick={() => setConfirming(true)} disabled={busy}>
             Borrar rutas ahora
-          </button>
+          </Button>
         </div>
       )}
       {report && (
-        <p className="card-meta" role="status">
-          Hecho: {formatInt(report.compact.tool_paths_purged + report.tool_paths_cleared)} herramientas sin ruta,{" "}
+        <Notice tone="positive" live title="Rutas borradas">
+          {formatInt(report.compact.tool_paths_purged + report.tool_paths_cleared)} herramientas sin ruta,{" "}
           {formatInt(report.compact.file_events_purged)} cambios de fichero borrados y{" "}
           {formatInt(report.compact.errors_purged)} incidencias borradas.
           {report.file_events_pending > 0 &&
             ` ${formatInt(report.file_events_pending)} cambios conservan la ruta hasta que su día se agregue.`}
           {report.compact.failed > 0 && ` ${formatInt(report.compact.failed)} días no se pudieron agregar y siguen pendientes.`}
-        </p>
+        </Notice>
       )}
-    </section>
+    </Card>
   );
 }

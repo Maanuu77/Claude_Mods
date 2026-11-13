@@ -1,0 +1,241 @@
+/* Vista «Mapa» (docs/DESIGN.md §8). */
+
+.pm-panel > .ui-notice {
+  margin-bottom: var(--sp-3);
+}
+
+.pm-body {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--sp-5);
+}
+.pm-col {
+  min-width: 0;
+}
+.pm-col > .ui-section-label:first-child {
+  margin-top: var(--sp-2);
+}
+
+/* --- Árbol ------------------------------------------------------------------- */
+
+.pm-tree {
+  height: 420px;
+  overflow: auto;
+}
+.pm-row {
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding-right: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-body);
+}
+.pm-row:hover {
+  background: var(--hover);
+}
+.pm-toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--text-muted);
+}
+.pm-toggle:hover:not(:disabled) {
+  background: var(--neutral-soft);
+  color: var(--text);
+}
+.pm-folder {
+  color: var(--text-faint);
+}
+.pm-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pm-lang {
+  flex: none;
+  color: var(--text-faint);
+  font-size: var(--fs-meta);
+}
+.pm-num {
+  flex: none;
+  width: 48px;
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  text-align: right;
+}
+.pm-bytes {
+  width: 72px;
+}
+
+/* --- Componentes -------------------------------------------------------------- */
+
+.pm-eco + .pm-eco {
+  margin-top: var(--sp-2);
+}
+.pm-eco .ui-section-label {
+  margin-top: var(--sp-2);
+}
+.pm-comps {
+  display: grid;
+  gap: var(--sp-2);
+}
+.pm-comp {
+  padding: 10px var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.pm-comp-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.pm-version {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+}
+.pm-dir {
+  flex: 1;
+  text-align: right;
+}
+.pm-line {
+  margin-top: 4px;
+  font-size: var(--fs-meta);
+  line-height: 18px;
+}
+.pm-rel {
+  color: var(--text-muted);
+}
+.pm-rel::after {
+  content: " ·";
+}
+
+.pm-ext {
+  margin-top: 6px;
+  font-size: var(--fs-meta);
+}
+.pm-ext summary {
+  color: var(--accent-text);
+  cursor: pointer;
+  list-style-position: inside;
+}
+.pm-ext summary:hover {
+  text-decoration: underline;
+}
+.pm-ext ul {
+  display: grid;
+  gap: 2px;
+  margin-top: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+.pm-ext li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.pm-problems {
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-meta);
+}
+.pm-col > .ui-notice {
+  margin-top: var(--sp-3);
+}
+
+/* --- Grafo (G8) -------------------------------------------------------------- */
+
+.pm-graph {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+.pm-graph figcaption {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin-bottom: var(--sp-3);
+  color: var(--text-muted);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.pm-graph-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.pm-graph-key svg:not(:first-child) {
+  margin-left: var(--sp-2);
+}
+.pm-graph-scroll > svg {
+  display: block;
+  margin: 0 auto;
+}
+.pm-graph-scroll {
+  overflow: auto;
+  max-height: 520px;
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+}
+.pm-edge {
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-width: 1.5;
+}
+.pm-edge-module {
+  stroke-dasharray: 4 3;
+}
+.pm-arrow {
+  fill: var(--text-faint);
+}
+.pm-node {
+  fill: var(--surface);
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+.pm-node-group {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+}
+.pm-node-name {
+  fill: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+}
+.pm-node-meta {
+  fill: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+}
+
+@media (max-width: 999px) {
+  .pm-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

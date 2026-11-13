@@ -1,0 +1,92 @@
+/* Vista «Tareas» (docs/DESIGN.md §8). */
+
+.tm-list + .tm-list {
+  margin-top: var(--sp-2);
+}
+.tm-list .ui-section-label:first-child {
+  margin-top: 0;
+}
+.tm-count {
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+}
+
+.tm-items {
+  display: grid;
+  gap: 1px;
+  margin-top: var(--sp-2);
+}
+.tm-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 28px;
+  padding: 3px var(--sp-2);
+  border-radius: var(--r-sm);
+  min-width: 0;
+}
+.tm-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--text-faint);
+}
+.tm-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tm-completed .tm-mark {
+  color: var(--positive);
+}
+.tm-completed .tm-title {
+  color: var(--text-muted);
+}
+.tm-in_progress {
+  background: var(--accent-soft);
+}
+.tm-in_progress .tm-mark,
+.tm-in_progress .tm-title {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.tm-tree {
+  display: grid;
+  margin-left: 3px;
+  padding-left: var(--sp-4);
+  border-left: 1px solid var(--border);
+}
+.tm-tree-root {
+  margin-left: 0;
+  padding-left: 0;
+  border-left: 0;
+}
+.tm-agent {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 28px;
+}
+.tm-agent-type {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tm-agent-time {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+}
+
+.tm-activity {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+}
+.tm-activity-text {
+  font-size: var(--fs-meta);
+  line-height: 18px;
+}

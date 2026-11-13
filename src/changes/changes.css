@@ -1,0 +1,252 @@
+/* Vista «Cambios en directo» (docs/DESIGN.md §8). */
+
+.ch-panel {
+  padding-bottom: var(--sp-3);
+}
+
+.ch-meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px var(--sp-3);
+}
+.ch-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.ch-notices {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.ch-body {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--sp-5);
+}
+.ch-col {
+  min-width: 0;
+}
+
+.ch-list {
+  height: calc(100vh - 300px);
+  min-height: 260px;
+  overflow: auto;
+}
+.ch-slot {
+  position: absolute;
+  inset: 0 0 auto 0;
+}
+
+.ch-row,
+.ch-dirty-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  height: 100%;
+  min-height: 32px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-body);
+  text-align: left;
+}
+.ch-row:hover:not(:disabled),
+.ch-dirty-row:hover {
+  background: var(--hover);
+}
+.ch-row:disabled {
+  cursor: default;
+}
+.ch-row-grouped {
+  padding-left: calc(var(--sp-3) + 18px);
+}
+.ch-row-on,
+.ch-row-on:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.ch-group {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 100%;
+  padding: 0 var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+}
+.ch-group-tool {
+  color: var(--text);
+  font-weight: 600;
+}
+.ch-group-count {
+  margin-left: auto;
+}
+
+.ch-time {
+  flex: none;
+  width: 64px;
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+}
+.ch-change {
+  flex: none;
+  width: 82px;
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+}
+.ch-created {
+  color: var(--positive);
+}
+.ch-deleted {
+  color: var(--critical);
+}
+.ch-renamed {
+  color: var(--accent-text);
+}
+.ch-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+}
+.ch-counts {
+  display: inline-flex;
+  gap: 6px;
+  flex: none;
+  min-width: 64px;
+  justify-content: flex-end;
+  font-size: var(--fs-meta);
+}
+.ch-plus {
+  color: var(--positive);
+}
+.ch-minus {
+  color: var(--critical);
+}
+.ch-confidence {
+  opacity: 0.8;
+}
+
+.ch-more {
+  margin-top: var(--sp-2);
+}
+
+.ch-dirty {
+  max-height: calc(100vh - 300px);
+  min-height: 120px;
+  overflow: auto;
+}
+/* Con el visor abierto, la lista cede sitio para que el diff quede a la vista. */
+.ch-col:has(.dv) .ch-dirty {
+  max-height: 232px;
+}
+.ch-dirty li:last-child .ch-dirty-row {
+  border-bottom: 0;
+}
+.ch-dirty-more {
+  padding: 6px var(--sp-3);
+  font-size: var(--fs-meta);
+}
+
+/* --- Visor de diff -------------------------------------------------------------- */
+
+.dv {
+  margin-top: var(--sp-3);
+  overflow: hidden;
+  animation: ui-enter var(--dur-base) var(--ease);
+}
+.dv-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-2) 6px var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+.dv-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+}
+.dv-body {
+  padding: 0;
+}
+.dv-body > .ui-notice,
+.dv-body > .ui-loading {
+  margin: var(--sp-3);
+}
+.dv-code {
+  max-height: 46vh;
+  margin: 0;
+  padding: var(--sp-2) 0;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  line-height: 18px;
+}
+.dv-code span {
+  display: block;
+  padding: 0 var(--sp-3);
+  white-space: pre;
+}
+.dv-code .d-add {
+  background: var(--diff-add);
+  color: var(--positive);
+}
+.dv-code .d-del {
+  background: var(--diff-del);
+  color: var(--critical);
+}
+.dv-code .d-hunk {
+  color: var(--accent-text);
+}
+.dv-code .d-meta {
+  color: var(--text-faint);
+}
+.dv-note {
+  padding: var(--sp-3);
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+}
+
+@media (max-width: 999px) {
+  .ch-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ch-list {
+    height: 420px;
+  }
+  .ch-dirty {
+    max-height: 420px;
+  }
+}
+
+@media (max-width: 640px) {
+  .ch-time {
+    width: 56px;
+  }
+  .ch-change {
+    width: 64px;
+  }
+}

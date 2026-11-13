@@ -1,0 +1,54 @@
+/* Vista «Diagnóstico» y ajustes de privacidad (docs/DESIGN.md §8). */
+
+.dg-grid > .ui-notice {
+  grid-column: 1 / -1;
+}
+
+.dg-sessions {
+  display: grid;
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+}
+.dg-sessions li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 28px;
+  font-size: var(--fs-meta);
+}
+.dg-sessions li .ui-badge {
+  margin-left: auto;
+}
+
+.dg-note {
+  margin-top: var(--sp-3);
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  line-height: 16px;
+}
+
+/* --- Privacidad y retención ---------------------------------------------------- */
+
+.pv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--sp-4) var(--sp-6);
+  margin: var(--sp-2) 0 var(--sp-4);
+}
+.pv-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.pv-actions + .ui-notice,
+.ui-confirm + .ui-notice,
+.pv-actions + .ui-notice + .ui-notice {
+  margin-top: var(--sp-3);
+}
+.pv-text {
+  max-width: 820px;
+  margin-bottom: var(--sp-3);
+  color: var(--text);
+}

@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import "./App.css";
+import "./ui/tokens.css";
+import "./ui/base.css";
+import "./ui/components.css";
+import "./app/shell.css";
+import { Sidebar, type Tab } from "./app/Shell";
 import { ChangesView } from "./changes/ChangesView";
-import { SessionCard } from "./live/SessionCard";
-import { formatInt } from "./live/format";
-import { connectLive, sortSessions, useLive } from "./live/store";
 import { DiagnosticsView } from "./diag/DiagnosticsView";
 import { HistoryView } from "./history/HistoryView";
+import { LiveView } from "./live/LiveView";
+import { connectLive, sortSessions, useLive } from "./live/store";
 import { ProjectMapView } from "./map/ProjectMapView";
 import { TaskMonitor } from "./tasks/TaskMonitor";
 
@@ -28,10 +31,8 @@ function useNow(active: boolean): number {
   return now;
 }
 
-type Tab = "live" | "tasks" | "changes" | "map" | "history" | "diag";
-
 function App() {
-  const { connected, error, sessions, backfill, workspaces } = useLive();
+  const { sessions, workspaces } = useLive();
   useEffect(connectLive, []);
   const [tab, setTab] = useState<Tab>("live");
 
@@ -39,82 +40,32 @@ function App() {
   const roots = Object.keys(workspaces).length;
   const now = useNow(ordered.length > 0 || roots > 0);
   const liveCount = ordered.filter((s) => s.live !== null).length;
-  const percent =
-    backfill && backfill.bytes_total > 0
-      ? Math.round((backfill.bytes_done / backfill.bytes_total) * 100)
-      : 0;
 
   return (
-    <main className="app">
-      <header className="top">
-        <h1>DEV COCKPIT</h1>
-        <nav className="tabs" aria-label="Vistas">
-          <button type="button" className={tab === "live" ? "tab tab-on" : "tab"} onClick={() => setTab("live")}>
-            En vivo
-          </button>
-          <button type="button" className={tab === "tasks" ? "tab tab-on" : "tab"} onClick={() => setTab("tasks")}>
-            Tareas
-          </button>
-          <button
-            type="button"
-            className={tab === "changes" ? "tab tab-on" : "tab"}
-            onClick={() => setTab("changes")}
-          >
-            Cambios en directo{roots > 0 && ` (${formatInt(roots)})`}
-          </button>
-          <button type="button" className={tab === "map" ? "tab tab-on" : "tab"} onClick={() => setTab("map")}>
-            Mapa
-          </button>
-          <button type="button" className={tab === "history" ? "tab tab-on" : "tab"} onClick={() => setTab("history")}>
-            Histórico
-          </button>
-          <button type="button" className={tab === "diag" ? "tab tab-on" : "tab"} onClick={() => setTab("diag")}>
-            Diagnóstico
-          </button>
-        </nav>
-        <p className="summary">
-          {connected
-            ? `${formatInt(liveCount)} ${liveCount === 1 ? "sesión viva" : "sesiones vivas"} · ${formatInt(ordered.length)} con actividad reciente`
-            : "Conectando…"}
-        </p>
-      </header>
-
-      {error && (
-        <p className="banner banner-error" role="alert">
-          No se ha podido conectar con el núcleo: {error}
-        </p>
-      )}
-
-      {backfill?.running && (
-        <p className="banner" role="status">
-          Leyendo el historial de transcripts: {formatInt(backfill.files_done)} de{" "}
-          {formatInt(backfill.files_total)} ficheros ({percent} %)
-          <progress value={backfill.bytes_done} max={Math.max(backfill.bytes_total, 1)} />
-        </p>
-      )}
-
-      {tab === "changes" ? (
-        <ChangesView now={now} />
-      ) : tab === "tasks" ? (
-        <TaskMonitor now={now} />
-      ) : tab === "map" ? (
-        <ProjectMapView now={now} />
-      ) : tab === "history" ? (
-        <HistoryView now={now} />
-      ) : tab === "diag" ? (
-        <DiagnosticsView now={now} />
-      ) : connected && ordered.length === 0 && !backfill?.running ? (
-        <p className="empty">
-          No hay sesiones de Claude Code activas. Aparecerán aquí en cuanto se abra una.
-        </p>
-      ) : (
-        <div className="grid">
-          {ordered.map((s) => (
-            <SessionCard key={s.id} session={s} now={now} />
-          ))}
-        </div>
-      )}
-    </main>
+    <div className="sh">
+      <Sidebar
+        tab={tab}
+        onTab={setTab}
+        counts={{ live: liveCount, changes: roots }}
+        liveCount={liveCount}
+        recent={ordered.length}
+      />
+      <main className="sh-main">
+        {tab === "live" ? (
+          <LiveView sessions={ordered} now={now} />
+        ) : tab === "tasks" ? (
+          <TaskMonitor now={now} />
+        ) : tab === "changes" ? (
+          <ChangesView now={now} />
+        ) : tab === "map" ? (
+          <ProjectMapView now={now} />
+        ) : tab === "history" ? (
+          <HistoryView now={now} />
+        ) : (
+          <DiagnosticsView now={now} />
+        )}
+      </main>
+    </div>
   );
 }
 

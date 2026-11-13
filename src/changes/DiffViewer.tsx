@@ -1,12 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatInt } from "../live/format";
 import type { FileDiff, FilePreview } from "../live/types";
+import { Badge, Button, Loading, Notice } from "../ui/components";
+import { Icon } from "../ui/icons";
 
-type Loaded =
-  | { kind: "diff"; data: FileDiff }
-  | { kind: "preview"; data: FilePreview }
-  | { kind: "error"; message: string };
+type Loaded = { kind: "diff"; data: FileDiff } | { kind: "preview"; data: FilePreview } | { kind: "error"; message: string };
 
 function lineClass(line: string, isDiff: boolean): string {
   if (!isDiff) return "";
@@ -26,19 +25,26 @@ export function DiffViewer({
   rootId,
   path,
   untracked,
+  onClose,
 }: {
   rootId: number;
   path: string;
   untracked: boolean;
+  onClose: () => void;
 }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const self = useRef<HTMLElement>(null);
+
+  // El visor se abre debajo de la lista: se trae a la vista, sin animación, al abrirlo
+  // y otra vez cuando llega el contenido (crece).
+  useEffect(() => {
+    self.current?.scrollIntoView({ block: "nearest" });
+  }, [loaded]);
 
   useEffect(() => {
     let cancelled = false;
     const request = untracked
-      ? invoke<FilePreview>("read_file_preview", { rootId, relPath: path }).then(
-          (data): Loaded => ({ kind: "preview", data }),
-        )
+      ? invoke<FilePreview>("read_file_preview", { rootId, relPath: path }).then((data): Loaded => ({ kind: "preview", data }))
       : invoke<FileDiff>("git_diff", { rootId, relPath: path }).then((data): Loaded => ({ kind: "diff", data }));
     request
       .catch((e: unknown): Loaded => ({ kind: "error", message: String(e) }))
@@ -52,23 +58,23 @@ export function DiffViewer({
 
   let body;
   if (!loaded) {
-    body = <p className="viewer-note">Cargando…</p>;
+    body = <Loading label="Leyendo el fichero…" />;
   } else if (loaded.kind === "error") {
-    body = <p className="viewer-note warn">No se ha podido leer: {loaded.message}</p>;
-  } else if (loaded.data.binary) {
-    body = <p className="viewer-note">Fichero binario: no se muestra su contenido.</p>;
-  } else if (loaded.data.text.trim() === "") {
     body = (
-      <p className="viewer-note">
-        {loaded.kind === "diff" ? "Sin diferencias con HEAD." : "Fichero vacío."}
-      </p>
+      <Notice tone="critical" title="No se ha podido leer">
+        {loaded.message}
+      </Notice>
     );
+  } else if (loaded.data.binary) {
+    body = <p className="dv-note">Fichero binario: no se muestra su contenido.</p>;
+  } else if (loaded.data.text.trim() === "") {
+    body = <p className="dv-note">{loaded.kind === "diff" ? "Sin diferencias con HEAD." : "Fichero vacío."}</p>;
   } else {
     const isDiff = loaded.kind === "diff";
     const lines = loaded.data.text.replace(/\n$/, "").split("\n");
     body = (
       <>
-        <pre className="viewer-code">
+        <pre className="dv-code">
           {lines.map((line, i) => (
             <span key={i} className={lineClass(line, isDiff)}>
               {line}
@@ -77,7 +83,7 @@ export function DiffViewer({
           ))}
         </pre>
         {loaded.data.truncated && (
-          <p className="viewer-note">
+          <p className="dv-note">
             {isDiff
               ? "Diff recortado a 2 MB."
               : `Vista previa recortada: primeros 256 KB de ${formatInt(Math.round((loaded.data as FilePreview).size / 1024))} KB.`}
@@ -88,14 +94,18 @@ export function DiffViewer({
   }
 
   return (
-    <section className="viewer" aria-label={`Contenido de ${path}`}>
-      <header className="viewer-head">
-        <span className="viewer-path" title={path}>
+    <section ref={self} className="dv ui-well" aria-label={`Contenido de ${path}`}>
+      <header className="dv-head">
+        <Icon name="file" size={14} />
+        <span className="dv-path" title={path}>
           {path}
         </span>
-        <span className="tag">{untracked ? "sin seguimiento · vista previa" : "diff con HEAD"}</span>
+        <Badge tone={untracked ? "positive" : "neutral"}>{untracked ? "sin seguimiento · vista previa" : "diff con HEAD"}</Badge>
+        <Button size="sm" variant="ghost" icon="x-circle" iconOnly onClick={onClose}>
+          Cerrar el visor
+        </Button>
       </header>
-      {body}
+      <div className="dv-body">{body}</div>
     </section>
   );
 }

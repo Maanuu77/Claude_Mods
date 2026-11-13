@@ -1,0 +1,108 @@
+/* Vista «Histórico» (docs/DESIGN.md §8). Gráficos con la paleta de datos (§2.3). */
+
+.hs-stack {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+/* Por proyecto y por modelo: dos columnas mientras quepan sus tablas. */
+.hs-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.hs-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--sp-4);
+}
+
+.hs-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.hs-grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+.hs-axis {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+.hs-tick {
+  fill: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.hs-direct {
+  fill: var(--text);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+}
+.hs-bar {
+  fill: var(--series-1);
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.hs-col:hover .hs-bar {
+  opacity: 0.78;
+}
+.hs-hit {
+  fill: transparent;
+}
+.hs-col:hover .hs-hit {
+  fill: var(--hover);
+  fill-opacity: 0.35;
+}
+.hs-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.hs-line.hs-s1 {
+  stroke: var(--series-1);
+}
+.hs-line.hs-s2 {
+  stroke: var(--series-2);
+}
+
+.hs-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+}
+.hs-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hs-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+}
+.hs-swatch.hs-s1 {
+  background: var(--series-1);
+}
+.hs-swatch.hs-s2 {
+  background: var(--series-2);
+}
+
+.hs-table-scroll {
+  max-height: 320px;
+  overflow: auto;
+}
+.hs-key {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,8 +1,15 @@
 import { useMemo } from "react";
+import { LiveEmpty, View } from "../app/Shell";
+import { sessionState } from "../live/SessionCard";
 import { formatAgo, formatDuration, formatInt, projectName, toolLabel } from "../live/format";
 import { sortSessions, useLive } from "../live/store";
-import { SOURCE_LABEL } from "./labels";
 import type { ActivityView, AgentState, AgentView, SessionView, TaskItemView, TaskListView } from "../live/types";
+import { Badge, Card, EmptyState, ProgressBar, SectionLabel, Sparkline, StatusDot } from "../ui/components";
+import { Icon, type IconName } from "../ui/icons";
+import { agentTone } from "../ui/tone";
+import { SOURCE_LABEL } from "./labels";
+import "../live/live.css";
+import "./tasks.css";
 
 const AGENT_LABEL: Record<AgentState, string> = {
   pending: "pendiente",
@@ -14,11 +21,18 @@ const AGENT_LABEL: Record<AgentState, string> = {
   killed: "detenido",
 };
 
-const STATUS_MARK: Record<TaskItemView["status"], string> = {
-  completed: "✓",
-  in_progress: "●",
-  pending: "○",
-  deleted: "×",
+const STATUS_ICON: Record<TaskItemView["status"], IconName> = {
+  completed: "check-circle",
+  in_progress: "circle-dot",
+  pending: "circle",
+  deleted: "circle-slash",
+};
+
+const STATUS_LABEL: Record<TaskItemView["status"], string> = {
+  completed: "completada",
+  in_progress: "en curso",
+  pending: "pendiente",
+  deleted: "borrada",
 };
 
 /** Título, o «Tarea n.º k» si la política no guarda títulos (D1). */
@@ -31,32 +45,42 @@ function itemTitle(list: TaskListView, item: TaskItemView, index: number): strin
 function TaskList({ list }: { list: TaskListView }) {
   const { total, completed } = list.progress;
   const done = new Set(list.items.filter((i) => i.status === "completed").map((i) => i.task_id));
+  const finished = total > 0 && completed === total;
   return (
     <section className="tm-list">
-      <header className="tm-list-head">
-        <h3>{SOURCE_LABEL[list.source]}</h3>
-        <span className="tm-count">
-          {formatInt(completed)} / {formatInt(total)} completadas
-        </span>
-      </header>
-      <progress
-        className="tm-bar"
+      <SectionLabel
+        actions={
+          <span className="tm-count num">
+            {formatInt(completed)} de {formatInt(total)}
+          </span>
+        }
+      >
+        {SOURCE_LABEL[list.source]}
+      </SectionLabel>
+      <ProgressBar
         value={completed}
         max={Math.max(total, 1)}
-        aria-label={`${completed} de ${total} tareas completadas`}
+        tone={finished ? "positive" : "accent"}
+        label={`${completed} de ${total} tareas completadas`}
       />
       <ol className="tm-items">
         {list.items.map((item, i) => {
           const blockers = item.blocked_by.filter((id) => !done.has(id));
           return (
             <li key={item.task_id} className={`tm-item tm-${item.status}`}>
-              <span className="tm-mark" aria-hidden="true">
-                {STATUS_MARK[item.status]}
+              <span className="tm-mark">
+                <Icon name={STATUS_ICON[item.status]} size={15} label={STATUS_LABEL[item.status]} />
               </span>
               <span className="tm-title">{itemTitle(list, item, i)}</span>
-              {item.owner && <span className="tag">{item.owner}</span>}
+              {item.owner && (
+                <Badge tone="neutral" icon="agent">
+                  {item.owner}
+                </Badge>
+              )}
               {blockers.length > 0 && (
-                <span className="tag tag-wait">bloqueada por {blockers.map((b) => `#${b}`).join(", ")}</span>
+                <Badge tone="attention" icon="circle-slash">
+                  bloqueada por {blockers.map((b) => `#${b}`).join(", ")}
+                </Badge>
               )}
             </li>
           );
@@ -66,15 +90,7 @@ function TaskList({ list }: { list: TaskListView }) {
   );
 }
 
-function AgentNode({
-  agent,
-  tree,
-  now,
-}: {
-  agent: AgentView;
-  tree: Map<string | null, AgentView[]>;
-  now: number;
-}) {
+function AgentNode({ agent, tree, now }: { agent: AgentView; tree: Map<string | null, AgentView[]>; now: number }) {
   const kids = tree.get(agent.agent_id) ?? [];
   const active = agent.status === "running" || agent.status === "waiting" || agent.status === "pending";
   const time =
@@ -83,16 +99,17 @@ function AgentNode({
       : active
         ? formatDuration(now - agent.first_seen)
         : formatDuration(agent.last_seen - agent.first_seen);
+  const tone = agentTone(agent.status);
   return (
     <li>
-      <div className={`tm-agent tm-agent-${agent.status ?? "unknown"}`}>
-        <span className="tool-dot" aria-hidden="true" />
+      <div className="tm-agent">
+        <StatusDot tone={tone} pulse={agent.status === "running"} />
         <span className="tm-agent-type">{agent.agent_type ?? "agente"}</span>
-        <span className="tag">{agent.status ? AGENT_LABEL[agent.status] : "sin estado"}</span>
-        <span className="tm-agent-id" title={agent.agent_id}>
+        <Badge tone={tone}>{agent.status ? AGENT_LABEL[agent.status] : "sin estado"}</Badge>
+        <span className="tm-agent-id mono faint" title={agent.agent_id}>
           {agent.agent_id.slice(0, 8)}
         </span>
-        <span className="tool-time">{time}</span>
+        <span className="tm-agent-time num">{time}</span>
       </div>
       {kids.length > 0 && (
         <ul className="tm-tree">
@@ -129,68 +146,65 @@ const MINUTE = 60_000;
 const SPARK_MINUTES = 30;
 
 /** Herramientas por minuto en los últimos 30 minutos, con el reloj local. */
-function Sparkline({ activity, now }: { activity: ActivityView; now: number }) {
+function perMinute(activity: ActivityView, now: number): number[] {
   const nowMinute = Math.floor(now / MINUTE);
-  const counts = Array.from({ length: SPARK_MINUTES }, (_, i) => {
+  return Array.from({ length: SPARK_MINUTES }, (_, i) => {
     const minute = nowMinute - SPARK_MINUTES + 1 + i;
     const index = minute - Math.floor(activity.since / MINUTE);
     return index >= 0 && index < activity.per_minute.length ? activity.per_minute[index] : 0;
   });
-  const max = Math.max(1, ...counts);
-  const total = counts.reduce((a, b) => a + b, 0);
-  const width = SPARK_MINUTES * 6;
-  return (
-    <svg
-      className="tm-spark"
-      viewBox={`0 0 ${width} 24`}
-      role="img"
-      aria-label={`${total} herramientas en los últimos 30 minutos`}
-    >
-      {counts.map((n, i) => {
-        const h = n === 0 ? 1 : Math.max(2, Math.round((n / max) * 22));
-        return <rect key={i} x={i * 6} y={24 - h} width={4} height={h} className={n === 0 ? "tm-spark-zero" : ""} />;
-      })}
-    </svg>
-  );
 }
 
 function SessionTasks({ session, now }: { session: SessionView; now: number }) {
+  const state = sessionState(session);
   const name = projectName(session.cwd) ?? `Sesión ${session.id.slice(0, 8)}`;
-  const recentTotal = session.activity.per_minute.reduce((a, b) => a + b, 0);
+  const counts = perMinute(session.activity, now);
+  const recentTotal = counts.reduce((a, b) => a + b, 0);
   const current = session.running_tools[0];
   return (
-    <article className="card tm-card">
-      <header className="card-head">
-        <h2 title={session.cwd ?? undefined}>{name}</h2>
-        <span className={`pill ${session.live ? "pill-idle" : ""}`}>{session.live ? "Viva" : "Sin proceso"}</span>
-      </header>
-      <p className="card-meta">sesión {session.id.slice(0, 8)}</p>
-
+    <Card
+      as="article"
+      edge={state.tone}
+      title={name}
+      titleAttr={session.cwd ?? undefined}
+      subtitle={`sesión ${session.id.slice(0, 8)}`}
+      actions={
+        <Badge tone={state.tone} dot pulse={state.pulse}>
+          {state.label}
+        </Badge>
+      }
+    >
       {session.tasks.length === 0 ? (
-        <p className="tm-none">Sin lista de tareas declarada.</p>
+        <EmptyState icon="tasks" title="Sin lista de tareas declarada" compact>
+          Esta sesión no ha usado TaskCreate, TodoWrite ni el plan del Desktop. Nunca se inventa un progreso.
+        </EmptyState>
       ) : (
         session.tasks.map((list) => <TaskList key={list.source} list={list} />)
       )}
 
       {session.agents.length > 0 && (
-        <section>
-          <h3>Subagentes</h3>
+        <>
+          <SectionLabel count={session.agents.length}>Subagentes</SectionLabel>
           <AgentTree agents={session.agents} now={now} />
-        </section>
+        </>
       )}
 
-      <section className="tm-activity" aria-label="Actividad">
-        <h3>Actividad</h3>
-        <div className="tm-activity-row">
-          <Sparkline activity={session.activity} now={now} />
-          <span className="card-meta">
-            {formatInt(recentTotal)} herramientas en 30 min
-            {current ? ` · ahora: ${toolLabel(current.tool)}` : ""} · último evento{" "}
-            {formatAgo(session.last_seen_at, now)}
-          </span>
-        </div>
-      </section>
-    </article>
+      <SectionLabel>Actividad</SectionLabel>
+      <div className="tm-activity">
+        <Sparkline values={counts} label={`${recentTotal} herramientas en los últimos 30 minutos`} />
+        <p className="tm-activity-text">
+          <span className="num">{formatInt(recentTotal)}</span> herramientas en 30 min
+          {current && (
+            <>
+              {" · ahora "}
+              <strong>{toolLabel(current.tool)}</strong>
+            </>
+          )}
+          <br />
+          <span className="muted">último evento {formatAgo(session.last_seen_at, now)}</span>
+        </p>
+      </div>
+    </Card>
   );
 }
 
@@ -201,14 +215,22 @@ function SessionTasks({ session, now }: { session: SessionView; now: number }) {
 export function TaskMonitor({ now }: { now: number }) {
   const sessions = useLive((s) => s.sessions);
   const ordered = useMemo(() => sortSessions(sessions), [sessions]);
-  if (ordered.length === 0) {
-    return <p className="empty">No hay sesiones con actividad reciente.</p>;
-  }
   return (
-    <div className="grid">
-      {ordered.map((s) => (
-        <SessionTasks key={s.id} session={s} now={now} />
-      ))}
-    </div>
+    <View
+      title="Tareas"
+      summary="Lo que declara cada sesión. El ritmo de herramientas va aparte y nunca cuenta como progreso."
+    >
+      {ordered.length === 0 ? (
+        <LiveEmpty icon="tasks" title="No hay sesiones con actividad reciente">
+          Las listas de tareas aparecen en cuanto una sesión usa TaskCreate, TodoWrite o el plan del Desktop.
+        </LiveEmpty>
+      ) : (
+        <div className="grid-cards">
+          {ordered.map((s) => (
+            <SessionTasks key={s.id} session={s} now={now} />
+          ))}
+        </div>
+      )}
+    </View>
   );
 }

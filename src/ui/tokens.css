@@ -1,0 +1,122 @@
+/*
+ * Tokens del sistema visual «Instrumento» (docs/DESIGN.md §2).
+ * Ningún componente usa valores literales: todo sale de aquí.
+ * El tema sigue al sistema; claro y oscuro están diseñados por separado.
+ */
+:root {
+  color-scheme: light dark;
+
+  /* Superficies y texto */
+  --bg: #f4f5f7;
+  --nav: #fbfbfc;
+  --surface: #ffffff;
+  --sunken: #f8f9fb;
+  --hover: #f1f3f6;
+  --border: #e2e5eb;
+  --border-strong: #cdd2db;
+  --text: #161a21;
+  --text-muted: #566070;
+  --text-faint: #79828f;
+
+  /* Semántica (DESIGN.md §3) */
+  --accent: #2459db;
+  --accent-hover: #1d4bbf;
+  --accent-soft: #eaf0ff;
+  --accent-text: #1d4bbf;
+  --on-accent: #ffffff;
+  --positive: #147a3b;
+  --positive-soft: #e5f5eb;
+  --attention: #9a5800;
+  --attention-soft: #fff3dd;
+  --critical: #c02828;
+  --critical-soft: #fdebeb;
+  --neutral: #566070;
+  --neutral-soft: #eef0f4;
+
+  /* Datos (validados con la guía de visualización) */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --chart-grid: #e8ebf0;
+  --diff-add: #e5f5eb;
+  --diff-del: #fdebeb;
+
+  /* Tipografía */
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+  --fs-label: 11px;
+  --fs-meta: 12px;
+  --fs-body: 13px;
+  --fs-strong: 14px;
+  --fs-title: 18px;
+  --fs-metric: 22px;
+  --fs-hero: 28px;
+
+  /* Espacio */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --gutter: 24px;
+
+  /* Forma */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --edge: 3px;
+
+  /* Profundidad */
+  --shadow-1: 0 1px 2px rgba(22, 26, 33, 0.05);
+  --shadow-2: 0 8px 28px rgba(22, 26, 33, 0.14), 0 2px 6px rgba(22, 26, 33, 0.06);
+
+  /* Movimiento */
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Estructura */
+  --sidebar: 220px;
+  --sidebar-rail: 64px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1116;
+    --nav: #11141a;
+    --surface: #161a21;
+    --sunken: #12161c;
+    --hover: #1c2129;
+    --border: #252b35;
+    --border-strong: #343c48;
+    --text: #e6e9ef;
+    --text-muted: #9aa3b2;
+    --text-faint: #737c8c;
+
+    --accent: #6e9cff;
+    --accent-hover: #93b4ff;
+    --accent-soft: #1a2640;
+    --accent-text: #93b4ff;
+    --on-accent: #0e1116;
+    --positive: #4dc48b;
+    --positive-soft: #122a1f;
+    --attention: #edb04d;
+    --attention-soft: #2d2310;
+    --critical: #f27070;
+    --critical-soft: #361a1d;
+    --neutral: #9aa3b2;
+    --neutral-soft: #222833;
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --chart-grid: #232933;
+    --diff-add: #122a1f;
+    --diff-del: #361a1d;
+
+    --shadow-1: none;
+    --shadow-2: 0 10px 32px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+}

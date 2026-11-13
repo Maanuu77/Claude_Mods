@@ -1,0 +1,106 @@
+/* Vista «En vivo» (docs/DESIGN.md §8). */
+
+.lv-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3) var(--sp-4);
+  padding: var(--sp-3) 0 var(--sp-1);
+  border-top: 1px solid var(--border);
+}
+
+.lv-meters {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--sp-3);
+}
+
+.lv-plans {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--sp-3);
+}
+.lv-plan {
+  display: grid;
+  grid-template-columns: minmax(72px, auto) minmax(60px, 1fr) 40px;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-meta);
+}
+.lv-plan-label {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.lv-plan-count {
+  text-align: right;
+  font-weight: 600;
+}
+
+/* Filas de herramienta: compartidas con «Tareas». */
+.lv-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.lv-tool {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 28px;
+  padding: 2px 0;
+  border-top: 1px solid var(--border);
+}
+.lv-tool:first-child {
+  border-top: 0;
+}
+.lv-tool-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+/* La ruta es lo primero que cede sitio; las insignias y el tiempo, nunca. */
+.lv-tool .path {
+  flex: 1 1 0;
+}
+.lv-tool-time {
+  flex: none;
+  min-width: 48px;
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  text-align: right;
+}
+
+.lv-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px var(--sp-2);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-meta);
+}
+.lv-mod {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+}
+.lv-mod-on {
+  color: var(--positive);
+  font-weight: 500;
+}
+.lv-foot-sep {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+@media (max-width: 640px) {
+  .lv-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

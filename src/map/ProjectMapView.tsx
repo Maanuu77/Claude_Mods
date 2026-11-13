@@ -1,10 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LiveEmpty, View } from "../app/Shell";
 import { formatInt } from "../live/format";
 import { useLive } from "../live/store";
 import type { FileEventView, WorkspaceView } from "../live/types";
+import { Badge, Button, Card, EmptyState, Loading, Notice, SectionLabel, Segmented } from "../ui/components";
+import { Icon } from "../ui/icons";
 import { ComponentGraph } from "./ComponentGraph";
+import "./map.css";
 import type { Component, Dependency, DepScope, DirSummary, Ecosystem, ProjectScan } from "./types";
 
 const ECOSYSTEM_LABEL: Record<Ecosystem, string> = {
@@ -129,7 +133,7 @@ function Tree({ root, heat }: { root: TreeNode; heat: Map<string, number> }) {
     });
 
   return (
-    <div ref={parentRef} className="pm-tree" role="tree" aria-label="Estructura del proyecto">
+    <div ref={parentRef} className="pm-tree ui-well" role="tree" aria-label="Estructura del proyecto">
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
         {virtualizer.getVirtualItems().map((item) => {
           const node = rows[item.index];
@@ -153,19 +157,20 @@ function Tree({ root, heat }: { root: TreeNode; heat: Map<string, number> }) {
                 disabled={!expandable}
                 aria-label={expandable ? (open.has(path) ? `Plegar ${node.name}` : `Desplegar ${node.name}`) : undefined}
               >
-                {expandable ? (open.has(path) ? "▾" : "▸") : ""}
+                {expandable && <Icon name={open.has(path) ? "chevron-down" : "chevron-right"} size={14} />}
               </button>
+              <Icon name="folder" size={14} className="pm-folder" />
               <span className="pm-name" title={path || node.name}>
                 {node.name}
               </span>
-              {top && <span className="tag">{top.language}</span>}
+              {top && <span className="pm-lang">{top.language}</span>}
               {changes > 0 && (
-                <span className="tag tag-wait" title="Cambios de hoy en este directorio y por debajo">
+                <Badge tone="attention" title="Cambios de hoy en este directorio y por debajo">
                   {formatInt(changes)} hoy
-                </span>
+                </Badge>
               )}
-              <span className="pm-num">{formatInt(node.dir.files)}</span>
-              <span className="pm-num pm-bytes">{formatBytes(node.dir.bytes)}</span>
+              <span className="pm-num num">{formatInt(node.dir.files)}</span>
+              <span className="pm-num pm-bytes num">{formatBytes(node.dir.bytes)}</span>
             </div>
           );
         })}
@@ -197,20 +202,32 @@ function ComponentCard({
   return (
     <li className="pm-comp">
       <div className="pm-comp-head">
-        <strong>{component.name}</strong>
-        {component.is_group && <span className="tag">grupo</span>}
-        {component.version && <span className="pm-version">v{component.version}</span>}
-        <span className="pm-dir" title={component.manifest}>
-          {component.rel_dir || "."}
+        <strong className="truncate">{component.name}</strong>
+        {component.is_group && <Badge tone="accent">grupo</Badge>}
+        {component.version && <span className="pm-version mono">v{component.version}</span>}
+        <span className="pm-dir path" title={component.manifest}>
+          {component.rel_dir || "raíz"}
         </span>
       </div>
-      {component.parts.length > 0 && <p className="pm-line">Servicios: {component.parts.join(", ")}</p>}
-      {members.length > 0 && <p className="pm-line">Contiene: {members.map((d) => name(d.to)).join(", ")}</p>}
+      {component.parts.length > 0 && (
+        <p className="pm-line">
+          <span className="pm-rel">Servicios</span> {component.parts.join(", ")}
+        </p>
+      )}
+      {members.length > 0 && (
+        <p className="pm-line">
+          <span className="pm-rel">Contiene</span> {members.map((d) => name(d.to)).join(", ")}
+        </p>
+      )}
       {internal.length > 0 && (
-        <p className="pm-line">Depende de: {[...new Set(internal.map((d) => name(d.to)))].join(", ")}</p>
+        <p className="pm-line">
+          <span className="pm-rel">Depende de</span> {[...new Set(internal.map((d) => name(d.to)))].join(", ")}
+        </p>
       )}
       {usedBy.length > 0 && (
-        <p className="pm-line">Lo usan: {[...new Set(usedBy.map((d) => name(d.from)))].join(", ")}</p>
+        <p className="pm-line">
+          <span className="pm-rel">Lo usan</span> {[...new Set(usedBy.map((d) => name(d.from)))].join(", ")}
+        </p>
       )}
       {external.length > 0 && (
         <details className="pm-ext">
@@ -221,9 +238,9 @@ function ComponentCard({
           <ul>
             {external.map((d) => (
               <li key={`${d.scope}-${d.name}`}>
-                <span>{d.name}</span>
-                {d.version_req && <span className="pm-version">{d.version_req}</span>}
-                {d.scope !== "prod" && <span className="tag">{SCOPE_LABEL[d.scope]}</span>}
+                <span className="truncate">{d.name}</span>
+                {d.version_req && <span className="pm-version mono">{d.version_req}</span>}
+                {d.scope !== "prod" && <Badge tone="neutral">{SCOPE_LABEL[d.scope]}</Badge>}
               </li>
             ))}
           </ul>
@@ -242,15 +259,17 @@ function Components({ scan }: { scan: ProjectScan }) {
     return [...out.entries()];
   }, [components]);
   if (components.length === 0) {
-    return <p className="card-meta">No hay manifiestos reconocidos (SPEC §9) en esta raíz.</p>;
+    return (
+      <EmptyState icon="layers" title="Sin componentes" compact>
+        No hay manifiestos reconocidos (package.json, Cargo.toml, pom.xml…) en esta raíz.
+      </EmptyState>
+    );
   }
   return (
     <>
       {groups.map(([eco, list]) => (
         <section key={eco} className="pm-eco">
-          <h3>
-            {ECOSYSTEM_LABEL[eco]} · {formatInt(list.length)}
-          </h3>
+          <SectionLabel count={list.length}>{ECOSYSTEM_LABEL[eco]}</SectionLabel>
           <ul className="pm-comps">
             {list.map((c) => (
               <ComponentCard
@@ -303,65 +322,87 @@ function MapPanel({ ws, now }: { ws: WorkspaceView; now: number }) {
   };
 
   return (
-    <div className="root-panel">
-      <header className="root-head pm-head">
-        <h2 title={ws.root}>{ws.name}</h2>
-        {load.state === "ready" && (
-          <span className="card-meta">
-            {formatInt(load.scan.tree.files)} ficheros · {formatBytes(load.scan.tree.bytes)} ·{" "}
+    <Card
+      className="pm-panel"
+      title={ws.name}
+      titleAttr={ws.root}
+      subtitle={
+        load.state === "ready" ? (
+          <>
+            <span className="num">{formatInt(load.scan.tree.files)}</span> ficheros ·{" "}
+            <span className="num">{formatBytes(load.scan.tree.bytes)}</span> ·{" "}
             {load.scan.source === "git" ? "versionados en Git" : "sin Git, según .gitignore"}
-            {load.scan.map_cached && (
-              <span title="Ningún manifiesto ha cambiado desde el último escaneo: los componentes no se han vuelto a leer.">
-                {" "}
-                · componentes guardados
-              </span>
-            )}
-          </span>
-        )}
-        <button type="button" className="tab" onClick={refresh} disabled={load.state === "loading"}>
-          Actualizar
-        </button>
-      </header>
-
-      {load.state === "loading" && <p className="card-meta">Leyendo la estructura y los manifiestos…</p>}
+          </>
+        ) : (
+          "Leyendo la estructura y los manifiestos…"
+        )
+      }
+      actions={
+        <>
+          {load.state === "ready" && load.scan.map_cached && (
+            <Badge
+              tone="neutral"
+              title="Ningún manifiesto ha cambiado desde el último escaneo: los componentes no se han vuelto a leer."
+            >
+              componentes guardados
+            </Badge>
+          )}
+          <Button size="sm" icon="refresh" onClick={refresh} disabled={load.state === "loading"}>
+            Actualizar
+          </Button>
+        </>
+      }
+    >
+      {load.state === "loading" && <Loading label="Leyendo la estructura y los manifiestos…" />}
       {load.state === "error" && (
-        <p className="banner banner-error" role="alert">
-          No se ha podido leer el proyecto: {load.message}
-        </p>
+        <Notice
+          tone="critical"
+          title="No se ha podido leer el proyecto"
+          actions={
+            <Button size="sm" onClick={refresh}>
+              Reintentar
+            </Button>
+          }
+        >
+          {load.message}
+        </Notice>
       )}
       {load.state === "ready" && (
         <>
           {load.scan.tree.truncated && (
-            <p className="banner" role="status">
-              El proyecto tiene más de 50.000 ficheros: solo se cuentan los primeros.
-            </p>
+            <Notice tone="attention">El proyecto tiene más de 50.000 ficheros: solo se cuentan los primeros.</Notice>
           )}
-          <div className="changes-body">
-            <section>
-              <h3>Estructura</h3>
-              {tree ? <Tree root={tree} heat={heat} /> : <p className="card-meta">Sin ficheros.</p>}
+          <div className="pm-body">
+            <section className="pm-col">
+              <SectionLabel count={load.scan.tree.dirs.length}>Estructura</SectionLabel>
+              {tree ? (
+                <Tree root={tree} heat={heat} />
+              ) : (
+                <div className="ui-well">
+                  <EmptyState icon="folder" title="Sin ficheros" compact />
+                </div>
+              )}
             </section>
-            <section>
-              <h3>Componentes</h3>
+            <section className="pm-col">
+              <SectionLabel count={load.scan.map.components.length}>Componentes</SectionLabel>
               <Components scan={load.scan} />
               {load.scan.map.problems.length > 0 && (
-                <section className="pm-eco">
-                  <h3>Manifiestos que no se han podido leer</h3>
-                  <ul className="pm-comps">
+                <Notice tone="attention" title="Manifiestos que no se han podido leer">
+                  <ul className="pm-problems">
                     {load.scan.map.problems.map((p) => (
-                      <li key={p.manifest} className="pm-line">
-                        {p.manifest}: {PROBLEM_LABEL[p.reason] ?? p.reason}
+                      <li key={p.manifest}>
+                        <span className="mono">{p.manifest}</span>: {PROBLEM_LABEL[p.reason] ?? p.reason}
                       </li>
                     ))}
                   </ul>
-                </section>
+                </Notice>
               )}
             </section>
           </div>
           <ComponentGraph components={load.scan.map.components} deps={load.scan.map.deps} />
         </>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -381,29 +422,28 @@ export function ProjectMapView({ now }: { now: number }) {
   const [chosen, setChosen] = useState<number | null>(null);
   const current = list.find((w) => w.root_id === chosen) ?? list[0];
 
-  if (!current) {
-    return (
-      <p className="empty">
-        No hay proyectos vigilados. El mapa se calcula para la raíz de Git de cada sesión viva.
-      </p>
-    );
-  }
   return (
-    <section className="changes">
-      <nav className="roots" aria-label="Proyectos vigilados">
-        {list.map((w) => (
-          <button
-            key={w.root_id}
-            type="button"
-            className={`root-chip${w.root_id === current.root_id ? " root-chip-on" : ""}`}
-            onClick={() => setChosen(w.root_id)}
-            title={w.root}
-          >
-            <strong>{w.name}</strong>
-          </button>
-        ))}
-      </nav>
-      <MapPanel key={current.root_id} ws={current} now={now} />
-    </section>
+    <View
+      title="Mapa del proyecto"
+      summary="Estructura, componentes y dependencias declaradas. Solo se leen los manifiestos, nunca el código."
+      actions={
+        list.length > 1 && current ? (
+          <Segmented
+            label="Proyectos vigilados"
+            value={current.root_id}
+            onChange={setChosen}
+            options={list.map((w) => ({ value: w.root_id, label: w.name, title: w.root }))}
+          />
+        ) : undefined
+      }
+    >
+      {current ? (
+        <MapPanel key={current.root_id} ws={current} now={now} />
+      ) : (
+        <LiveEmpty icon="map" title="No hay proyectos vigilados">
+          El mapa se calcula para la raíz de Git de cada sesión viva.
+        </LiveEmpty>
+      )}
+    </View>
   );
 }

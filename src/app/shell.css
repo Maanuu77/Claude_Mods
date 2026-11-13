@@ -1,0 +1,240 @@
+/* Estructura de la ventana (docs/DESIGN.md §5 y §9). */
+
+.sh {
+  display: grid;
+  grid-template-columns: var(--sidebar) minmax(0, 1fr);
+  height: 100%;
+}
+
+/* --- Barra lateral ------------------------------------------------------------ */
+
+.sh-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-height: 0;
+  padding: var(--sp-4) var(--sp-3);
+  background: var(--nav);
+  border-right: 1px solid var(--border);
+}
+
+.sh-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px var(--sp-2) var(--sp-2);
+}
+.sh-wordmark {
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.sh-wordmark strong {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.sh-nav {
+  display: grid;
+  gap: 2px;
+}
+.sh-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 var(--sp-2) 0 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  text-align: left;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.sh-item:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.sh-item-on {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.sh-item-on:hover {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.sh-item-on::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--sp-3) * -1);
+  top: 8px;
+  bottom: 8px;
+  width: var(--edge);
+  border-radius: 0 var(--edge) var(--edge) 0;
+  background: var(--accent);
+}
+.sh-item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sh-count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--neutral-soft);
+  color: var(--text-muted);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+.sh-item-on .sh-count {
+  background: var(--surface);
+  color: var(--accent-text);
+}
+/* En la barra completa, los tooltips sobran: ya se lee la etiqueta. */
+.sh-item[data-tip]::after,
+.sh-status[data-tip]::after {
+  display: none;
+}
+
+.sh-status {
+  margin-top: auto;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.sh-status-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  line-height: 16px;
+}
+.sh-status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sh-status-meta {
+  margin: 4px 0 0 16px;
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  line-height: 16px;
+}
+
+/* --- Contenido ---------------------------------------------------------------- */
+
+.sh-main {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.sh-view {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: var(--gutter) var(--gutter) var(--sp-8);
+}
+.sh-notices {
+  display: grid;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-5);
+}
+/* Avisos propios de una vista (un fallo de lectura): separados del contenido. */
+.sh-view > .ui-notice {
+  margin-bottom: var(--sp-4);
+}
+
+/* Rejilla de tarjetas que se reorganiza sola (mínimo 340 px por columna). */
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--sp-4);
+  align-items: start;
+}
+.grid-wide {
+  grid-column: 1 / -1;
+}
+
+/* --- Ventanas estrechas: barra de iconos (DESIGN.md §9) ------------------------ */
+
+@media (max-width: 999px) {
+  .sh {
+    grid-template-columns: var(--sidebar-rail) minmax(0, 1fr);
+  }
+  .sh-side {
+    align-items: center;
+    padding: var(--sp-4) var(--sp-2);
+  }
+  .sh-brand {
+    padding: 2px 0 var(--sp-2);
+  }
+  .sh-wordmark,
+  .sh-item-label,
+  .sh-status-text,
+  .sh-status-meta {
+    display: none;
+  }
+  .sh-nav {
+    justify-items: center;
+  }
+  .sh-item {
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+  }
+  .sh-item-on::before {
+    left: calc(var(--sp-2) * -1 - 4px);
+  }
+  .sh-count {
+    position: absolute;
+    top: 2px;
+    right: 0;
+    min-width: 16px;
+    padding: 0 4px;
+    font-size: 10px;
+    line-height: 14px;
+  }
+  .sh-status {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+  }
+  .sh-item[data-tip]::after,
+  .sh-status[data-tip]::after {
+    display: block;
+  }
+  .sh-status[data-tip]:not(:hover)::after {
+    display: none;
+  }
+  .sh-item[data-tip]:not(:hover):not(:focus-visible)::after {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --gutter: var(--sp-4);
+  }
+  .grid-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
