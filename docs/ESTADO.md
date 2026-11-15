@@ -38,7 +38,7 @@ Están en [`DEVELOPMENT_WORKFLOW.md`](DEVELOPMENT_WORKFLOW.md) (W1–W11). Las q
 | F4b Task Monitor | Hecha y fusionada (desviaciones del criterio aceptadas por el usuario) | `crates/cockpit-core/src/tasks.rs`, `cockpit-store/src/tasks.rs`, `src/tasks/` |
 | F4c Project Map | Hecha y fusionada (sin «borrar rutas ahora», desviación aceptada por el usuario) | `cockpit-core/src/project_map.rs`, `cockpit-ingest/src/project_scan.rs`, `cockpit-store/src/{diagnostics,history,project_cache}.rs`, `src/{map,history,diag}/`; informe `docs/perf/2026-11-12-f4c.md` en esa rama |
 | **F5 endurecimiento** | **En curso** en `feature/f5-hardening`: hecho todo menos **B9**, que el usuario ejecuta en otro equipo | `src-tauri/{build.rs,windows-app-manifest.xml}`, `cockpit-ingest/src/settings.rs`, `cockpit-store/src/compact.rs` (`clear_paths_now`), `src/diag/PrivacySettings.tsx`, `scripts/measure/{b9-soak.ps1,replay-transcript.mjs}`; informe `docs/perf/2026-11-12-f5.md` |
-| **Identidad visual** | **Hecha** en `feature/visual-identity` (sale de `feature/f5-hardening`); sin fusionar hasta cerrar F5 | `docs/DESIGN.md`, `src/ui/`, `src/app/`, CSS por vista, `src-tauri/icons/` |
+| **Identidad visual «Holographic»** | **Hecha** en `feature/visual-identity` (sale de `feature/f5-hardening`); sin fusionar hasta cerrar F5 y repetir B8/B9 | `docs/DESIGN.md`, `src/ui/`, `src/app/`, CSS por vista, `src-tauri/icons/` |
 
 `main` contiene la fusión de F4c (`git log --merges -1 main`). La calibración de G5 (SPEC §7.3), las desviaciones del criterio de F4b y la de F4c («borrar rutas ahora» aplazado) las aceptó el usuario el 2026-11-12.
 
@@ -159,6 +159,16 @@ Resultados en [`perf/2026-11-12-f5.md`](perf/2026-11-12-f5.md):
 | Sección «Privacidad y retención» en la app | revisada con UI Automation y capturas; «Borrar rutas ahora» funciona de punta a punta |
 | **B9** 24 h | **pendiente:** el usuario la lanza en otro equipo con `target\b9-kit` (instalador de `8b324f3`, `b9-soak.ps1` y `LEEME.txt`). Hay que traer `Escritorio\dev-cockpit-b9` y resumirla con `b9-soak.ps1 -Summarize -OutDir <carpeta>` |
 | Tests | 180 en verde (1 ignorado); fmt, clippy, typecheck y lint sin avisos |
+
+## Identidad visual «Holographic» (2026-11-15)
+
+El usuario pidió una dirección futurista y tridimensional (centro de mando holográfico) en lugar de la sobria del 2026-11-13. Primero aprobó una propuesta conceptual de las seis pantallas, la apertura y el sistema visual, hecha en un lienzo de diseño con datos reales de la app; después se implementó. [`DESIGN.md`](DESIGN.md) es la referencia.
+
+- **Qué hay:** espacio con halos, partículas y suelo en perspectiva; dock flotante; cabecera HUD con sala, título de luz y reloj; paneles de cristal con canto luminoso; reactor de sesión, diales proyectados, prismas 3D, estela de actividad, constelaciones de subagentes y de componentes, cilindro de la base de datos; apertura de 1,6 s. Un solo tema oscuro. Nuevos componentes: `Gauge`, `Reactor`, `Prisms`, `Trail`; `Card` gana `live` y `plane`.
+- **Legibilidad:** el texto nunca se inclina ni se desenfoca; las etiquetas 3D miran al espectador; los prismas usan proyección oblicua. Contraste ≥ 4,5:1; par de series validado con la guía de visualización.
+- **Revisión:** capturas en Edge headless con las respuestas IPC reales grabadas y estados simulados (de 600 a 1.440 px, con y sin «reducir movimiento»), y de la app real por CDP. Arreglos que salieron: nombres de herramienta que desaparecían con dos chips, etiquetas de la constelación montadas, etiqueta del máximo fuera del panel, estela que no se alineaba con el reloj y texto del núcleo truncado sin conexión.
+- **Rendimiento:** la primera versión subía la memoria (246 MB en reposo y hasta 305 MB con una sesión trabajando). Se quitaron `backdrop-filter`, máscaras, filtros de sombra, `box-reflect` y la capa 3D del suelo, y las entradas pasaron a relleno `backwards`. Medido después contra la versión anterior, compilada el mismo día: +15 MB en reposo y +20 MB con carga, en el límite de B8 (DESIGN.md §11). La CPU no cambia.
+- **Lección de método:** al medir la versión anterior con `git stash`, hay que recompilar al recuperar el trabajo. Tres mediciones se hicieron por error sobre la versión anterior y se descartaron; ahora se comprueba el binario por CDP antes de medir.
 
 ## Identidad visual: lo que está hecho (2026-11-13)
 

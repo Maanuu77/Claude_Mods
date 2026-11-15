@@ -4,6 +4,16 @@ Documento de referencia: [`SPEC.md`](SPEC.md). Las tablas detalladas de cada ver
 
 ---
 
+## Identidad visual «Holographic» (2026-11-15)
+
+El usuario rechazó la estética sobria del 2026-11-13 y pidió una dirección **HOLOGRAPHIC 3D · SPATIAL INTERFACE · FUTURISTIC COMMAND CENTER**. Aprobó la propuesta conceptual de las seis pantallas y [`DESIGN.md`](DESIGN.md) la fija. Sigue sin cambiar la arquitectura, el alcance, los datos ni las órdenes IPC, y sin dependencias ni llamadas externas: solo CSS 3D, SVG y degradados.
+
+- **Un solo tema, oscuro** (antes seguía al sistema): el espacio de mando es la identidad de la app.
+- **Apertura** de 1,6 s con la lista de encendido real; se puede saltar y no aparece con «reducir movimiento». **Reloj** en la cabecera de cada sala y **resumen de sistemas** en Diagnóstico, calculado con datos que ya había. Los tres los aprobó el usuario con la propuesta.
+- **Sin WebGL**: daría un 3D más rico, pero sería una dependencia nueva sin autorizar.
+- **En vivo** muestra la estela de actividad de la sesión principal (dato que ya estaba en Tareas) y los diales de contexto y límites; sin el mod, los diales dicen «solo con el mod».
+- **Memoria (B8):** la interfaz añade unos +15 MB en reposo y +20 MB con una sesión trabajando, todo en el proceso GPU de WebView2; la CPU no cambia. Queda en el límite de < 250 MB (detalle en DESIGN.md §11). Hay que repetir B8 y B9 formalmente antes de cerrar la fase.
+
 ## Identidad visual (2026-11-13)
 
 La SPEC no fijaba una estética y no había ninguna propuesta previa. A petición del usuario se ha definido un sistema visual completo, normativo desde ahora en [`DESIGN.md`](DESIGN.md), y se ha aplicado a todas las vistas. No cambia la arquitectura, el alcance, los datos ni las órdenes IPC; no añade dependencias, llamadas externas ni telemetría.
