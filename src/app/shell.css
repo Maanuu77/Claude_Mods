@@ -1,60 +1,121 @@
 /* Estructura de la ventana (docs/DESIGN.md §5 y §9). */
 
-.sh {
-  display: grid;
-  grid-template-columns: var(--sidebar) minmax(0, 1fr);
-  height: 100%;
+/* --- Plano 0: el espacio --------------------------------------------------------- */
+
+.sh-space {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.sh-halos {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(38% 34% at 16% 6%, rgba(61, 123, 255, 0.34), transparent 70%),
+    radial-gradient(34% 30% at 90% 12%, rgba(160, 123, 255, 0.26), transparent 70%),
+    radial-gradient(46% 38% at 62% 110%, rgba(46, 230, 255, 0.18), transparent 70%),
+    radial-gradient(28% 26% at 42% 55%, rgba(61, 123, 255, 0.07), transparent 70%);
+}
+.sh-stars {
+  position: absolute;
+  inset: 0;
+  bottom: 34%;
+  opacity: 0.4;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(190, 215, 255, 0.5) 1px, transparent 1.6px) 0 0 / 53px 53px,
+    radial-gradient(circle at 1px 1px, rgba(170, 150, 255, 0.35) 1px, transparent 1.6px) 19px 31px / 89px 89px;
+}
+/* Suelo holográfico dibujado en perspectiva como SVG plano: sin capa 3D en la GPU. */
+.sh-floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 34%;
+}
+.sh-floor line {
+  stroke: rgba(46, 230, 255, 0.2);
+  stroke-width: 1;
+}
+.sh-horizon {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 34%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(46, 230, 255, 0.5), rgba(160, 123, 255, 0.5), transparent);
+  box-shadow: 0 0 24px 4px rgba(46, 230, 255, 0.22);
 }
 
-/* --- Barra lateral ------------------------------------------------------------ */
+/* --- Ventana -------------------------------------------------------------------- */
+
+.sh {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: var(--sidebar) minmax(0, 1fr);
+  gap: 18px;
+  height: 100%;
+  padding: 16px 0 16px 16px;
+}
+
+/* --- Dock lateral flotante ----------------------------------------------------- */
 
 .sh-side {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
   min-height: 0;
-  padding: var(--sp-4) var(--sp-3);
-  background: var(--nav);
-  border-right: 1px solid var(--border);
+  padding: 18px 12px 14px;
+  border-radius: 22px;
+  background: var(--glass-dock);
+  box-shadow: 0 28px 50px -26px rgba(0, 0, 0, 0.9), 0 0 40px -14px rgba(61, 123, 255, 0.45), inset 0 0 0 1px rgba(138, 184, 255, 0.16);
 }
-
 .sh-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 2px var(--sp-2) var(--sp-2);
+  gap: 11px;
+  padding: 2px 8px 6px;
+}
+.sh-brand .ui-logo {
+  flex: none;
 }
 .sh-wordmark {
-  font-family: var(--font-display);
-  font-size: var(--fs-body);
-  font-weight: 500;
-  letter-spacing: 0.12em;
   color: var(--text-muted);
+  font: 500 14px/15px var(--font-display);
+  letter-spacing: 0.26em;
   white-space: nowrap;
 }
 .sh-wordmark strong {
-  font-weight: 700;
+  display: block;
   color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.3em;
 }
 
 .sh-nav {
   display: grid;
-  gap: 2px;
+  gap: 4px;
 }
 .sh-item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 34px;
-  padding: 0 var(--sp-2) 0 10px;
+  gap: 11px;
+  height: 40px;
+  padding: 0 10px 0 12px;
   border: 0;
-  border-radius: var(--r-sm);
+  border-radius: 12px;
   background: transparent;
   color: var(--text-muted);
-  font-size: var(--fs-body);
-  font-weight: 500;
+  font: 400 13.5px/1 var(--font-display);
+  letter-spacing: 0.02em;
   text-align: left;
+  white-space: nowrap;
   transition:
     background var(--dur-fast) var(--ease),
     color var(--dur-fast) var(--ease);
@@ -63,45 +124,42 @@
   background: var(--hover);
   color: var(--text);
 }
-.sh-item-on {
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
+.sh-item-on,
 .sh-item-on:hover {
-  background: var(--accent-soft);
-  color: var(--accent-text);
+  background: linear-gradient(90deg, rgba(61, 123, 255, 0.34), rgba(160, 123, 255, 0.12) 70%, transparent);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(138, 184, 255, 0.28), 0 0 24px -6px rgba(61, 123, 255, 0.7);
 }
+/* Haz de luz del elemento activo. */
 .sh-item-on::before {
   content: "";
   position: absolute;
-  left: calc(var(--sp-3) * -1);
-  top: 8px;
-  bottom: 8px;
-  width: var(--edge);
-  border-radius: 0 var(--edge) var(--edge) 0;
-  background: var(--accent);
+  left: -12px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(var(--cyan), var(--accent));
+  box-shadow: 0 0 14px 2px rgba(46, 230, 255, 0.8);
+}
+.sh-item-on .ui-icon {
+  color: var(--cyan);
 }
 .sh-item-label {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .sh-count {
-  min-width: 20px;
-  padding: 0 6px;
+  min-width: 22px;
+  padding: 0 7px;
   border-radius: 999px;
-  background: var(--neutral-soft);
-  color: var(--text-muted);
-  font-size: var(--fs-label);
-  font-weight: 600;
-  line-height: 18px;
+  background: rgba(46, 230, 255, 0.14);
+  color: var(--cyan);
+  font: 600 11px/20px var(--font-display);
   text-align: center;
-}
-.sh-item-on .sh-count {
-  background: var(--surface);
-  color: var(--accent-text);
+  box-shadow: 0 0 12px -2px rgba(46, 230, 255, 0.6);
 }
 /* En la barra completa, los tooltips sobran: ya se lee la etiqueta. */
 .sh-item[data-tip]::after,
@@ -109,20 +167,27 @@
   display: none;
 }
 
+/* Módulo del núcleo, al pie del dock. */
 .sh-status {
   margin-top: auto;
-  padding: var(--sp-3);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--surface);
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(4, 8, 20, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(138, 184, 255, 0.18);
+}
+.sh-status-ok {
+  box-shadow: inset 0 0 0 1px rgba(69, 255, 176, 0.22), 0 0 30px -12px rgba(69, 255, 176, 0.6);
+}
+.sh-status-error {
+  box-shadow: inset 0 0 0 1px rgba(255, 109, 143, 0.45), 0 0 30px -12px rgba(255, 109, 143, 0.7);
 }
 .sh-status-row {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
-  font-size: var(--fs-meta);
-  font-weight: 600;
-  line-height: 16px;
+  gap: 9px;
+  font: 600 12px/16px var(--font-display);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 .sh-status-text {
   min-width: 0;
@@ -131,24 +196,25 @@
   white-space: nowrap;
 }
 .sh-status-meta {
-  margin: 4px 0 0 16px;
+  margin: 6px 0 0 19px;
   color: var(--text-muted);
   font-size: var(--fs-meta);
   line-height: 16px;
 }
 
-/* --- Contenido ---------------------------------------------------------------- */
+/* --- Contenido ----------------------------------------------------------------- */
 
 .sh-main {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
+  padding-right: 6px;
 }
 .sh-view {
-  max-width: 1480px;
+  max-width: 1560px;
   margin: 0 auto;
-  padding: var(--gutter) var(--gutter) var(--sp-8);
+  padding: 4px 16px var(--sp-8) 4px;
 }
 .sh-notices {
   display: grid;
@@ -160,29 +226,111 @@
   margin-bottom: var(--sp-4);
 }
 
-/* Rejilla de tarjetas que se reorganiza sola (mínimo 340 px por columna). */
+/* Rejilla de paneles que se reorganiza sola (mínimo 340 px por columna). */
 .grid-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: var(--sp-4);
+  gap: 18px;
   align-items: start;
 }
 .grid-wide {
   grid-column: 1 / -1;
 }
 
-/* --- Ventanas estrechas: barra de iconos (DESIGN.md §9) ------------------------ */
+/* --- Apertura ------------------------------------------------------------------ */
+
+.sh-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(60% 60% at 50% 40%, #0c1640, #03050c);
+  animation: ui-fade 300ms var(--ease) both;
+}
+.sh-boot-out {
+  animation: ui-fade 420ms var(--ease) reverse both;
+}
+.sh-boot-core {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+}
+.sh-boot-core .ui-reactor {
+  transform: scale(1.15);
+  margin-bottom: 10px;
+}
+.sh-boot-word {
+  padding-left: 0.34em;
+  font: 300 48px/52px var(--font-display);
+  letter-spacing: 0.34em;
+  background: linear-gradient(180deg, #ffffff, #9cc3ff 65%, #7aa6ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.sh-boot-sub {
+  margin-top: -8px;
+}
+.sh-boot-list {
+  display: grid;
+  width: min(480px, 90vw);
+  padding: 10px 16px;
+  border-radius: var(--r-lg);
+  background: var(--glass);
+  box-shadow: var(--shadow-1), inset 0 0 0 1px rgba(138, 184, 255, 0.3);
+}
+.sh-boot-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 34px;
+  border-top: 1px solid var(--border);
+}
+.sh-boot-list li:first-child {
+  border-top: 0;
+}
+.sh-boot-list b {
+  width: 86px;
+  font: 600 13px/1 var(--font-display);
+  letter-spacing: 0.04em;
+}
+.sh-boot-list span {
+  color: var(--text-muted);
+}
+.sh-boot-skip {
+  position: fixed;
+  right: 26px;
+  bottom: 24px;
+}
+/*
+ * Los paneles llegan desde el fondo. Con relleno `backwards` (no `both`): al terminar, la
+ * animación deja de aplicarse y la GPU libera la capa de cada panel (memoria de B8).
+ */
+.sh-view > * {
+  animation: ui-enter 640ms var(--ease) backwards;
+}
+.sh-view > :nth-child(2) {
+  animation-delay: 60ms;
+}
+.sh-view > :nth-child(n + 3) {
+  animation-delay: 120ms;
+}
+
+/* --- Ventanas estrechas: barra de iconos (DESIGN.md §9) ---------------------------- */
 
 @media (max-width: 999px) {
   .sh {
     grid-template-columns: var(--sidebar-rail) minmax(0, 1fr);
+    gap: 12px;
+    padding-left: 10px;
   }
   .sh-side {
     align-items: center;
-    padding: var(--sp-4) var(--sp-2);
+    padding: 16px 8px;
   }
   .sh-brand {
-    padding: 2px 0 var(--sp-2);
+    padding: 2px 0 6px;
   }
   .sh-wordmark,
   .sh-item-label,
@@ -195,27 +343,27 @@
   }
   .sh-item {
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     padding: 0;
   }
   .sh-item-on::before {
-    left: calc(var(--sp-2) * -1 - 4px);
+    left: -8px;
   }
   .sh-count {
     position: absolute;
-    top: 2px;
-    right: 0;
+    top: 1px;
+    right: -2px;
     min-width: 16px;
     padding: 0 4px;
     font-size: 10px;
-    line-height: 14px;
+    line-height: 15px;
   }
   .sh-status {
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     padding: 0;
   }
   .sh-item[data-tip]::after,
@@ -240,5 +388,9 @@
   }
   .grid-cards {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .ui-view-head h1 {
+    font-size: 28px;
+    line-height: 32px;
   }
 }

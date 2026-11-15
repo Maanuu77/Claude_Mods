@@ -3,7 +3,7 @@ import "./ui/tokens.css";
 import "./ui/base.css";
 import "./ui/components.css";
 import "./app/shell.css";
-import { Sidebar, type Tab } from "./app/Shell";
+import { Boot, Sidebar, Space, type Tab } from "./app/Shell";
 import { ChangesView } from "./changes/ChangesView";
 import { DiagnosticsView } from "./diag/DiagnosticsView";
 import { HistoryView } from "./history/HistoryView";
@@ -40,6 +40,13 @@ function App() {
   useEffect(() => {
     main.current?.scrollTo(0, 0);
   }, [tab]);
+  // Ventana oculta o minimizada: se pausa toda animación (criterio de reposo B8).
+  useEffect(() => {
+    const sync = () => document.documentElement.toggleAttribute("data-paused", document.hidden);
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
+  }, []);
 
   const ordered = useMemo(() => sortSessions(sessions), [sessions]);
   const roots = Object.keys(workspaces).length;
@@ -47,30 +54,34 @@ function App() {
   const liveCount = ordered.filter((s) => s.live !== null).length;
 
   return (
-    <div className="sh">
-      <Sidebar
-        tab={tab}
-        onTab={setTab}
-        counts={{ live: liveCount, changes: roots }}
-        liveCount={liveCount}
-        recent={ordered.length}
-      />
-      <main ref={main} className="sh-main">
-        {tab === "live" ? (
-          <LiveView sessions={ordered} now={now} />
-        ) : tab === "tasks" ? (
-          <TaskMonitor now={now} />
-        ) : tab === "changes" ? (
-          <ChangesView now={now} />
-        ) : tab === "map" ? (
-          <ProjectMapView now={now} />
-        ) : tab === "history" ? (
-          <HistoryView now={now} />
-        ) : (
-          <DiagnosticsView now={now} />
-        )}
-      </main>
-    </div>
+    <>
+      <Space />
+      <div className="sh">
+        <Sidebar
+          tab={tab}
+          onTab={setTab}
+          counts={{ live: liveCount, changes: roots }}
+          liveCount={liveCount}
+          recent={ordered.length}
+        />
+        <main ref={main} className="sh-main">
+          {tab === "live" ? (
+            <LiveView sessions={ordered} now={now} />
+          ) : tab === "tasks" ? (
+            <TaskMonitor now={now} />
+          ) : tab === "changes" ? (
+            <ChangesView now={now} />
+          ) : tab === "map" ? (
+            <ProjectMapView now={now} />
+          ) : tab === "history" ? (
+            <HistoryView now={now} />
+          ) : (
+            <DiagnosticsView now={now} />
+          )}
+        </main>
+      </div>
+      <Boot />
+    </>
   );
 }
 

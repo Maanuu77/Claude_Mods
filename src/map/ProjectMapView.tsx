@@ -323,6 +323,7 @@ function MapPanel({ ws, now }: { ws: WorkspaceView; now: number }) {
 
   return (
     <Card
+      plane="lift"
       className="pm-panel"
       title={ws.name}
       titleAttr={ws.root}
@@ -424,6 +425,7 @@ export function ProjectMapView({ now }: { now: number }) {
 
   return (
     <View
+      room="map"
       title="Mapa del proyecto"
       summary="Estructura, componentes y dependencias declaradas. Solo se leen los manifiestos, nunca el código."
       actions={

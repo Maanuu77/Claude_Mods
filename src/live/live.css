@@ -1,38 +1,105 @@
-/* Vista «En vivo» (docs/DESIGN.md §8). */
+/* Vista «En vivo», el puente de mando (docs/DESIGN.md §8). */
+
+.lv-stage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 18px;
+}
+.lv-hero {
+  flex: 999 1 640px;
+}
+.lv-side {
+  flex: 1 1 340px;
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.lv-all {
+  flex: 1 1 100%;
+}
+
+/* Núcleo del panel principal: reactor + diales + cifras. */
+.lv-core {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 26px;
+  margin-top: var(--sp-2);
+}
+.lv-core .ui-reactor {
+  margin: 0 auto;
+}
+.lv-core-data {
+  flex: 1 1 380px;
+  display: grid;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.lv-gauges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  gap: var(--sp-3);
+  margin: var(--sp-2) 0 var(--sp-3);
+}
+.lv-core .lv-gauges {
+  margin: 0;
+}
 
 .lv-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--sp-3) var(--sp-4);
-  padding: var(--sp-3) 0 var(--sp-1);
-  border-top: 1px solid var(--border);
+  gap: var(--sp-4) 18px;
 }
-
-.lv-meters {
-  display: grid;
-  gap: 6px;
-  margin-top: var(--sp-3);
+/* En los paneles compactos, etiquetas sin versalitas para que quepan en una línea. */
+.lv-card:not(.lv-hero) .lv-metrics .ui-metric-label {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.lv-card:not(.lv-hero) .lv-metrics .ui-metric-value {
+  font-size: 19px;
+  line-height: 24px;
 }
 
 .lv-plans {
   display: grid;
-  gap: 6px;
-  margin-top: var(--sp-3);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px 22px;
+  margin-top: var(--sp-4);
 }
 .lv-plan {
   display: grid;
-  grid-template-columns: minmax(72px, auto) minmax(60px, 1fr) 40px;
+  grid-template-columns: minmax(72px, auto) minmax(60px, 1fr) 44px;
   align-items: center;
   gap: var(--sp-2);
   font-size: var(--fs-meta);
 }
 .lv-plan-label {
   color: var(--text-muted);
+  font: 600 10.5px/14px var(--font-display);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 .lv-plan-count {
   text-align: right;
-  font-weight: 600;
+  font: 600 12px/1 var(--font-display);
+  letter-spacing: 0.06em;
+}
+.lv-label-note {
+  color: var(--text-faint);
+  letter-spacing: 0.06em;
+  text-transform: none;
+  font-family: var(--font-ui);
+  font-weight: 400;
+}
+
+.lv-lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0 18px;
 }
 
 /* Filas de herramienta: compartidas con «Tareas». */
@@ -42,23 +109,27 @@
 }
 .lv-tool {
   display: flex;
-  min-width: 0;
   align-items: center;
-  gap: var(--sp-2);
-  min-height: 28px;
-  padding: 2px 0;
-  border-top: 1px solid var(--border);
+  gap: 10px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 2px 12px;
+  border-top: 1px solid rgba(138, 184, 255, 0.08);
 }
 .lv-tool:first-child {
   border-top: 0;
 }
+.lv-tool-hot {
+  background: linear-gradient(90deg, rgba(46, 230, 255, 0.1), transparent 60%);
+}
 .lv-tool-name {
-  flex: 0 1 auto;
-  min-width: 0;
+  flex: none;
+  max-width: 40%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font: 600 13px/1 var(--font-display);
+  letter-spacing: 0.04em;
 }
 /* La ruta es lo primero que cede sitio; las insignias y el tiempo, nunca. */
 .lv-tool .path {
@@ -68,7 +139,7 @@
   flex: none;
   min-width: 48px;
   color: var(--text-muted);
-  font-size: var(--fs-meta);
+  font: 400 12px/1 var(--font-display);
   text-align: right;
 }
 

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { View } from "../app/Shell";
 import { formatAgo, formatInt } from "../live/format";
 import { sortSessions, useLive } from "../live/store";
@@ -50,6 +50,32 @@ const WATCH: Record<string, { label: string; tone: Tone }> = {
   error: { label: "error al vigilar", tone: "critical" },
 };
 
+/**
+ * La base de datos como cilindro holográfico: una capa por tabla principal. La altura
+ * de cada capa crece con el logaritmo de sus filas, para que 62 sesiones se vean al
+ * lado de 15.840 herramientas; las cifras exactas van en la lista.
+ */
+function DbCylinder({ diag }: { diag: Diagnostics }) {
+  const layers = [
+    { key: "tools", rows: diag.tool_calls, tone: "var(--cyan)" },
+    { key: "messages", rows: diag.api_messages, tone: "var(--accent)" },
+    { key: "copies", rows: diag.tool_call_copies, tone: "var(--violet)" },
+    { key: "sessions", rows: diag.sessions, tone: "var(--positive)" },
+  ];
+  return (
+    <div className="dg-cyl" aria-hidden="true">
+      {layers.map((l) => (
+        <span
+          key={l.key}
+          className="dg-cseg"
+          style={{ "--h": `${10 + Math.round(Math.log10(l.rows + 1) * 11)}px`, "--c": l.tone } as CSSProperties}
+        />
+      ))}
+      <span className="dg-cyl-glow" />
+    </div>
+  );
+}
+
 /** Tarjeta sin datos porque el diagnóstico no se ha podido leer (el aviso de arriba lo explica). */
 function Unavailable() {
   return <p className="dg-note">Sin datos: no se ha podido leer el diagnóstico.</p>;
@@ -86,6 +112,20 @@ export function DiagnosticsView({ now }: { now: number }) {
   }, [round]);
 
   const recent = useMemo(() => sortSessions(sessions), [sessions]);
+  // Estado de cada módulo, el mismo que pinta su canto; el resumen de la cabecera los cuenta.
+  const unwatched = Object.values(workspaces).some((w) => w.watch !== "active");
+  const sourcesTone: Tone = error ? "critical" : !connected ? "neutral" : unwatched ? "attention" : "positive";
+  const aggTone: Tone | null = !diag
+    ? null
+    : diag.aggregation.some((a) => a.mismatched_days > 0)
+      ? "critical"
+      : diag.aggregation.some((a) => a.pending_days > 0)
+        ? "attention"
+        : "positive";
+  const ingestTone: Tone | null = !diag ? null : diag.ingest_errors.length > 0 ? "attention" : "positive";
+  const states = [sourcesTone, diag ? "positive" : null, aggTone, ingestTone].filter((t): t is Tone => t !== null && t !== "neutral");
+  const okCount = states.filter((t) => t === "positive").length;
+  const warnCount = states.length - okCount;
   const live = recent.filter((s) => s.live !== null);
   const withMod = live.filter((s) => s.mod_connected);
   const roots = Object.values(workspaces);
@@ -93,12 +133,25 @@ export function DiagnosticsView({ now }: { now: number }) {
 
   return (
     <View
+      room="diag"
       title="Diagnóstico"
       summary="Salud de las fuentes, la base de datos y la agregación; privacidad y retención."
       actions={
-        <Button icon="refresh" onClick={refresh}>
-          Actualizar
-        </Button>
+        <>
+          {states.length > 0 && (
+            <Badge tone="positive" dot>
+              {formatInt(okCount)} {okCount === 1 ? "sistema al día" : "sistemas al día"}
+            </Badge>
+          )}
+          {warnCount > 0 && (
+            <Badge tone="attention" dot>
+              {formatInt(warnCount)} con aviso
+            </Badge>
+          )}
+          <Button icon="refresh" onClick={refresh}>
+            Actualizar
+          </Button>
+        </>
       }
     >
       {failure && (
@@ -116,7 +169,7 @@ export function DiagnosticsView({ now }: { now: number }) {
       )}
 
       <div className="grid-cards dg-grid">
-        <Card title="Fuentes">
+        <Card title="Fuentes" edge={sourcesTone}>
           <PropertyList>
             <Property label="Núcleo">
               {connected ? (
@@ -176,40 +229,43 @@ export function DiagnosticsView({ now }: { now: number }) {
           )}
         </Card>
 
-        <Card title="Base de datos">
+        <Card title="Base de datos" edge={diag ? "accent" : undefined}>
           {diag ? (
-            <PropertyList>
-              <Property label="Esquema">
-                <span className="num">versión {diag.schema_version}</span>
-              </Property>
-              <Property label="Tamaño">
-                <span className="num">{formatBytes(diag.db_bytes)}</span>
-                <span className="muted num">+ {formatBytes(diag.wal_bytes)} de WAL</span>
-              </Property>
-              <Property label="Sesiones">
-                <span className="num">{formatInt(diag.sessions)}</span>
-              </Property>
-              <Property label="Mensajes de la API">
-                <span className="num">{formatInt(diag.api_messages)}</span>
-              </Property>
-              <Property label="Herramientas">
-                <span className="num">{formatInt(diag.tool_calls)}</span>
-                <span className="muted num">· {formatInt(diag.tool_call_copies)} copias de historial</span>
-              </Property>
-              <Property label="Errores de la API">
-                {diag.api_errors > 0 ? (
-                  <Badge tone="attention">{formatInt(diag.api_errors)}</Badge>
-                ) : (
-                  <span className="num">0</span>
-                )}
-              </Property>
-            </PropertyList>
+            <div className="dg-db">
+              <DbCylinder diag={diag} />
+              <PropertyList>
+                <Property label="Esquema">
+                  <span className="num">versión {diag.schema_version}</span>
+                </Property>
+                <Property label="Tamaño">
+                  <span className="num">{formatBytes(diag.db_bytes)}</span>
+                  <span className="muted num">+ {formatBytes(diag.wal_bytes)} de WAL</span>
+                </Property>
+                <Property label="Sesiones">
+                  <span className="num">{formatInt(diag.sessions)}</span>
+                </Property>
+                <Property label="Mensajes de la API">
+                  <span className="num">{formatInt(diag.api_messages)}</span>
+                </Property>
+                <Property label="Herramientas">
+                  <span className="num">{formatInt(diag.tool_calls)}</span>
+                  <span className="muted num">· {formatInt(diag.tool_call_copies)} copias de historial</span>
+                </Property>
+                <Property label="Errores de la API">
+                  {diag.api_errors > 0 ? (
+                    <Badge tone="attention">{formatInt(diag.api_errors)}</Badge>
+                  ) : (
+                    <span className="num">0</span>
+                  )}
+                </Property>
+              </PropertyList>
+            </div>
           ) : (
             failure ? <Unavailable /> : <Skeleton lines={5} />
           )}
         </Card>
 
-        <Card title="Agregación diaria y retención">
+        <Card title="Agregación diaria y retención" edge={aggTone ?? undefined}>
           {diag ? (
             <>
               <PropertyList>
@@ -274,7 +330,7 @@ export function DiagnosticsView({ now }: { now: number }) {
 
         <PrivacySettings now={now} onCleared={refresh} />
 
-        <Card title="Incidencias de la ingesta" className="grid-wide">
+        <Card title="Incidencias de la ingesta" className="grid-wide" edge={ingestTone ?? undefined}>
           {!diag ? (
             failure ? <Unavailable /> : <Skeleton lines={3} />
           ) : diag.ingest_errors.length === 0 ? (

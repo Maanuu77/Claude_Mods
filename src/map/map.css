@@ -1,4 +1,4 @@
-/* Vista «Mapa» (docs/DESIGN.md §8). */
+/* Vista «Mapa», la constelación (docs/DESIGN.md §8). */
 
 .pm-panel > .ui-notice {
   margin-bottom: var(--sp-3);
@@ -30,7 +30,7 @@
   gap: 6px;
   height: 28px;
   padding-right: var(--sp-3);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(138, 184, 255, 0.07);
   font-size: var(--fs-body);
 }
 .pm-row:hover {
@@ -49,11 +49,11 @@
   color: var(--text-muted);
 }
 .pm-toggle:hover:not(:disabled) {
-  background: var(--neutral-soft);
-  color: var(--text);
+  background: var(--hover);
+  color: var(--cyan);
 }
 .pm-folder {
-  color: var(--text-faint);
+  color: var(--accent-text);
 }
 .pm-name {
   flex: 1;
@@ -71,7 +71,7 @@
   flex: none;
   width: 48px;
   color: var(--text-muted);
-  font-size: var(--fs-meta);
+  font: 400 12px/1 var(--font-display);
   text-align: right;
 }
 .pm-bytes {
@@ -94,9 +94,13 @@
 .pm-comp {
   min-width: 0;
   padding: 10px var(--sp-3);
-  border: 1px solid var(--border);
   border-radius: var(--r-md);
-  background: var(--surface);
+  background: linear-gradient(160deg, rgba(40, 64, 140, 0.22), rgba(6, 10, 26, 0.5));
+  box-shadow: inset 0 0 0 1px rgba(138, 184, 255, 0.16);
+}
+.pm-comp-head > strong {
+  font-family: var(--font-display);
+  letter-spacing: 0.03em;
 }
 .pm-comp-head {
   display: flex;
@@ -109,7 +113,7 @@
 }
 .pm-version {
   flex: none;
-  color: var(--text-muted);
+  color: var(--cyan);
   font-size: var(--fs-meta);
 }
 .pm-dir {
@@ -177,9 +181,8 @@
   gap: var(--sp-2) var(--sp-4);
   margin-bottom: var(--sp-3);
   color: var(--text-muted);
-  font-size: var(--fs-label);
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font: 600 var(--fs-label) / 14px var(--font-display);
+  letter-spacing: 0.22em;
   text-transform: uppercase;
 }
 .pm-graph-key {
@@ -187,8 +190,7 @@
   align-items: center;
   gap: 6px;
   color: var(--text-muted);
-  font-size: var(--fs-meta);
-  font-weight: 400;
+  font: 400 var(--fs-meta) / 1 var(--font-ui);
   letter-spacing: 0;
   text-transform: none;
 }
@@ -203,33 +205,37 @@
   overflow: auto;
   max-height: 520px;
   padding: var(--sp-2);
-  border: 1px solid var(--border);
   border-radius: var(--r-md);
   background: var(--sunken);
+  box-shadow: inset 0 0 0 1px rgba(138, 184, 255, 0.14);
 }
 .pm-edge {
   fill: none;
-  stroke: var(--text-faint);
-  stroke-width: 1.5;
+  stroke: var(--accent-text);
+  stroke-width: 1.8;
+  filter: drop-shadow(0 0 3px rgba(61, 123, 255, 0.8));
 }
 .pm-edge-module {
-  stroke-dasharray: 4 3;
+  stroke: var(--violet-text);
+  stroke-dasharray: 5 4;
+  filter: none;
+  opacity: 0.8;
 }
 .pm-arrow {
-  fill: var(--text-faint);
+  fill: var(--accent-text);
 }
 .pm-node {
-  fill: var(--surface);
-  stroke: var(--border-strong);
+  fill: rgba(16, 26, 60, 0.85);
+  stroke: rgba(138, 184, 255, 0.5);
   stroke-width: 1;
 }
 .pm-node-group {
-  fill: var(--accent-soft);
-  stroke: var(--accent);
+  fill: rgba(60, 40, 120, 0.6);
+  stroke: var(--violet-text);
 }
 .pm-node-name {
   fill: var(--text);
-  font-family: var(--font-ui);
+  font-family: var(--font-display);
   font-size: 12px;
   font-weight: 600;
 }
@@ -237,6 +243,90 @@
   fill: var(--text-muted);
   font-family: var(--font-ui);
   font-size: 10.5px;
+}
+
+/* Constelación: el mismo trazado sobre un plano inclinado; las etiquetas, de frente. */
+.pm-space {
+  position: relative;
+  padding: 76px 24px 8px;
+  overflow: hidden;
+  perspective: 1200px;
+  perspective-origin: 50% 0;
+}
+.pm-plane {
+  position: relative;
+  margin: 0 auto;
+  border-radius: 24px;
+  transform-style: preserve-3d;
+  transform: rotateX(52deg) rotateZ(-6deg);
+  background:
+    radial-gradient(closest-side, rgba(61, 123, 255, 0.2), transparent),
+    linear-gradient(rgba(46, 230, 255, 0.13) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, rgba(46, 230, 255, 0.13) 1px, transparent 1px) 0 0 / 40px 40px;
+  box-shadow: inset 0 0 0 1px rgba(46, 230, 255, 0.25), 0 0 80px -20px rgba(46, 230, 255, 0.5);
+}
+.pm-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.pm-star {
+  --tone: var(--accent-text);
+  --tone-glow: rgba(61, 123, 255, 0.7);
+  position: absolute;
+  transform: translate(-50%, -50%);
+  transform-style: preserve-3d;
+}
+.pm-star-group {
+  --tone: var(--violet-text);
+  --tone-glow: rgba(160, 123, 255, 0.7);
+}
+.pm-star-disc {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--tone), transparent);
+  box-shadow: 0 0 24px 4px var(--tone-glow);
+}
+.pm-star-pin {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  width: 2px;
+  height: var(--hz, 40px);
+  margin-left: -1px;
+  transform-origin: 50% 100%;
+  transform: rotateX(-90deg);
+  background: linear-gradient(to top, var(--tone), transparent);
+  box-shadow: 0 0 10px var(--tone-glow);
+}
+.pm-star-card {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  display: block;
+  transform-origin: 50% 100%;
+  transform: translateX(-50%) translateZ(var(--hz, 40px)) rotateZ(6deg) rotateX(-52deg);
+  padding: 6px 11px;
+  border-radius: 11px;
+  background: linear-gradient(160deg, rgba(40, 70, 160, 0.6), rgba(6, 10, 28, 0.9));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 60%, transparent), 0 0 26px -6px var(--tone-glow);
+  text-align: center;
+  white-space: nowrap;
+}
+.pm-star-card b {
+  display: block;
+  color: #fff;
+  font: 600 13px/17px var(--font-display);
+  letter-spacing: 0.04em;
+}
+.pm-star-card span {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 14px;
 }
 
 @media (max-width: 999px) {

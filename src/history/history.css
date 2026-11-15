@@ -1,27 +1,63 @@
-/* Vista «Histórico» (docs/DESIGN.md §8). Gráficos con la paleta de datos (§2.3). */
+/* Vista «Histórico», la telemetría (docs/DESIGN.md §8). */
 
 .hs-stack {
   display: grid;
-  gap: var(--sp-4);
+  gap: 18px;
 }
 
 /* Por proyecto y por modelo: dos columnas mientras quepan sus tablas. */
 .hs-pair {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
-  gap: var(--sp-4);
+  gap: 18px;
   align-items: start;
 }
 
+/* Fichas: cuatro en fila o 2 × 2, nunca 3 + 1. */
 .hs-tiles {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--sp-4);
+  gap: 18px;
 }
 @media (max-width: 1099px) {
   .hs-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+.hs-tile {
+  --line: var(--cyan);
+  padding-bottom: 22px;
+}
+.hs-tile-2 {
+  --line: var(--accent-text);
+}
+.hs-tile-3 {
+  --line: var(--violet-text);
+}
+.hs-tile-4 {
+  --line: var(--positive);
+}
+/* Línea de luz al pie de cada ficha. */
+.hs-tile .ui-metric::after {
+  content: "";
+  height: 2px;
+  margin-top: 10px;
+  background: linear-gradient(90deg, var(--line), transparent);
+  box-shadow: 0 0 10px var(--line);
+}
+
+/* Prismas por día con su eje de fechas. */
+.hs-prisms {
+  padding: 46px 6px 0 2px;
+}
+.hs-axis-labels {
+  display: flex;
+  justify-content: space-between;
+  margin: 26px 14px 0 2px;
+  color: var(--text-faint);
+  font: 400 12px/1 var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .hs-chart {
@@ -33,47 +69,55 @@
 .hs-grid {
   stroke: var(--chart-grid);
   stroke-width: 1;
+  stroke-dasharray: 3 6;
 }
 .hs-axis {
-  stroke: var(--border-strong);
+  stroke: rgba(46, 230, 255, 0.45);
   stroke-width: 1;
 }
 .hs-tick {
-  fill: var(--text-muted);
-  font-family: var(--font-ui);
+  fill: var(--text-faint);
+  font-family: var(--font-display);
   font-size: 11px;
+  letter-spacing: 0.06em;
   font-variant-numeric: tabular-nums;
 }
 .hs-direct {
   fill: var(--text);
-  font-family: var(--font-ui);
-  font-size: 11px;
+  font-family: var(--font-display);
+  font-size: 13px;
   font-weight: 600;
-}
-.hs-bar {
-  fill: var(--series-1);
-  transition: opacity var(--dur-fast) var(--ease);
-}
-.hs-col:hover .hs-bar {
-  opacity: 0.78;
+  letter-spacing: 0.03em;
 }
 .hs-hit {
   fill: transparent;
 }
-.hs-col:hover .hs-hit {
-  fill: var(--hover);
-  fill-opacity: 0.35;
-}
 .hs-line {
   fill: none;
-  stroke-width: 2;
+  stroke-width: 2.5;
   stroke-linejoin: round;
 }
 .hs-line.hs-s1 {
   stroke: var(--series-1);
+  filter: drop-shadow(0 0 6px var(--series-1));
 }
 .hs-line.hs-s2 {
   stroke: var(--series-2);
+  filter: drop-shadow(0 0 6px var(--violet));
+}
+.hs-stop-1 {
+  stop-color: var(--series-1);
+}
+.hs-stop-2 {
+  stop-color: var(--series-2);
+}
+.hs-end.hs-s1 {
+  fill: var(--series-1);
+  filter: drop-shadow(0 0 6px var(--series-1));
+}
+.hs-end.hs-s2 {
+  fill: var(--series-2);
+  filter: drop-shadow(0 0 6px var(--violet));
 }
 
 .hs-legend {
@@ -90,15 +134,17 @@
 }
 .hs-swatch {
   display: inline-block;
-  width: 12px;
+  width: 14px;
   height: 3px;
   border-radius: 2px;
 }
 .hs-swatch.hs-s1 {
   background: var(--series-1);
+  box-shadow: 0 0 8px var(--series-1);
 }
 .hs-swatch.hs-s2 {
   background: var(--series-2);
+  box-shadow: 0 0 8px var(--violet);
 }
 
 .hs-table-scroll {

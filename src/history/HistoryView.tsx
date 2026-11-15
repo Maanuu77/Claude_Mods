@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useMemo, useState } from "react";
 import { View } from "../app/Shell";
 import { formatCompact, formatDuration, formatInt, formatUsd, toolLabel } from "../live/format";
-import { Button, Card, EmptyState, Metric, Notice, Segmented, Skeleton } from "../ui/components";
+import { Button, Card, EmptyState, Metric, Notice, Prisms, Segmented, Skeleton } from "../ui/components";
 import { useWidth } from "../ui/useWidth";
 import "./history.css";
 
@@ -50,21 +50,15 @@ function dayLabel(day: string): string {
   return dayFormat.format(new Date(y, m - 1, d));
 }
 
-/** Tokens de salida por día: una serie (`--series-1`), sin leyenda (el título la nombra). */
+/**
+ * Tokens de salida por día como prismas 3D en proyección oblicua: base horizontal y
+ * alturas comparables. Una sola serie: el título la nombra. Mantiene su vista de tabla.
+ */
 function DailyChart({ history, now }: { history: History; now: number }) {
   const [asTable, setAsTable] = useState(false);
-  const [plotRef, W] = useWidth<HTMLDivElement>();
   const byDay = useMemo(() => new Map(history.days.map((d) => [d.day, d])), [history.days]);
   const days = useMemo(() => daysFrom(history.since_day, now), [history.since_day, now]);
   const peak = Math.max(0, ...days.map((d) => byDay.get(d)?.output ?? 0));
-  const max = Math.max(1, peak);
-  const H = 200;
-  const top = 16;
-  const bottom = 24;
-  const plot = H - top - bottom;
-  const step = W / days.length;
-  // Marcas finas: como mucho 28 px, con al menos 2 px de separación.
-  const bar = Math.max(1, Math.min(step - 2, 28));
   if (peak === 0) {
     return (
       <Card title="Tokens de salida por día">
@@ -74,89 +68,67 @@ function DailyChart({ history, now }: { history: History; now: number }) {
       </Card>
     );
   }
+  const dense = days.length > 45;
+  const middle = days[Math.floor((days.length - 1) / 2)];
   return (
     <Card
+      plane="lift"
       title="Tokens de salida por día"
-      subtitle={`Máximo ${formatInt(peak)} en un día`}
+      subtitle={`Máximo ${formatInt(peak)} en un día · cada prisma, un día`}
       actions={
-        <Button size="sm" variant="ghost" icon={asTable ? "history" : "layers"} onClick={() => setAsTable((v) => !v)}>
+        <Button size="sm" variant="secondary" icon={asTable ? "history" : "layers"} onClick={() => setAsTable((v) => !v)}>
           {asTable ? "Ver como gráfico" : "Ver como tabla"}
         </Button>
       }
     >
-      <div ref={plotRef}>
-        {asTable ? (
-          <div className="ui-table-wrap hs-table-scroll">
-            <table className="ui-table">
-              <thead>
-                <tr>
-                  <th>Día</th>
-                  <th className="n">Mensajes</th>
-                  <th className="n">Entrada</th>
-                  <th className="n">Salida</th>
-                  <th className="n">Caché leída</th>
+      {asTable ? (
+        <div className="ui-table-wrap hs-table-scroll">
+          <table className="ui-table">
+            <thead>
+              <tr>
+                <th>Día</th>
+                <th className="n">Mensajes</th>
+                <th className="n">Entrada</th>
+                <th className="n">Salida</th>
+                <th className="n">Caché leída</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.days.map((d) => (
+                <tr key={d.day}>
+                  <td>{dayLabel(d.day)}</td>
+                  <td className="n">{formatInt(d.messages)}</td>
+                  <td className="n">{formatInt(d.input)}</td>
+                  <td className="n">{formatInt(d.output)}</td>
+                  <td className="n">{formatInt(d.cache_read)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {history.days.map((d) => (
-                  <tr key={d.day}>
-                    <td>{dayLabel(d.day)}</td>
-                    <td className="n">{formatInt(d.messages)}</td>
-                    <td className="n">{formatInt(d.input)}</td>
-                    <td className="n">{formatInt(d.output)}</td>
-                    <td className="n">{formatInt(d.cache_read)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <svg viewBox={`0 0 ${W} ${H}`} className="hs-chart" role="img" aria-label="Tokens de salida por día">
-            <line x1={0} x2={W} y1={top} y2={top} className="hs-grid" />
-            <line x1={0} x2={W} y1={top + plot / 2} y2={top + plot / 2} className="hs-grid" />
-            <text x={0} y={top - 4} className="hs-tick">
-              {formatCompact(max)}
-            </text>
-            {days.map((day, i) => {
-              const v = byDay.get(day)?.output ?? 0;
-              const h = v === 0 ? 0 : Math.max(2, (v / max) * plot);
-              const x = i * step + (step - bar) / 2;
-              const r = Math.min(4, bar / 2, h);
-              const y = top + plot - h;
-              return (
-                <g key={day} className="hs-col">
-                  {h > 0 && (
-                    <path
-                      className="hs-bar"
-                      d={`M${x},${top + plot} V${y + r} Q${x},${y} ${x + r},${y} H${x + bar - r} Q${x + bar},${y} ${x + bar},${y + r} V${top + plot} Z`}
-                    />
-                  )}
-                  {/* Zona de hover más grande que la barra. */}
-                  <rect x={i * step} y={top} width={step} height={plot} className="hs-hit">
-                    <title>
-                      {`${dayLabel(day)}: ${formatInt(v)} tokens de salida, ${formatInt(byDay.get(day)?.messages ?? 0)} mensajes`}
-                    </title>
-                  </rect>
-                </g>
-              );
-            })}
-            <line x1={0} x2={W} y1={top + plot} y2={top + plot} className="hs-axis" />
-            {[0, Math.floor((days.length - 1) / 2), days.length - 1]
-              .filter((v, i, a) => a.indexOf(v) === i)
-              .map((i) => (
-                <text
-                  key={i}
-                  x={i * step + step / 2}
-                  y={H - 6}
-                  textAnchor={i === 0 ? "start" : i === days.length - 1 ? "end" : "middle"}
-                  className="hs-tick"
-                >
-                  {dayLabel(days[i])}
-                </text>
               ))}
-          </svg>
-        )}
-      </div>
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="hs-prisms">
+          <Prisms
+            data={days.map((day) => {
+              const v = byDay.get(day)?.output ?? 0;
+              return {
+                key: day,
+                value: v,
+                label: `${dayLabel(day)} · ${formatInt(v)} tokens · ${formatInt(byDay.get(day)?.messages ?? 0)} mensajes`,
+              };
+            })}
+            label={`Tokens de salida por día; máximo ${formatInt(peak)}`}
+            height={220}
+            depth={dense ? 6 : 13}
+            gap={dense ? 3 : 10}
+          />
+          <div className="hs-axis-labels" aria-hidden="true">
+            <span>{dayLabel(days[0])}</span>
+            <span>{dayLabel(middle)}</span>
+            <span>{dayLabel(days[days.length - 1])} · hoy</span>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
@@ -201,6 +173,16 @@ function LimitsChart({ history, now, days }: { history: History; now: number; da
     >
       <div ref={plotRef}>
         <svg viewBox={`0 0 ${W} ${H}`} className="hs-chart" role="img" aria-label="Uso de los límites de 5 horas y 7 días">
+          <defs>
+            <linearGradient id="hs-area-1" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" className="hs-stop-1" stopOpacity="0.35" />
+              <stop offset="1" className="hs-stop-1" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id="hs-area-2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" className="hs-stop-2" stopOpacity="0.4" />
+              <stop offset="1" className="hs-stop-2" stopOpacity="0" />
+            </linearGradient>
+          </defs>
           <line x1={0} x2={W - right} y1={y(100)} y2={y(100)} className="hs-grid" />
           <line x1={0} x2={W - right} y1={y(50)} y2={y(50)} className="hs-grid" />
           <text x={0} y={y(100) - 4} className="hs-tick">
@@ -226,9 +208,12 @@ function LimitsChart({ history, now, days }: { history: History; now: number; da
             });
             const last = points[points.length - 1];
             d += ` H${x(now)}`;
+            const area = `${d} V${y(0)} H${x(points[0].ts)} Z`;
             return (
               <g key={kind}>
+                <path d={area} fill={`url(#hs-area-${i + 1})`} />
                 <path d={d} className={`hs-line hs-s${i + 1}`} />
+                <circle cx={x(now)} cy={y(last.percent_used)} r={4.5} className={`hs-end hs-s${i + 1}`} />
                 <text x={x(now) + 8} y={y(last.percent_used) + 4} className="hs-direct">
                   {LIMIT_LABEL[kind] ?? kind} {Math.round(last.percent_used)} %
                 </text>
@@ -315,6 +300,7 @@ export function HistoryView({ now }: { now: number }) {
 
   return (
     <View
+      room="history"
       title="Histórico"
       summary="Consumo, herramientas y límites. El coste es una estimación del propio cliente."
       actions={
@@ -351,16 +337,16 @@ export function HistoryView({ now }: { now: number }) {
       {history && (
         <div className="hs-stack">
           <div className="hs-tiles">
-            <Card>
+            <Card className="hs-tile hs-tile-1">
               <Metric size="lg" icon="activity" label="Mensajes de la API" value={formatInt(totals.messages)} />
             </Card>
-            <Card>
+            <Card className="hs-tile hs-tile-2">
               <Metric size="lg" icon="history" label="Tokens de salida" value={formatCompact(totals.output)} />
             </Card>
-            <Card>
+            <Card className="hs-tile hs-tile-3">
               <Metric size="lg" icon="database" label="Tokens leídos de caché" value={formatCompact(totals.cache_read)} />
             </Card>
-            <Card>
+            <Card className="hs-tile hs-tile-4">
               <Metric
                 size="lg"
                 icon="coin"

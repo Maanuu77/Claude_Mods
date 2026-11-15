@@ -1,4 +1,4 @@
-/* Base: reinicio, tipografía, foco, barras de desplazamiento y utilidades. */
+/* Base: reinicio, tipografía, foco, barras de desplazamiento, utilidades y movimiento. */
 
 *,
 *::before,
@@ -59,31 +59,32 @@ button:disabled {
 }
 
 a {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 :focus {
   outline: none;
 }
 
+/* Foco: anillo cian con halo, visible sobre cualquier plano. */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--cyan);
   outline-offset: 2px;
   border-radius: var(--r-sm);
+  box-shadow: 0 0 0 4px rgba(46, 230, 255, 0.18), 0 0 18px rgba(46, 230, 255, 0.45);
 }
 
 ::selection {
-  background: var(--accent-soft);
-  color: var(--text);
+  background: rgba(46, 230, 255, 0.3);
+  color: #fff;
 }
 
-/* Barras de desplazamiento finas y discretas en las dos superficies. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-color: rgba(138, 184, 255, 0.3) transparent;
 }
 
-/* Utilidades de lectura (DESIGN.md §1, principio 2). */
+/* Utilidades de lectura. */
 .num {
   font-variant-numeric: tabular-nums;
 }
@@ -130,15 +131,18 @@ a {
   white-space: nowrap;
 }
 
-@keyframes ui-pulse {
-  0%,
-  100% {
-    opacity: 1;
+/*
+ * Movimiento. Solo se animan transform y opacity (en el compositor). Las animaciones
+ * continuas son solo de lo vivo; con la ventana oculta se pausa todo (App.tsx).
+ */
+@keyframes ui-ping {
+  from {
     transform: scale(1);
+    opacity: 0.9;
   }
-  50% {
-    opacity: 0.45;
-    transform: scale(0.82);
+  to {
+    transform: scale(3.2);
+    opacity: 0;
   }
 }
 
@@ -150,22 +154,81 @@ a {
 
 @keyframes ui-shimmer {
   from {
-    background-position: -200px 0;
+    transform: translateX(-100%);
   }
   to {
-    background-position: 200px 0;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes ui-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+
+@keyframes ui-breathe {
+  50% {
+    transform: scale(0.94);
+    opacity: 0.85;
   }
 }
 
 @keyframes ui-enter {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(14px) scale(0.985);
   }
   to {
     opacity: 1;
     transform: none;
   }
+}
+
+@keyframes ui-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ui-ring1 {
+  from {
+    transform: rotateX(72deg) rotateZ(0deg);
+  }
+  to {
+    transform: rotateX(72deg) rotateZ(360deg);
+  }
+}
+
+@keyframes ui-ring2 {
+  from {
+    transform: rotateY(64deg) rotateZ(0deg);
+  }
+  to {
+    transform: rotateY(64deg) rotateZ(-360deg);
+  }
+}
+
+@keyframes ui-ring3 {
+  from {
+    transform: rotateX(28deg) rotateY(-46deg) rotateZ(0deg);
+  }
+  to {
+    transform: rotateX(28deg) rotateY(-46deg) rotateZ(360deg);
+  }
+}
+
+/* Ventana oculta o minimizada: nada se mueve (criterio de reposo B8). */
+:root[data-paused] *,
+:root[data-paused] *::before,
+:root[data-paused] *::after {
+  animation-play-state: paused !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

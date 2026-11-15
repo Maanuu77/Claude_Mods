@@ -2,7 +2,7 @@
  * Componentes compartidos del sistema visual (docs/DESIGN.md §6). Las vistas no
  * definen botones, insignias, avisos ni estados propios: usan estos.
  */
-import { type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode, useId } from "react";
+import { type ButtonHTMLAttributes, type CSSProperties, type KeyboardEvent, type ReactNode, useId } from "react";
 import { Icon, type IconName } from "./icons";
 import type { Tone } from "./tone";
 
@@ -265,13 +265,61 @@ export function ProgressBar({
   );
 }
 
-/** Uso de 0 a 100 % con su cifra; el tono lo decide quien llama (`usageTone`). */
-export function Meter({ percent, tone, label }: { percent: number; tone: Tone; label: string }) {
+/**
+ * Dial holográfico de 0 a 100 % (contexto, límites): aro de 270° proyectado sobre su
+ * base. Sin dato (`null`), el dial queda apagado con su explicación.
+ */
+export function Gauge({
+  percent,
+  tone,
+  label,
+  emptyHint = "sin dato",
+}: {
+  percent: number | null;
+  tone: Tone;
+  label: string;
+  emptyHint?: string;
+}) {
+  const arc = 179; // 270° de un aro de radio 38 (perímetro 239).
+  const value = percent === null ? 0 : Math.min(100, Math.max(0, percent));
   return (
-    <div className="ui-meter">
-      <span className="ui-meter-label">{label}</span>
-      <ProgressBar value={percent} max={100} tone={tone} size="sm" label={`${label}: ${Math.round(percent)} %`} />
-      <span className="ui-meter-value num">{Math.round(percent)} %</span>
+    <div
+      className={cx("ui-gauge", `ui-tone-${percent === null ? "neutral" : tone}`, percent === null && "ui-gauge-empty")}
+      role="img"
+      aria-label={percent === null ? `${label}: ${emptyHint}` : `${label}: ${Math.round(value)} %`}
+    >
+      <svg width="104" height="104" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="46" fill="none" className="ui-gauge-ticks" strokeWidth="1" strokeDasharray="1 5" transform="rotate(135 50 50)" />
+        <circle cx="50" cy="50" r="38" fill="none" className="ui-gauge-track" strokeWidth="7" strokeDasharray={`${arc} 239`} strokeLinecap="round" transform="rotate(135 50 50)" />
+        {percent !== null && value > 0 && (
+          <circle cx="50" cy="50" r="38" fill="none" className="ui-gauge-arc" strokeWidth="7" strokeDasharray={`${(arc * value) / 100} 239`} strokeLinecap="round" transform="rotate(135 50 50)" />
+        )}
+      </svg>
+      <span className="ui-gauge-value">
+        {percent === null ? "—" : Math.round(value)}
+        {percent !== null && <small> %</small>}
+      </span>
+      <span className="ui-gauge-cone" aria-hidden="true" />
+      <span className="ui-gauge-base" aria-hidden="true" />
+      <span className="ui-gauge-label">{label}</span>
+      {percent === null && <span className="ui-field-help">{emptyHint}</span>}
+    </div>
+  );
+}
+
+/** Reactor de sesión: anillos 3D del color de su estado; solo giran si la sesión trabaja. */
+export function Reactor({ tone, live, size = "md", label }: { tone: Tone; live: boolean; size?: "sm" | "md"; label?: string }) {
+  return (
+    <div
+      className={cx("ui-reactor", `ui-tone-${tone}`, live && "ui-reactor-live", size === "sm" && "ui-reactor-sm")}
+      role={label ? "img" : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+    >
+      <span className="ui-reactor-ring ui-reactor-r1" />
+      <span className="ui-reactor-ring ui-reactor-r2" />
+      <span className="ui-reactor-ring ui-reactor-r3" />
+      <span className="ui-reactor-core" />
     </div>
   );
 }
@@ -279,10 +327,13 @@ export function Meter({ percent, tone, label }: { percent: number; tone: Tone; l
 // --- Estructura -----------------------------------------------------------------
 
 export function ViewHeader({
+  eyebrow,
   title,
   summary,
   actions,
 }: {
+  /** Antetítulo HUD: el nombre de la sala y su número. */
+  eyebrow?: string;
   title: string;
   summary?: ReactNode;
   actions?: ReactNode;
@@ -290,6 +341,7 @@ export function ViewHeader({
   return (
     <header className="ui-view-head">
       <div className="ui-view-titles">
+        {eyebrow && <p className="ui-eyebrow">{eyebrow}</p>}
         <h1>{title}</h1>
         {summary && <p className="ui-view-summary">{summary}</p>}
       </div>
@@ -303,6 +355,8 @@ export function Card({
   subtitle,
   actions,
   edge,
+  live = false,
+  plane,
   className,
   children,
   as: Tag = "section",
@@ -311,15 +365,28 @@ export function Card({
   title?: ReactNode;
   subtitle?: ReactNode;
   actions?: ReactNode;
-  /** Filo de estado: solo para entidades vivas (sesiones, subagentes). */
+  /** Canto de estado encendido: solo para entidades vivas (sesiones, subagentes). */
   edge?: Tone;
+  /** La entidad trabaja: un barrido de luz recorre su canto. */
+  live?: boolean;
+  /** Plano de profundidad: más cerca o más lejos (DESIGN.md §5). */
+  plane?: "lift" | "far";
   className?: string;
   children?: ReactNode;
   as?: "section" | "article" | "div";
   titleAttr?: string;
 }) {
   return (
-    <Tag className={cx("ui-card", edge && "ui-card-edge", edge && `ui-tone-${edge}`, className)}>
+    <Tag
+      className={cx(
+        "ui-card",
+        edge && "ui-card-edge",
+        edge && `ui-tone-${edge}`,
+        plane && `ui-card-${plane}`,
+        className,
+      )}
+    >
+      {edge && <span className={cx("ui-card-beam", live && "ui-card-beam-live")} aria-hidden="true" />}
       {(title || actions) && (
         <header className="ui-card-head">
           <div className="ui-card-titles">
@@ -487,29 +554,75 @@ export function Skeleton({ lines = 3 }: { lines?: number }) {
 
 // --- Datos ------------------------------------------------------------------------
 
-/** Actividad por minuto (barras finas). Serie única: `--series-1`. */
-export function Sparkline({ values, label, width = 180, height = 28 }: { values: number[]; label: string; width?: number; height?: number }) {
-  const max = Math.max(1, ...values);
-  const step = width / Math.max(1, values.length);
-  const bar = Math.max(1, step - 2);
+export interface PrismDatum {
+  key: string;
+  value: number;
+  /** Texto del tooltip: fecha y cifra legibles. */
+  label: string;
+}
+
+/**
+ * Prismas 3D en proyección oblicua (una serie). La base es horizontal: las alturas se
+ * comparan sin distorsión. El máximo lleva su etiqueta; los demás, al pasar el ratón.
+ */
+export function Prisms({
+  data,
+  label,
+  height = 200,
+  depth = 12,
+  gap = 10,
+  maxWidth = 30,
+  markPeak = true,
+}: {
+  data: PrismDatum[];
+  label: string;
+  height?: number;
+  depth?: number;
+  gap?: number;
+  maxWidth?: number;
+  markPeak?: boolean;
+}) {
+  const max = Math.max(0, ...data.map((d) => d.value));
+  const peak = markPeak && max > 0 ? data.findIndex((d) => d.value === max) : -1;
+  const style = { "--hh": `${height}px`, "--d": `${depth}px`, "--gap": `${gap}px`, "--max": `${maxWidth}px` } as CSSProperties;
   return (
-    <svg className="ui-spark" viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label={label}>
-      <line x1={0} x2={width} y1={height - 0.5} y2={height - 0.5} className="ui-spark-base" />
+    <div className="ui-prisms" style={style} role="img" aria-label={label}>
+      {data.map((d, i) => {
+        const pct = max > 0 ? (d.value / max) * 100 : 0;
+        return (
+          <span
+            key={d.key}
+            className={cx("ui-prism", d.value === 0 && "ui-prism-zero", i === peak && "ui-prism-peak")}
+            style={{ "--v": `${Math.max(pct, d.value > 0 ? 1.5 : 0)}%` } as CSSProperties}
+            title={d.label}
+          >
+            {d.value > 0 && (
+              <span className={cx("ui-prism-tip", i < data.length * 0.2 && "ui-prism-tip-start", i > data.length * 0.8 && "ui-prism-tip-end")}>
+                {d.label}
+              </span>
+            )}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Estela de actividad: una luz por minuto con herramientas; más ancha cuantas más hubo. */
+export function Trail({ values, label }: { values: number[]; label: string }) {
+  const max = Math.max(1, ...values);
+  const step = 100 / Math.max(1, values.length);
+  return (
+    <div className="ui-trail" role="img" aria-label={label}>
       {values.map((n, i) =>
         n === 0 ? null : (
-          <rect
+          <i
             key={i}
-            x={i * step + 1}
-            y={height - Math.max(2, Math.round((n / max) * (height - 2)))}
-            width={bar}
-            height={Math.max(2, Math.round((n / max) * (height - 2)))}
-            rx={Math.min(1.5, bar / 2)}
-            className="ui-spark-bar"
-          >
-            <title>{`${n} ${n === 1 ? "herramienta" : "herramientas"}`}</title>
-          </rect>
+            style={{ left: `calc(${i * step}% + 4px)`, "--w": `${6 + Math.round((n / max) * 18)}px` } as CSSProperties}
+          />
         ),
       )}
-    </svg>
+      <span className="ui-trail-now" aria-hidden="true" />
+    </div>
   );
 }

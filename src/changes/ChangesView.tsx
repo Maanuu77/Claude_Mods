@@ -84,15 +84,24 @@ function buildRows(events: FileEventView[]): Row[] {
 
 const clock = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
+/** Ancho de la barra de luz de un +/−: crece despacio para que 1.253 líneas no aplasten a 12. */
+function barWidth(n: number): string {
+  return `${n > 0 ? Math.min(40, 4 + Math.log2(n + 1) * 4) : 0}px`;
+}
+
 function Counts({ file }: { file: DirtyFile | undefined }) {
   if (!file) return <span className="ch-counts" />;
   if (file.added === null && file.deleted === null) {
     return <span className="ch-counts faint">{file.status === "untracked" ? "nuevo" : "binario"}</span>;
   }
+  const added = file.added ?? 0;
+  const deleted = file.deleted ?? 0;
   return (
-    <span className="ch-counts num">
-      <span className="ch-plus">+{formatInt(file.added ?? 0)}</span>
-      <span className="ch-minus">−{formatInt(file.deleted ?? 0)}</span>
+    <span className="ch-counts num" title={`${formatInt(added)} líneas añadidas, ${formatInt(deleted)} quitadas`}>
+      <span className="ch-plus">+{formatInt(added)}</span>
+      <i className="ch-bar ch-bar-plus" style={{ width: barWidth(added) }} aria-hidden="true" />
+      <i className="ch-bar ch-bar-minus" style={{ width: barWidth(deleted) }} aria-hidden="true" />
+      <span className="ch-minus">−{formatInt(deleted)}</span>
     </span>
   );
 }
@@ -113,24 +122,29 @@ function ActorBadge({ event }: { event: FileEventView }) {
   );
 }
 
+/** Un cambio que acaba de llegar brilla unos segundos (entra desde el fondo). */
+const FRESH_MS = 6_000;
+
 function EventRow({
   event,
   grouped,
   dirty,
   selected,
+  fresh,
   onSelect,
 }: {
   event: FileEventView;
   grouped: boolean;
   dirty: DirtyFile | undefined;
   selected: boolean;
+  fresh: boolean;
   onSelect: (path: string) => void;
 }) {
   const path = event.rel_path;
   return (
     <button
       type="button"
-      className={`ch-row${grouped ? " ch-row-grouped" : ""}${selected ? " ch-row-on" : ""}`}
+      className={`ch-row${grouped ? " ch-row-grouped" : ""}${selected ? " ch-row-on" : ""}${fresh ? " ch-row-new" : ""}`}
       onClick={() => path && onSelect(path)}
       disabled={!path}
     >
@@ -150,11 +164,13 @@ function EventList({
   rows,
   dirty,
   selected,
+  now,
   onSelect,
 }: {
   rows: Row[];
   dirty: Map<string, DirtyFile>;
   selected: string | null;
+  now: number;
   onSelect: (path: string) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -192,6 +208,7 @@ function EventList({
                   grouped={row.grouped}
                   dirty={row.event.rel_path ? dirty.get(row.event.rel_path) : undefined}
                   selected={row.event.rel_path === selected}
+                  fresh={now - row.event.ts < FRESH_MS}
                   onSelect={onSelect}
                 />
               )}
@@ -261,6 +278,7 @@ function RootPanel({ ws, now }: { ws: WorkspaceView; now: number }) {
   const sessions = ws.sessions.length;
   return (
     <Card
+      plane="lift"
       className="ch-panel"
       title={ws.name}
       titleAttr={ws.root}
@@ -303,7 +321,7 @@ function RootPanel({ ws, now }: { ws: WorkspaceView; now: number }) {
               </EmptyState>
             </div>
           ) : (
-            <EventList rows={rows} dirty={dirty} selected={selected} onSelect={setSelected} />
+            <EventList rows={rows} dirty={dirty} selected={selected} now={now} onSelect={setSelected} />
           )}
           {history !== "done" && (
             <div className="ch-more">
@@ -378,6 +396,7 @@ export function ChangesView({ now }: { now: number }) {
 
   return (
     <View
+      room="changes"
       title="Cambios en directo"
       summary={
         list.length === 0

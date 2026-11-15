@@ -1,35 +1,67 @@
-/* Vista «Tareas» (docs/DESIGN.md §8). */
+/* Vista «Tareas», el plan de misión (docs/DESIGN.md §8). */
 
-.tm-list + .tm-list {
-  margin-top: var(--sp-2);
+.tm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.tm-lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0 24px;
 }
 .tm-list .ui-section-label:first-child {
   margin-top: 0;
 }
 .tm-count {
   color: var(--text-muted);
-  font-size: var(--fs-meta);
+  font: 600 12px/1 var(--font-display);
+  letter-spacing: 0.06em;
 }
 
-.tm-items {
+/* Columna de misión: los pasos sobre una espina de luz que se enciende hasta el paso en curso. */
+.tm-spine {
+  position: relative;
   display: grid;
-  gap: 1px;
-  margin-top: var(--sp-2);
+  gap: 3px;
+  margin-top: var(--sp-3);
+  padding-left: 28px;
 }
-.tm-item {
+.tm-spine::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(var(--positive), var(--cyan) var(--lit, 0%), rgba(138, 184, 255, 0.16) var(--lit, 0%));
+  box-shadow: 0 0 10px rgba(46, 230, 255, 0.45);
+}
+.tm-step {
+  --node: var(--text-faint);
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  min-height: 28px;
-  padding: 3px var(--sp-2);
-  border-radius: var(--r-sm);
   min-width: 0;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: var(--r-sm);
 }
-.tm-mark {
-  display: grid;
-  place-items: center;
-  flex: none;
-  color: var(--text-faint);
+.tm-step::before {
+  content: "";
+  position: absolute;
+  left: -23px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 2px var(--node), 0 0 10px var(--node);
 }
 .tm-title {
   flex: 1;
@@ -38,55 +70,159 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tm-completed .tm-mark {
-  color: var(--positive);
-}
-.tm-completed .tm-title {
+.tm-completed {
+  --node: var(--positive);
   color: var(--text-muted);
 }
-.tm-in_progress {
-  background: var(--accent-soft);
+.tm-completed::before {
+  background: var(--positive);
 }
-.tm-in_progress .tm-mark,
+.tm-in_progress {
+  --node: var(--cyan);
+  color: #fff;
+  background: linear-gradient(90deg, rgba(46, 230, 255, 0.18), rgba(61, 123, 255, 0.06) 70%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(46, 230, 255, 0.38), 0 0 26px -8px rgba(46, 230, 255, 0.85);
+}
+.tm-in_progress::before {
+  background: var(--cyan);
+}
+.tm-in_progress::after {
+  content: "";
+  position: absolute;
+  left: -24px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cyan);
+  animation: ui-ping 1.8s ease-out infinite;
+}
 .tm-in_progress .tm-title {
-  color: var(--accent-text);
   font-weight: 600;
+}
+.tm-deleted {
+  color: var(--text-faint);
+}
+.tm-deleted .tm-title {
+  text-decoration: line-through;
+}
+
+/* Subagentes: constelación + lista. */
+.tm-agents {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--sp-3) 24px;
+  align-items: center;
+}
+.tm-space {
+  position: relative;
+  height: 230px;
+  padding: 44px 34px 0;
+  perspective: 1100px;
+  perspective-origin: 50% 0;
+}
+.tm-plane {
+  position: relative;
+  height: 180px;
+  border-radius: 24px;
+  transform-style: preserve-3d;
+  transform: rotateX(56deg) rotateZ(-8deg);
+  background:
+    radial-gradient(closest-side, rgba(61, 123, 255, 0.22), transparent),
+    linear-gradient(rgba(46, 230, 255, 0.14) 1px, transparent 1px) 0 0 / 34px 34px,
+    linear-gradient(90deg, rgba(46, 230, 255, 0.14) 1px, transparent 1px) 0 0 / 34px 34px;
+  box-shadow: inset 0 0 0 1px rgba(46, 230, 255, 0.25), 0 0 80px -20px rgba(46, 230, 255, 0.5);
+}
+.tm-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.tm-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  transform-style: preserve-3d;
+}
+.tm-disc {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--tone), transparent);
+  box-shadow: 0 0 22px 4px var(--tone-glow);
+}
+.tm-pin {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  width: 2px;
+  height: var(--hz, 40px);
+  margin-left: -1px;
+  transform-origin: 50% 100%;
+  transform: rotateX(-90deg);
+  background: linear-gradient(to top, var(--tone), transparent);
+  box-shadow: 0 0 10px var(--tone-glow);
+}
+/* Etiqueta en la punta del pin, deshaciendo la inclinación del plano: siempre de frente. */
+.tm-node-card {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  display: block;
+  transform-origin: 50% 100%;
+  transform: translateX(-50%) translateZ(var(--hz, 40px)) rotateZ(8deg) rotateX(-56deg);
+  padding: 5px 9px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, rgba(40, 70, 160, 0.6), rgba(6, 10, 28, 0.9));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 60%, transparent), 0 0 26px -6px var(--tone-glow);
+  text-align: center;
+  white-space: nowrap;
+}
+.tm-node-card b {
+  display: block;
+  color: #fff;
+  font: 600 12.5px/16px var(--font-display);
+  letter-spacing: 0.04em;
+}
+.tm-node-card span {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  line-height: 13px;
 }
 
 .tm-tree {
   display: grid;
   margin-left: 3px;
   padding-left: var(--sp-4);
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--border-strong);
 }
 .tm-tree-root {
   margin-left: 0;
-  padding-left: 0;
+  padding: 6px 12px;
   border-left: 0;
 }
 .tm-agent {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  min-height: 28px;
+  min-height: 30px;
 }
 .tm-agent-type {
-  font-weight: 600;
+  font: 600 13px/1 var(--font-display);
+  letter-spacing: 0.04em;
   white-space: nowrap;
 }
 .tm-agent-time {
   margin-left: auto;
   color: var(--text-muted);
-  font-size: var(--fs-meta);
+  font: 400 12px/1 var(--font-display);
 }
 
-.tm-activity {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-4);
-}
 .tm-activity-text {
+  margin-top: 18px;
   font-size: var(--fs-meta);
   line-height: 18px;
 }

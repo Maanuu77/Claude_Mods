@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type CSSProperties, useMemo } from "react";
 import { NODE_HEIGHT, layeredLayout, type Point } from "./layout";
 import type { Component, Dependency } from "./types";
 
@@ -37,7 +37,8 @@ function truncate(text: string, width: number, charWidth: number): string {
  * Grafo de componentes (SPEC §9, G8): quien depende arriba, aquello de lo que
  * depende abajo; los grupos (workspaces, soluciones) encima de sus miembros.
  * Línea continua = depende de; discontinua = contiene. La lista de la derecha es
- * su alternativa en texto.
+ * su alternativa en texto. Con pocos componentes se dibuja como constelación sobre
+ * un plano holográfico; las etiquetas se mantienen de frente (DESIGN.md §8).
  */
 export function ComponentGraph({ components, deps }: { components: Component[]; deps: Dependency[] }) {
   const graph = useMemo(() => {
@@ -63,21 +64,84 @@ export function ComponentGraph({ components, deps }: { components: Component[]; 
   if (edges.length === 0) return null;
   const w = layout.width + PAD * 2;
   const h = layout.height + PAD * 2;
+  // La constelación solo cuando las etiquetas caben sin montarse; si no, el grafo plano.
+  const spatial = components.length <= 12 && w <= 1100;
+  const key = (
+    <span className="pm-graph-key">
+      <svg width="22" height="8" aria-hidden="true">
+        <line x1="0" y1="4" x2="22" y2="4" className="pm-edge" />
+      </svg>
+      depende de
+      <svg width="22" height="8" aria-hidden="true">
+        <line x1="0" y1="4" x2="22" y2="4" className="pm-edge pm-edge-module" />
+      </svg>
+      contiene
+    </span>
+  );
+
+  if (spatial) {
+    const top = Math.min(...[...layout.nodes.values()].map((n) => n.y));
+    const span = Math.max(1, Math.max(...[...layout.nodes.values()].map((n) => n.y)) - top);
+    return (
+      <figure className="pm-graph">
+        <figcaption>
+          Constelación de componentes
+          {key}
+        </figcaption>
+        <div className="pm-space" role="img" aria-label={`Grafo de ${components.length} componentes y ${edges.length} relaciones internas`}>
+          <div className="pm-plane" style={{ aspectRatio: `${w} / ${h}`, width: `min(100%, ${Math.round((680 * w) / h)}px)` }}>
+            <svg className="pm-links" viewBox={`${-PAD} ${-PAD} ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
+              {edges.map((e, i) => {
+                const route = layout.routes[i];
+                if (!route) return null;
+                return (
+                  <path
+                    key={`${e.from}-${e.to}`}
+                    d={pathOf(route)}
+                    className={e.module ? "pm-edge pm-edge-module" : "pm-edge"}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                );
+              })}
+            </svg>
+            {[...layout.nodes.values()].map((n) => {
+              const c = byId.get(n.id)!;
+              const meta = `${c.ecosystem}${c.version ? ` · v${c.version}` : ""}`;
+              // Más arriba en el grafo (quien depende), más alto el pilar de luz.
+              const height = Math.round(30 + (1 - (n.y - top) / span) * 36);
+              return (
+                <span
+                  key={n.id}
+                  className={c.is_group ? "pm-star pm-star-group" : "pm-star"}
+                  style={
+                    {
+                      left: `${((n.x + n.width / 2 + PAD) / w) * 100}%`,
+                      top: `${((n.y + NODE_HEIGHT / 2 + PAD) / h) * 100}%`,
+                      "--hz": `${height}px`,
+                    } as CSSProperties
+                  }
+                  title={`${c.name} (${c.ecosystem}) · ${c.rel_dir || "."}`}
+                >
+                  <span className="pm-star-disc" />
+                  <span className="pm-star-pin" />
+                  <span className="pm-star-card">
+                    <b>{c.name}</b>
+                    <span>{meta}</span>
+                  </span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      </figure>
+    );
+  }
 
   return (
     <figure className="pm-graph">
       <figcaption>
         Grafo de componentes
-        <span className="pm-graph-key">
-          <svg width="22" height="8" aria-hidden="true">
-            <line x1="0" y1="4" x2="22" y2="4" className="pm-edge" />
-          </svg>
-          depende de
-          <svg width="22" height="8" aria-hidden="true">
-            <line x1="0" y1="4" x2="22" y2="4" className="pm-edge pm-edge-module" />
-          </svg>
-          contiene
-        </span>
+        {key}
       </figcaption>
       <div className="pm-graph-scroll">
         <svg

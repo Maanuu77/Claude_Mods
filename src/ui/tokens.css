@@ -1,56 +1,70 @@
 /*
- * Tokens del sistema visual «Instrumento» (docs/DESIGN.md §2).
- * Ningún componente usa valores literales: todo sale de aquí.
- * El tema sigue al sistema; claro y oscuro están diseñados por separado.
+ * Tokens del sistema visual «Holographic» (docs/DESIGN.md §2).
+ * Ningún componente usa valores literales de color: todo sale de aquí.
+ * Un solo tema, oscuro: el espacio de mando es la identidad de DEV COCKPIT.
  */
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  /* Superficies y texto */
-  --bg: #f4f5f7;
-  --nav: #fbfbfc;
-  --surface: #ffffff;
-  --sunken: #f8f9fb;
-  --hover: #f1f3f6;
-  --border: #e2e5eb;
-  --border-strong: #cdd2db;
-  --text: #161a21;
-  --text-muted: #566070;
-  --text-faint: #79828f;
+  /* Espacio y cristal */
+  --bg: #03050c;
+  --surface: rgba(12, 18, 40, 0.66);
+  --surface-solid: #0b1126;
+  /* Cristal sin desenfoque de fondo (backdrop-filter): detrás solo hay espacio estático, y así
+     la GPU no guarda una textura por panel (presupuesto de memoria de B8). */
+  --glass: linear-gradient(158deg, rgba(44, 72, 156, 0.4), rgba(11, 17, 40, 0.86) 52%, rgba(8, 12, 30, 0.92));
+  --glass-dock: linear-gradient(170deg, rgba(36, 58, 130, 0.46), rgba(7, 11, 26, 0.9));
+  --rim: linear-gradient(140deg, rgba(138, 184, 255, 0.7), rgba(160, 123, 255, 0.24) 42%, rgba(46, 230, 255, 0.5));
+  --sunken: rgba(2, 5, 14, 0.55);
+  --hover: rgba(138, 184, 255, 0.08);
+  --border: rgba(138, 184, 255, 0.12);
+  --border-strong: rgba(138, 184, 255, 0.26);
 
-  /* Semántica (DESIGN.md §3) */
-  --accent: #2459db;
-  --accent-hover: #1d4bbf;
-  --accent-soft: #eaf0ff;
-  --accent-text: #1d4bbf;
-  --on-accent: #ffffff;
-  --positive: #147a3b;
-  --positive-soft: #e5f5eb;
-  --attention: #9a5800;
-  --attention-soft: #fff3dd;
-  --critical: #c02828;
-  --critical-soft: #fdebeb;
-  --neutral: #566070;
-  --neutral-soft: #eef0f4;
+  /* Texto: contraste ≥ 4,5:1 sobre el cristal en su punto más claro */
+  --text: #eaf2ff;
+  --text-muted: #a9b8d8;
+  --text-faint: #8fa0c4;
 
-  /* Datos (validados con la guía de visualización) */
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --chart-grid: #e8ebf0;
-  --diff-add: #e5f5eb;
-  --diff-del: #fdebeb;
+  /* Luz: azul eléctrico, cian, violeta y acentos verdes (DESIGN.md §3) */
+  --accent: #3d7bff;
+  --accent-hover: #5f9bff;
+  --accent-soft: rgba(61, 123, 255, 0.16);
+  --accent-text: #8ab8ff;
+  --accent-grad: linear-gradient(120deg, #5f9bff, #2ee6ff);
+  --on-accent: #041022;
+  --cyan: #2ee6ff;
+  --violet: #a07bff;
+  --violet-text: #c3a8ff;
+  --positive: #45ffb0;
+  --positive-soft: rgba(69, 255, 176, 0.12);
+  --attention: #ffc163;
+  --attention-soft: rgba(255, 193, 99, 0.12);
+  --critical: #ff6d8f;
+  --critical-soft: rgba(255, 109, 143, 0.12);
+  --neutral: #8fa0c4;
+  --neutral-soft: rgba(143, 160, 196, 0.12);
 
-  /* Tipografía */
+  /* Datos: par validado (banda de luminosidad, daltonismo ΔE 12, contraste) sobre #0B1126 */
+  --series-1: #109fcf;
+  --series-2: #8f5bff;
+  --prism-hi: #7fb4ff;
+  --prism-lo: #2a5be0;
+  --prism-side: #0a1a55;
+  --chart-grid: rgba(138, 184, 255, 0.14);
+  --diff-add: rgba(69, 255, 176, 0.12);
+  --diff-del: rgba(255, 109, 143, 0.12);
+
+  /* Tipografía: solo fuentes de Windows */
   --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Bahnschrift", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
   --font-mono: "Cascadia Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
   --fs-label: 11px;
   --fs-meta: 12px;
   --fs-body: 13px;
-  --fs-strong: 14px;
-  --fs-title: 18px;
+  --fs-strong: 15px;
+  --fs-title: 34px;
   --fs-metric: 22px;
-  --fs-hero: 28px;
+  --fs-hero: 40px;
 
   /* Espacio */
   --sp-1: 4px;
@@ -60,63 +74,27 @@
   --sp-5: 20px;
   --sp-6: 24px;
   --sp-8: 32px;
-  --gutter: 24px;
+  --gutter: 22px;
 
   /* Forma */
-  --r-xs: 4px;
-  --r-sm: 6px;
-  --r-md: 8px;
-  --r-lg: 12px;
-  --edge: 3px;
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --edge: 2px;
 
-  /* Profundidad */
-  --shadow-1: 0 1px 2px rgba(22, 26, 33, 0.05);
-  --shadow-2: 0 8px 28px rgba(22, 26, 33, 0.14), 0 2px 6px rgba(22, 26, 33, 0.06);
+  /* Profundidad: tres planos flotantes */
+  /* Desenfoques contenidos: cada sombra grande es una máscara que la GPU rasteriza y guarda. */
+  --shadow-1: 0 28px 48px -26px rgba(0, 0, 0, 0.95), 0 0 36px -14px rgba(61, 123, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --shadow-lift: 0 36px 60px -28px rgba(0, 0, 0, 1), 0 0 48px -14px rgba(61, 123, 255, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --shadow-2: 0 18px 40px -10px rgba(0, 0, 0, 0.9), 0 0 30px -8px rgba(46, 230, 255, 0.6);
 
   /* Movimiento */
-  --dur-fast: 120ms;
-  --dur-base: 180ms;
-  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --ease: cubic-bezier(0.2, 0.7, 0, 1);
 
   /* Estructura */
-  --sidebar: 220px;
-  --sidebar-rail: 64px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0e1116;
-    --nav: #11141a;
-    --surface: #161a21;
-    --sunken: #12161c;
-    --hover: #1c2129;
-    --border: #252b35;
-    --border-strong: #343c48;
-    --text: #e6e9ef;
-    --text-muted: #9aa3b2;
-    --text-faint: #737c8c;
-
-    --accent: #6e9cff;
-    --accent-hover: #93b4ff;
-    --accent-soft: #1a2640;
-    --accent-text: #93b4ff;
-    --on-accent: #0e1116;
-    --positive: #4dc48b;
-    --positive-soft: #122a1f;
-    --attention: #edb04d;
-    --attention-soft: #2d2310;
-    --critical: #f27070;
-    --critical-soft: #361a1d;
-    --neutral: #9aa3b2;
-    --neutral-soft: #222833;
-
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --chart-grid: #232933;
-    --diff-add: #122a1f;
-    --diff-del: #361a1d;
-
-    --shadow-1: none;
-    --shadow-2: 0 10px 32px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
-  }
+  --sidebar: 228px;
+  --sidebar-rail: 72px;
 }

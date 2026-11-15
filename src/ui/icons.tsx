@@ -205,9 +205,15 @@ export function Icon({
 export function LogoMark({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" className="ui-logo">
-      <rect width="32" height="32" rx="8" fill="#2459DB" />
-      <path d="M8.2 21.6a9 9 0 1 1 15.6 0" fill="none" stroke="#FFFFFF" strokeOpacity="0.38" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M8.2 21.6a9 9 0 0 1 11.6-12.4" fill="none" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" />
+      <defs>
+        <linearGradient id="dc-logo-g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#3D7BFF" />
+          <stop offset="1" stopColor="#A07BFF" />
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="9" fill="url(#dc-logo-g)" />
+      <path d="M8.2 21.6a9 9 0 1 1 15.6 0" fill="none" stroke="#FFFFFF" strokeOpacity="0.35" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M8.2 21.6a9 9 0 0 1 11.6-12.4" fill="none" stroke="#2EE6FF" strokeWidth="2.4" strokeLinecap="round" />
       <path d="M16 17.5l4.6-6.1" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
       <circle cx="16" cy="17.5" r="2.1" fill="#FFFFFF" />
     </svg>

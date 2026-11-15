@@ -1,7 +1,78 @@
-/* Vista «Diagnóstico» y ajustes de privacidad (docs/DESIGN.md §8). */
+/* Vista «Diagnóstico», los sistemas, y ajustes de privacidad (docs/DESIGN.md §8). */
 
 .dg-grid > .ui-notice {
   grid-column: 1 / -1;
+}
+
+/* Base de datos: cilindro holográfico por capas + lista exacta. */
+.dg-db {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.dg-db .ui-props {
+  flex: 1;
+  min-width: 0;
+}
+.dg-db .ui-prop {
+  grid-template-columns: minmax(84px, 40%) minmax(0, 1fr);
+}
+.dg-cyl {
+  position: relative;
+  flex: none;
+  width: 66px;
+  padding-top: 14px;
+}
+.dg-cseg {
+  position: relative;
+  display: block;
+  height: var(--h);
+  margin-top: -12px;
+  border-radius: 0 0 42px 42px / 0 0 12px 12px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 30%, #020615), var(--c) 46%, color-mix(in srgb, var(--c) 40%, #020615));
+  box-shadow: 0 0 24px -4px var(--c);
+  opacity: 0.92;
+}
+.dg-cseg::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -12px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--c) 60%, #fff), var(--c) 70%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+.dg-cseg:nth-child(1) {
+  z-index: 4;
+}
+.dg-cseg:nth-child(2) {
+  z-index: 3;
+}
+.dg-cseg:nth-child(3) {
+  z-index: 2;
+}
+.dg-cseg:nth-child(4) {
+  z-index: 1;
+}
+.dg-cyl-glow {
+  position: absolute;
+  left: -10px;
+  right: -10px;
+  bottom: -14px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(46, 230, 255, 0.5), transparent);
+}
+@media (max-width: 640px) {
+  .dg-db {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .dg-cyl {
+    margin: 0 auto;
+  }
 }
 
 .dg-sessions {
